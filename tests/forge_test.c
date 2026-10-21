@@ -3,7 +3,7 @@
 /* Felucca-FORGE (firmware/src/ui_forge.c): SEQ TOOLS F5 FORGE, on the real sequencer and UI sources (with the stubs of
  * tests/ui_test.c):
  *   open       F5 on a melodic track writes steps 1..LEN at once ("FORGE <seed> <style>"), F5 lit; past LEN untouched
- *   the steps  every note in ROOT / SCALE, step 1 a note, a TIE always after a note or a TIE, at most 4 notes a step,
+ *   the steps  every note in ROOT / SCALE, step 1 a note, a TIE always after a note or a TIE, at most 4 notes a step, VEL 40..124,
  *              notes 24..108, conditions / chances only with EVOLVE, none at EVOLVE 0 (a pure loop: copies the same)
  *   seeded     the same SEED STYLE DENSITY EVOLVE LEN ROOT SCALE: the same steps (again after other values); another
  *              SEED: other steps; DENSITY alone: the melody of the notes kept stays (the pitch stream is its own)
@@ -12,6 +12,7 @@
  *   close      OCT- cancels (the steps and a lock as they were), OCT+ / F5 again / the layer let go apply (an emptied
  *              step's lock goes); SAVE held after: one undo for all of it
  *   chords     (0.3) by interval: CHR minor 0 3 7 10, seven-note scales their own; TRANCE / SYNTH in CHR on the triad
+ *   rerolls    (0.4) C4 new notes, D4 a new rhythm while open; K1 starts them again; VEL by place
  *   golden     (0.3) pinned seeds: tests/forge_golden.txt
  *   DRUM       F5 is not there (nothing happens)
  * Built and run by tests/run_tests.sh. */
@@ -60,8 +61,8 @@ static const char *rules(const track_t *t, uint32_t len)
                 if (!tl_in_scale(t, s->note[k]))
                     return "a note out of the scale";
             }
-            if (s->vel != 96u)
-                return "VEL not 96";
+            if (s->vel < 40u || s->vel > 124u)
+                return "VEL out of 40..124";
         } else if (s->time == ST_TIE) {
             const step_t *p = &t->step[i - 1];
             if (!i || !((p->time == ST_NOTE && p->n) || p->time == ST_TIE))
@@ -378,6 +379,61 @@ static int test_golden(void)
     return check("pinned seeds: 8 styles x 4 settings x 3 seeds write the steps they wrote before", !miss && n == FS_N * 4u * 3u);
 }
 
+/* 0.4: C4 / D4 while FORGE is open reroll the notes / the rhythm alone; VEL by place */
+static int test_reroll(void)
+{
+    int bad = 0, ok;
+    step_t a[NSTEP], b[NSTEP];
+    uint32_t i, sd, beat = 0, nb = 0, off = 0, no = 0, same = 1, rhythm_same = 1, diff = 0;
+    track_t *t = melody(16);
+    go_page(GR_ROLL); frame();
+    btn_down(B_SEQ); frame();
+    forge_close(0);
+    fg.set = 1; fg.style = FS_BERLIN; fg.dens = 40; fg.evolve = 0; fg.seed = 42; fg.nvar = fg.rvar = 0;
+    forge_open(t);
+    memcpy(a, t->step, sizeof a);
+    tkey(4);                                            /* C4: new notes */
+    ok = fg.on && fg.nvar == 1u && msg_is("NEW NOTES 1");
+    for (i = 0; i < 16u; i++) {
+        rhythm_same &= a[i].time == t->step[i].time && (a[i].n != 0) == (t->step[i].n != 0);
+        diff += a[i].time == ST_NOTE && a[i].n && a[i].note[0] != t->step[i].note[0];
+    }
+    bad += check("0.4 C4 with FORGE open: new notes on the same rhythm (FORGE stays open)", ok && rhythm_same && diff > 0u);
+    memcpy(a, t->step, sizeof a);
+    tkey(5);                                            /* D4: a new rhythm */
+    ok = fg.on && fg.rvar == 1u && msg_is("NEW RHYTHM 1");
+    diff = 0;
+    for (i = 0; i < 16u; i++) {
+        diff += (a[i].time == ST_NOTE && a[i].n) != (t->step[i].time == ST_NOTE && t->step[i].n);
+        if (a[i].time == ST_NOTE && a[i].n && t->step[i].time == ST_NOTE && t->step[i].n)
+            same &= a[i].note[0] == t->step[i].note[0];
+    }
+    bad += check("  D4: a new rhythm, each step's pitch kept (EVOLVE 0)", ok && same && diff > 0u);
+    memcpy(b, t->step, sizeof b);
+    kt(EN_K2, 1); kt(EN_K2, -1);
+    ok = !memcmp(b, t->step, sizeof b) && fg.nvar == 1u && fg.rvar == 1u;
+    kt(EN_K1, 1);
+    ok &= fg.nvar == 0u && fg.rvar == 0u && fg.seed == 43u;
+    bad += check("  the rerolls stay through other knobs; K1 SEED starts them again from 0", ok);
+    oct_back();
+    btn_up(B_SEQ); frame();
+    btn_down(B_SEQ); frame();
+    for (sd = 0; sd < 20u; sd++) {                      /* VEL: beats louder than off-beat 16ths, on average */
+        forge_close(0);
+        fg.style = FS_BERLIN; fg.dens = 100; fg.evolve = 0; fg.seed = (uint8_t)sd; fg.nvar = fg.rvar = 0;
+        forge_open(t);
+        for (i = 0; i < 16u; i++)
+            if (t->step[i].time == ST_NOTE && t->step[i].n && !(t->step[i].flags & SF_ACCENT)) {
+                if (i % 4u == 0u) { beat += t->step[i].vel; nb++; }
+                if (i % 2u == 1u) { off += t->step[i].vel; no++; }
+            }
+    }
+    forge_close(0);
+    btn_up(B_SEQ); frame();
+    bad += check("  VEL by place: beats louder than off-beat 16ths", nb && no && beat / nb > off / no + 6u);
+    return bad;
+}
+
 static int test_drum(void)
 {
     track_t *t = melody(16);
@@ -396,7 +452,7 @@ static int test_drum(void)
 
 int main(void)
 {
-    int bad = test_open() + test_styles() + test_evolve() + test_names() + test_chords() + test_golden() + test_drum();
+    int bad = test_open() + test_styles() + test_evolve() + test_names() + test_chords() + test_reroll() + test_golden() + test_drum();
     printf("%s\n", bad ? "FORGE TEST FAILED" : "forge tests passed");
     return bad != 0;
 }

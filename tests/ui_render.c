@@ -1547,7 +1547,9 @@ static void setup(int s)
         fg.set = 1; fg.seed = 42; fg.evolve = s == S_SEQ_FORGE_64 ? 4 : 1;
         fg.style = s == S_SEQ_FORGE_DUB ? FS_DUB : s == S_SEQ_FORGE_AMBIENT ? FS_AMBIENT : s == S_SEQ_FORGE_64 ? FS_MELODIC : FS_BERLIN;
         fg.dens = s == S_SEQ_FORGE_DUB ? 100 : FORGE_STYLE[fg.style].dens;
-        forge_open(TSEL); ui.msg_t = 0;
+        forge_open(TSEL);
+        if (s == S_SEQ_FORGE_DUB) { forge_reroll(0); forge_reroll(1); }   /* (0.4: the reroll counts lit) */
+        ui.msg_t = 0;
         break;
     /* 1.5.5 (#188): MENU > CONTROL > SELECT PAGE (the tab's eighth row) */
     case S_MENU_SELECT: ui_prefs2 |= PREF_SEL_PAGE >> 16; ui.menu = 1; ui.menu_sel = MI_SELECT; break;

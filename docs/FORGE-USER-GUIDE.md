@@ -1,6 +1,6 @@
 # FORGE User Guide
 
-FORGE 0.3 for Felucca-FORGE 1.6.1 · M-VAVE FM-1
+FORGE 0.4 for Felucca-FORGE 1.6.1 · M-VAVE FM-1
 
 FORGE writes a musical idea onto a melodic track in one key press, then lets that idea evolve. It lives in
 Felucca's SEQ TOOLS layer on the **F5** key. Every pattern comes from a **seed**: the same seed and settings
@@ -16,6 +16,7 @@ All values in this guide are starting points. Judge the result by ear and turn t
 3. Press **PLAY** if you want to hear the result as you work.
 4. Hold **SEQ** and tap **F5**. A pattern is written at once, and the screen shows it as a grid of steps.
 5. Turn **K1 SEED** until you hear an idea you like. Then shape it with **K2 DENSITY**, **K3 EVOLVE** and **K4 STYLE**.
+   Like the rhythm but not the notes? Press **C4** for new notes. Like the notes but not the rhythm? Press **D4**.
 6. Press **OCT+** to keep it, or **OCT−** to put the old steps back.
 
 If you change your mind after keeping a pattern, hold **SAVE** to undo the whole FORGE in one step, as long as you
@@ -29,10 +30,12 @@ have not used another SEQ TOOLS key since.
 | **K2 DENSITY** | How many of the style's steps sound; above 75 % it also adds notes off the style's rhythm | 10–100 %, steps of 5 |
 | **K3 EVOLVE** | How much the idea changes across the pattern and from loop to loop (section 4) | 0–4 |
 | **K4 STYLE** | The rhythm and pitch profile (section 3). Choosing a style sets DENSITY to that style's default | 8 styles |
+| **C4** (RANDOM) | New notes on the same rhythm. Each press is the next variation | NOTES 0–99 |
+| **D4** (COOK) | A new rhythm; each step that still sounds keeps its pitch (with EVOLVE, later copies may drift differently) | RHYTHM 0–99 |
 | **OCT+** | Keep the pattern and close FORGE | |
 | **OCT−** | Cancel: the track's steps go back to how they were before FORGE opened | |
 | **F5** again | Keep the pattern (same as OCT+) | |
-| Another SEQ TOOLS key | Keeps the FORGE pattern, then runs that tool | |
+| Another SEQ TOOLS key (not C4 or D4) | Keeps the FORGE pattern, then runs that tool | |
 | Letting go of **SEQ** | Keeps the pattern | |
 | **SAVE** held (afterwards) | Undo the whole FORGE: the steps and their locks come back (if no other tool ran since) | |
 
@@ -48,6 +51,9 @@ cards show SEED, DENSITY, EVOLVE and STYLE. Below them, every step of the patter
 - a **bright cell** is a note, with a small mark at its pitch (higher mark, higher note)
 - a **half-bright cell** is a tie, holding the note before it
 - a **dark cell** is a rest
+
+Under the cells, **C4 NOTES** and **D4 RHYTHM** show how many times you have rerolled each (lit once above 0).
+Turning K1 SEED sets both back to 0.
 
 The footer shows **OCT+ APPLY** and **OCT− CANCEL**. With MENU > SYSTEM > HELP on, a second row shows
 K1 SEED, K3 EVOLVE and K4 STYLE.
@@ -131,13 +137,15 @@ These are starting points. Each one lists the track settings to make first, then
 | Trance arpeggio | ANALOG or TRIO, LEN 16, gate short | TRANCE, DENSITY 90, EVOLVE 0 |
 | Ambient drift | GRAIN or PHYS, POLY, LEN 64, DIV 1/8, C MAJ | AMBIENT, DENSITY 50, EVOLVE 3 |
 
-**Working with a pattern you like.** Note its seed and style. After you apply it, the steps are ordinary Felucca steps:
+**Working with a pattern you like.** Note its seed, style and the C4 / D4 numbers. After you apply it, the steps are ordinary Felucca steps:
 edit single notes on SEQ > STEP, add parameter locks, or use the other SEQ TOOLS (REVERSE, SHIFT, COOK) on top.
 
 ## 6. What FORGE writes, and what it leaves alone
 
 **Writes:** steps 1 to LEN of the selected track. Each step gets notes (1, 3 or 4), NOTE, TIE or REST, accent,
-slide, ratchet (×2 or ×3), and a chance or condition. Every note has velocity 96.
+slide, ratchet (×2 or ×3), and a chance or condition. Velocity follows the beat: notes on the beat are louder and
+off-beat 16ths softer, with a little variation, between 40 and 124 (BERLIN, TRANCE and ACID the widest, DUB and
+AMBIENT the gentlest). Accented notes play at 127 as always. Every copy of the motif has the same velocities.
 
 **Leaves alone:**
 - steps past LEN
@@ -151,7 +159,8 @@ as with EUCLID. Undo (SAVE held) brings them back.
 Felucca 1.6 and 1.6.1. Projects with conditional steps do not open on Felucca 1.5.1 or older. FORGE at EVOLVE 2 and
 up can write conditions, so check SEQ > DETAIL or AUTOMATION before going back.
 
-**Seeds and settings:** the same SEED, STYLE, DENSITY, EVOLVE, LEN, ROOT and SCALE always give the same steps.
+**Seeds and settings:** the same SEED, C4 and D4 numbers, STYLE, DENSITY, EVOLVE, LEN, ROOT and SCALE always give
+the same steps.
 From FORGE 0.3 on, a set of seeds is pinned by a test, so a later version only gives a seed a different pattern when
 its changelog says so. Patterns you want to keep for certain belong in a project.
 Change any of them and the pattern changes. At EVOLVE 0, changing DENSITY keeps the pitch of the notes that stay;

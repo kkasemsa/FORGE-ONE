@@ -22,7 +22,7 @@
  *            so one short pattern still changes loop to loop; ACID and TRANCE ratchet a few
  * Separate random streams for pitch, rhythm and evolution: turning DENSITY keeps the melody, EVOLVE keeps the motif.
  * The steps as it opened are kept in EUCLID's copy (eu_from: the two are never open together). */
-#define FORGE_VERSION "0.3"
+#define FORGE_VERSION "0.4"
 
 enum { FC_WALK, FC_ARC, FC_CHORD, FC_ROOT5, FC_PEDAL, FC_WIDE };
 enum { FS_BERLIN, FS_DETROIT, FS_DUB, FS_MELODIC, FS_ACID, FS_TRANCE, FS_SYNTH, FS_AMBIENT, FS_N };
@@ -33,38 +33,43 @@ typedef struct {
     uint8_t contour, span;        /* FC_*, the degrees either side of ROOT it moves in */
     uint8_t tie, chord, chord_p;  /* % a step after a note ties; chord notes (0, 3, 4) and % of notes that are one */
     uint8_t slide, octv, orn, ratch;   /* % slide, % octave jump, % ornaments (x EVOLVE / 2), % ratchet (EVOLVE > 0) */
+    uint8_t vdyn;                 /* 0.4: VEL's range: beats louder, off-beat 16ths softer, a little each way */
 } forge_style_t;
 static const forge_style_t FORGE_STYLE[FS_N] = {
-    /*                    rhythm  accent motif dens base contour   span tie chord ch% slide oct orn rat */
-    {"BERLIN",  "BERLIN",  0xFFFF, 0x0101,  8, 85, 48, FC_WALK,   4,   0,  0,   0,  0,  15, 15,  0},
-    {"DETROIT", "DETROIT", 0x4949, 0x0001, 16, 70, 60, FC_WALK,   3,  20,  4,  70,  0,   5, 15,  0},
-    {"DUB",     "DUB",     0x4444, 0x0000, 16, 55, 48, FC_WALK,   2,  60,  3, 100,  0,   0, 20,  0},
-    {"MELODIC", "MELO",    0x5555, 0x0101, 16, 75, 60, FC_ARC,    7,  25,  0,   0,  0,   5, 15,  0},
-    {"ACID",    "ACID",    0xFFFF, 0x2224, 16, 75, 36, FC_PEDAL,  4,   0,  0,   0, 25,  30, 10, 15},
-    {"TRANCE",  "TRANCE",  0xFFFF, 0x1111,  8, 90, 60, FC_CHORD,  7,   0,  0,   0,  0,  10, 10, 10},
-    {"SYNTH",   "SYNTH",   0x5555, 0x0101,  8, 90, 48, FC_ROOT5,  7,  10,  0,   0,  0,   0,  5,  0},
-    {"AMBIENT", "AMBI",    0x0441, 0x0000, 16, 50, 60, FC_WIDE,   9,  80,  3,  30,  0,   0, 40,  0},
+    /*                    rhythm  accent motif dens base contour   span tie chord ch% slide oct orn rat vel */
+    {"BERLIN",  "BERLIN",  0xFFFF, 0x0101,  8, 85, 48, FC_WALK,   4,   0,  0,   0,  0,  15, 15,  0, 20},
+    {"DETROIT", "DETROIT", 0x4949, 0x0001, 16, 70, 60, FC_WALK,   3,  20,  4,  70,  0,   5, 15,  0, 16},
+    {"DUB",     "DUB",     0x4444, 0x0000, 16, 55, 48, FC_WALK,   2,  60,  3, 100,  0,   0, 20,  0, 10},
+    {"MELODIC", "MELO",    0x5555, 0x0101, 16, 75, 60, FC_ARC,    7,  25,  0,   0,  0,   5, 15,  0, 18},
+    {"ACID",    "ACID",    0xFFFF, 0x2224, 16, 75, 36, FC_PEDAL,  4,   0,  0,   0, 25,  30, 10, 15, 24},
+    {"TRANCE",  "TRANCE",  0xFFFF, 0x1111,  8, 90, 60, FC_CHORD,  7,   0,  0,   0,  0,  10, 10, 10, 20},
+    {"SYNTH",   "SYNTH",   0x5555, 0x0101,  8, 90, 48, FC_ROOT5,  7,  10,  0,   0,  0,   0,  5,  0, 16},
+    {"AMBIENT", "AMBI",    0x0441, 0x0000, 16, 50, 60, FC_WIDE,   9,  80,  3,  30,  0,   0, 40,  0, 12},
 };
-static const char H_FORGE[] = "[K1]SEED[K3]EVOLVE[K4]STYLE";   /* (the footer holds three; DENSITY says itself) */
+static const char H_FORGE[] = "[K1]SEED[K3]EVOLVE[K4]STYLE";   /* (the footer holds three; DENSITY says itself, C4 / D4 the grid) */
 
-static struct { uint8_t on, set, seed, dens, evolve, style, trk; } fg;
+static struct { uint8_t on, set, seed, dens, evolve, style, trk, nvar, rvar; } fg;   /* nvar rvar (0.4): C4 / D4 rerolls */
 static track_t *fg_track(void) { return &trk[fg.trk % NTRK]; }
 
-/* xorshift32 streams of their own (libc.c rng() stays the panel's) */
-static uint32_t fg_r;
-static void fg_seed(uint32_t salt)
+/* xorshift32 streams of their own (libc.c rng() stays the panel's): 1 pitch, 2 rhythm, 3 evolution, 4 (0.4)
+ * velocity, in a state of its own (fg_vr) so the others draw as in 0.3. 0.4: C4 / D4 while open reroll the pitch /
+ * rhythm stream alone (fg.nvar, fg.rvar: 0 = as 0.3, so a seed with both 0 keeps its 0.3 notes and rhythm) */
+static uint32_t fg_r, fg_vr;
+static uint32_t fg_start(uint32_t salt)
 {
-    fg_r = ((uint32_t)fg.seed + 1u) * 2654435761u ^ ((uint32_t)fg.style + 1u) * 40503u ^ salt * 0x9E3779B9u;
-    if (!fg_r)
-        fg_r = 0x1234567u;
+    uint32_t r = ((uint32_t)fg.seed + 1u) * 2654435761u ^ ((uint32_t)fg.style + 1u) * 40503u ^ salt * 0x9E3779B9u ^
+                 (salt == 1u ? fg.nvar * 0x85EBCA6Bu : salt == 2u ? fg.rvar * 0xC2B2AE35u : 0u);
+    return r ? r : 0x1234567u;
 }
-static uint32_t fg_rnd(uint32_t n)
+static void fg_seed(uint32_t salt) { fg_r = fg_start(salt); }
+static uint32_t fg_xs(uint32_t *r, uint32_t n)
 {
-    fg_r ^= fg_r << 13;
-    fg_r ^= fg_r >> 17;
-    fg_r ^= fg_r << 5;
-    return n ? fg_r % n : 0u;
+    *r ^= *r << 13;
+    *r ^= *r >> 17;
+    *r ^= *r << 5;
+    return n ? *r % n : 0u;
 }
+static uint32_t fg_rnd(uint32_t n) { return fg_xs(&fg_r, n); }
 static int fg_pct(uint32_t p) { return fg_rnd(100) < p; }
 
 /* the track's scale notes from an octave under the style's to two over it (deg), ROOT's place in it (*a0) and the
@@ -236,7 +241,7 @@ static void forge_render(void)
 {
     track_t *t = fg_track();
     const forge_style_t *st = &FORGE_STYLE[fg.style % FS_N];
-    uint8_t deg[FG_NDEG];
+    uint8_t deg[FG_NDEG], vel[16];
     fg_step_t m[16];
     uint32_t len = tl_len(t), ml = st->motif < len ? st->motif : len, nd, a0, oct, i, k, e = fg.evolve, g, held = 0;
     int32_t drift = 0;
@@ -246,6 +251,11 @@ static void forge_render(void)
     fg_pitch(t, st, m, ml, deg, nd, a0);
     fg_rhythm(st, m, ml);
     fg_seed(3);                                         /* (the evolution's stream) */
+    fg_vr = fg_start(4);                                /* 0.4: VEL by place, beats louder, a little each way (an */
+    for (i = 0; i < ml; i++) {                          /* accent plays 127 anyway); one per motif step */
+        int32_t v = st->vdyn, w = i % 4u == 0u ? 2 : i % 2u == 0u ? 0 : -1;
+        vel[i] = (uint8_t)clamp(96 + w * v / 4 + (int32_t)fg_xs(&fg_vr, (uint32_t)v / 2u + 1u) - v / 4, 40, 124);
+    }
     for (i = 0; i < len; i++) {
         fg_step_t f = m[i % ml];
         step_t s;
@@ -259,6 +269,8 @@ static void forge_render(void)
                 f.on = f.on == 1u ? 0u : f.on == 0u ? 1u : f.on;
         }
         fg_write(t, &s, &f, k ? drift : 0, deg, nd);
+        if (s.time == ST_NOTE)                          /* 0.4: VEL by place in the motif (copies alike) */
+            s.vel = vel[i % ml];
         if (e && s.time == ST_NOTE && i % ml && fg_pct(st->orn * e / 2u)) {
             static const uint8_t COND[4] = {2, 8, 7, 9};   /* 2:2 3:4 2:4 4:4 (core.h: 1:2 2:2 1:3 2:3 3:3 1:4 2:4 3:4 4:4) */
             if (e >= 2u && fg_rnd(2))
@@ -307,8 +319,10 @@ static void forge_open(track_t *t)
 }
 static void forge_knob(uint32_t k, int32_t s)
 {
-    if (k == 0u)
+    if (k == 0u) {
         fg.seed = (uint8_t)(((int32_t)fg.seed + s % 100 + 100) % 100);
+        fg.nvar = fg.rvar = 0;                          /* (a new seed: its own notes and rhythm) */
+    }
     else if (k == 1u)
         fg.dens = (uint8_t)clamp((int32_t)fg.dens + 5 * s, 10, 100);
     else if (k == 2u)
@@ -319,6 +333,21 @@ static void forge_knob(uint32_t k, int32_t s)
     }
     forge_render();
     forge_say();
+}
+/* 0.4: C4 (RANDOM) while open: new notes on the same rhythm; D4 (COOK): a new rhythm on the same notes (the pitch of
+ * each step stays; with EVOLVE the later copies may drift otherwise). Each press the next of 100 */
+static void forge_reroll(uint32_t rhythm)
+{
+    char b[24], n[4];
+    if (rhythm)
+        fg.rvar = (uint8_t)((fg.rvar + 1u) % 100u);
+    else
+        fg.nvar = (uint8_t)((fg.nvar + 1u) % 100u);
+    forge_render();
+    str_cpy(b, rhythm ? "NEW RHYTHM " : "NEW NOTES ", sizeof b);
+    fmt_int(n, rhythm ? fg.rvar : fg.nvar);
+    str_cpy(b + str_len(b), n, sizeof b - str_len(b));
+    ui_message(b);
 }
 /* OCT+ (apply: the emptied steps lose their locks) or OCT- (cancel: the steps of the copy back) */
 static void forge_close(int apply)
@@ -342,7 +371,8 @@ static void forge_close(int apply)
 }
 static uint32_t forge_sig(void)
 {
-    return fg.on ? 11u + fg.seed * 13u + fg.dens * 1031u + fg.evolve * 65537u + fg.style * 524287u : 0u;
+    return fg.on ? 11u + fg.seed * 13u + fg.dens * 1031u + fg.evolve * 65537u + fg.style * 524287u + fg.nvar * 97u +
+                   fg.rvar * 7919u : 0u;
 }
 
 /* the open FORGE's pattern: a cell a step, 16 a row (up to 4 rows): a NOTE filled with a mark at its pitch, a TIE
@@ -366,6 +396,17 @@ static void layer_forge(void)
             int32_t span = hi > lo ? (int32_t)(hi - lo) : 1, ty = y + h - 5 - (int32_t)(s->note[0] - lo) * (h - 8) / span;
             cv_rect(x + 2, ty, 8, 3, T_SURF);
         }
+    }
+    {   /* 0.4: the rerolls on the keys, under the steps */
+        char a[16], b[16], n[4];
+        str_cpy(a, "C4 NOTES ", sizeof a);
+        fmt_int(n, fg.nvar);
+        str_cpy(a + str_len(a), n, sizeof a - str_len(a));
+        str_cpy(b, "D4 RHYTHM ", sizeof b);
+        fmt_int(n, fg.rvar);
+        str_cpy(b + str_len(b), n, sizeof b - str_len(b));
+        cv_text_on(10, 100 + CAP_IN(S, 18), &AF_S, a, fg.nvar ? T_THEME : T_MID, T_SURF);
+        cv_text_r(230, 100 + CAP_IN(S, 18), &AF_S, b, fg.rvar ? T_THEME : T_MID, T_SURF);
     }
 }
 static void forge_cards(void)

@@ -402,6 +402,11 @@ static void tools_key(uint32_t p)
             return;
         }
     }
+    if (fg.on && (p == TL_RANDOM || p == TL_COOK)) {    /* (Felucca-FORGE 0.4 open: C4 new notes, D4 a new rhythm) */
+        forge_reroll(p == TL_COOK);
+        ui.force = 1;
+        return;
+    }
     if (fg.on) {                                        /* (Felucca-FORGE open: applied; F5 again does only that) */
         forge_close(1);
         if (p == TL_FORGE) {

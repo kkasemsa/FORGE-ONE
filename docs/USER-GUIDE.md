@@ -1,6 +1,6 @@
 # Felucca-FORGE User Guide
 
-Felucca 1.6.1 with FORGE 0.3 · M-VAVE FM-1
+Felucca 1.6.1 with FORGE 0.4 · M-VAVE FM-1
 
 This guide covers the whole instrument: the Felucca firmware by Hügelton Instruments, and FORGE, the motif generator
 this fork adds. Felucca's own sections follow its official manual, the [Felucca wiki](https://github.com/hugelton/Felucca/wiki),
@@ -260,7 +260,7 @@ Hold **SEQ** on any page. The white keys become pattern tools for the selected t
 | G4 – C5 | Lane CLEAR, REVERSE, FILL, RANDOM | DRUM only: the selected lane (black keys 1–8 pick it) |
 | D5 | DOUBLE | The pattern twice (LEN ×2, up to 64 steps) |
 | E5 | HALF | The first half (LEN ÷ 2) |
-| **F5** | **FORGE** | Felucca-FORGE: a seeded motif generator on melodic tracks (chapter 9) |
+| **F5** | **FORGE** | Felucca-FORGE: a seeded motif generator on melodic tracks (chapter 9). While it is open, C4 and D4 reroll its notes and rhythm |
 
 Tools only work while no SONG is playing ("STOP TO EDIT").
 
@@ -299,8 +299,11 @@ has more recipes and detail.
 | K2 | DENSITY | 10–100 % | How many of the style's steps sound (above 75 %, extra notes too) |
 | K3 | EVOLVE | 0–4 | How much the idea changes across the pattern and from loop to loop |
 | K4 | STYLE | 8 styles | Rhythm and pitch profile. Any turn sets DENSITY to the style's default |
+| C4 | New notes | NOTES 0–99 | The same rhythm, new notes |
+| D4 | New rhythm | RHYTHM 0–99 | A new rhythm; each step that still sounds keeps its pitch (at EVOLVE 0) |
 
-The header briefly shows `FORGE <seed> <style>` after each turn. F5 is lit while FORGE is open.
+The header briefly shows `FORGE <seed> <style>` after each turn, and the screen shows the C4 / D4 counts under the
+steps. K1 SEED sets both counts back to 0. F5 is lit while FORGE is open.
 
 ### 9.2 Styles
 
@@ -333,8 +336,8 @@ to the motif length there is only one copy.
 
 ### 9.4 What it writes
 
-Steps 1 to LEN of the selected track: notes, NOTE / TIE / REST, accent, slide, ratchet, chance or condition, velocity
-96. It does not change steps past LEN, the track's LEN, DIV, SWING or GATE, its sound, or the other tracks. Applying
+Steps 1 to LEN of the selected track: notes, NOTE / TIE / REST, accent, slide, ratchet, chance or condition, and
+velocity (louder on the beat, softer on off-beat 16ths). It does not change steps past LEN, the track's LEN, DIV, SWING or GATE, its sound, or the other tracks. Applying
 removes locks from steps that end up empty. Projects made with FORGE open on stock Felucca 1.6 and 1.6.1.
 
 ---

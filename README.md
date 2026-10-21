@@ -7,7 +7,7 @@ Everything else works exactly as in Felucca 1.6.1.
 | | |
 | --- | --- |
 | Based on | [Felucca](https://github.com/hugelton/Felucca) 1.6.1 (GPL-3.0-only) by Leo Kuroshita, Hügelton Instruments |
-| Adds | FORGE 0.3: SEED, DENSITY, EVOLVE and 8 STYLES on SEQ TOOLS F5 ([changelog](CHANGELOG-FORGE.md)) |
+| Adds | FORGE 0.4: SEED, DENSITY, EVOLVE and 8 STYLES on SEQ TOOLS F5 ([changelog](CHANGELOG-FORGE.md)) |
 | Branch | [`forge`](https://github.com/kkasemsa/Felucca-FORGE/tree/forge) (`main` is an untouched copy of upstream) |
 | Status | Firmware builds and host tests pass in CI. **Not yet tested on a real FM-1.** |
 
