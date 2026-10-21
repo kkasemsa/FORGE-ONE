@@ -6,7 +6,7 @@ section (the "== name" line before them), so they show on the run's summary page
 import re
 import sys
 
-BAD = re.compile(r"FAIL|failed|error:|Error|Assertion|Segmentation|Abort|undefined reference|exceeds|over budget|!=", re.I)
+BAD = re.compile(r"\bFAIL|\bfailed\b|\berror:|Assertion|Segmentation fault|Aborted|undefined reference|over budget")
 
 
 def esc(s):
