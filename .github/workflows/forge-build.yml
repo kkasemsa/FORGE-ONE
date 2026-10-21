@@ -1,0 +1,118 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Felucca-FORGE: build the firmware package and run the host tests on Linux x86-64,
+# where the JieLi toolchain runs natively (no Docker, no Rosetta).
+#   push / PR to forge, or run by hand (Actions > Build > Run workflow)
+# Artifact: felucca-forge-<sha>: felucca.fwsc, felucca.bin, loader/ota.bin, SHA256SUMS
+name: Build
+
+on:
+  push:
+    branches: [forge]
+    tags: ['v*-forge.*']
+  pull_request:
+    branches: [forge]
+  workflow_dispatch:
+
+permissions:
+  contents: write    # releases on a v*-forge.* tag
+
+env:
+  JIELI_TOOLCHAIN: ${{ github.workspace }}/../jieli/toolchain
+  AC79_SDK: ${{ github.workspace }}/../fw-AC79_AIoT_SDK
+  SDK_TAG: AC79NN_SDK_V1.2.1_2023-12-13
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Python packages
+        run: pip install Pillow fonttools mido
+
+      # The JieLi toolchain (clang 4.0.1 for pi32v2) from JieLi's package server: cached after the first good run
+      - name: Cache JieLi toolchain
+        id: tc
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/../jieli
+          key: jieli-toolchain-linux-v1
+
+      - name: Fetch JieLi toolchain
+        if: steps.tc.outputs.cache-hit != 'true'
+        run: |
+          sh tools/get_toolchain.sh "$GITHUB_WORKSPACE/../jieli"
+          ls "$JIELI_TOOLCHAIN/pi32v2/bin/clang"
+
+      # The AC79 SDK (Apache-2.0): the package uses three files of cpu/wl82/tools only
+      - name: Cache AC79 SDK files
+        id: sdk
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/../fw-AC79_AIoT_SDK
+          key: ac79-sdk-${{ env.SDK_TAG }}-v1
+
+      - name: Fetch AC79 SDK files
+        if: steps.sdk.outputs.cache-hit != 'true'
+        run: |
+          set -e
+          D="$AC79_SDK"
+          if git clone --depth 1 --branch "$SDK_TAG" --filter=blob:none --sparse \
+               https://gitee.com/Jieli-Tech/fw-AC79_AIoT_SDK.git "$D"; then
+            git -C "$D" sparse-checkout set cpu/wl82/tools
+          else
+            echo "sparse clone failed: full shallow clone"
+            rm -rf "$D"
+            git clone --depth 1 --branch "$SDK_TAG" https://gitee.com/Jieli-Tech/fw-AC79_AIoT_SDK.git "$D"
+          fi
+          # keep only what the package needs (a small cache)
+          mkdir -p /tmp/sdk-keep/cpu/wl82/tools/cfg
+          cp "$D/cpu/wl82/tools/uboot.boot" "$D/cpu/wl82/tools/cfg_tool.bin" /tmp/sdk-keep/cpu/wl82/tools/
+          cp "$D/cpu/wl82/tools/cfg/eq_cfg_hw.bin" /tmp/sdk-keep/cpu/wl82/tools/cfg/
+          rm -rf "$D" && mv /tmp/sdk-keep "$D"
+          find "$D" -type f
+
+      - name: Build
+        run: ./build.sh
+
+      - name: Host tests
+        run: sh tests/run_tests.sh
+
+      - name: Checksums
+        if: always()
+        run: |
+          cd build
+          [ -f felucca.fwsc ] && sha256sum felucca.fwsc felucca.bin loader/ota.bin > SHA256SUMS || true
+
+      - name: Upload firmware
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: felucca-forge-${{ github.sha }}
+          path: |
+            build/felucca.fwsc
+            build/felucca.bin
+            build/loader/ota.bin
+            build/SHA256SUMS
+          if-no-files-found: warn
+
+      - name: Upload UI renders
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-renders-${{ github.sha }}
+          path: build/ui_new/
+          if-no-files-found: ignore
+
+      - name: Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" build/felucca.fwsc build/SHA256SUMS \
+            --title "Felucca-FORGE $GITHUB_REF_NAME" --notes "Felucca with the FORGE tool. Install at your own risk."
