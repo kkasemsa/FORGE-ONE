@@ -45,6 +45,20 @@ The official web installer only installs stock Felucca, so install FORGE with Fe
    The FM-1 restarts on its own.
 5. Check it worked: hold **SEQ**. The SEQ TOOLS map should show a **FORGE** cell for key F5.
 
+## Build it yourself (optional)
+
+GitHub builds every push, so you only need this to build your own changes. On a Mac with Docker Desktop running:
+
+```
+git clone --recurse-submodules -b forge https://github.com/kkasemsa/Felucca-FORGE.git ~/Felucca-FORGE
+cd ~/Felucca-FORGE
+tools/forge_build.sh            # set up and build build/felucca.fwsc
+tools/forge_build.sh --flash    # build and install on the FM-1
+```
+
+The first run downloads JieLi's toolchain and three AC79 SDK files and makes a Python environment in `~/fm1-env`;
+later runs only build. `--test` also runs the host tests (about 10 minutes). See [BUILDING.md](BUILDING.md) for the details.
+
 ## Go back to stock
 
 - **To stock Felucca:** use the [official web installer](https://hugelton.github.io/Felucca/) in Chrome or Edge.
