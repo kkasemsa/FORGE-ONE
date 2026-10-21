@@ -27,6 +27,8 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: true    # firmware/engines (Felucca-Engines, MIT)
 
       - uses: actions/setup-python@v5
         with:
@@ -86,8 +88,8 @@ jobs:
       - name: Checksums
         if: always()
         run: |
-          cd build
-          [ -f felucca.fwsc ] && sha256sum felucca.fwsc felucca.bin loader/ota.bin > SHA256SUMS || true
+          [ -f build/felucca.fwsc ] || exit 0
+          cd build && sha256sum felucca.fwsc felucca.bin loader/ota.bin > SHA256SUMS
 
       - name: Upload firmware
         if: always()
