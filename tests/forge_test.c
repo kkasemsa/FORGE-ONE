@@ -11,6 +11,8 @@
  *   styles     all 8 at LEN 16, 32 and 64, in MIN, MAJ, PEN and CHR, every ROOT: the rules above hold
  *   close      OCT- cancels (the steps and a lock as they were), OCT+ / F5 again / the layer let go apply (an emptied
  *              step's lock goes); SAVE held after: one undo for all of it
+ *   chords     (0.3) by interval: CHR minor 0 3 7 10, seven-note scales their own; TRANCE / SYNTH in CHR on the triad
+ *   golden     (0.3) pinned seeds: tests/forge_golden.txt
  *   DRUM       F5 is not there (nothing happens)
  * Built and run by tests/run_tests.sh. */
 #define UI_TEST_NO_MAIN 1
@@ -265,6 +267,117 @@ static int test_names(void)                             /* the STYLE card's name
     return check("STYLE: every card name fits the card", (int)ok);
 }
 
+/* 0.3: chords by interval in every scale: CHR's chords are minor (0 3 7, 10), a seven-note scale's its own (third 3
+ * or 4, fifth 6 7 or 8 above the chord's root); TRANCE / SYNTH in CHR keep to the root's triad and octaves */
+static int test_chords(void)
+{
+    static const uint8_t SCL[3] = {0, 1, 2};            /* CHR MAJ MIN */
+    int bad = 0, ok = 1, arp = 1;
+    uint32_t s, c, sd, i, chords = 0;
+    track_t *t = melody(32);
+    go_page(GR_ROLL); frame();
+    btn_down(B_SEQ); frame();
+    for (s = 0; s < FS_N; s++)
+        for (c = 0; c < 3u; c++)
+            for (sd = 0; sd < 100u; sd += 11u) {
+                forge_close(0);
+                t->p[P_SCALE] = SCL[c];
+                t->p[P_ROOT] = 4;                       /* E */
+                fg.set = 1; fg.style = (uint8_t)s; fg.dens = FORGE_STYLE[s].dens; fg.evolve = 0; fg.seed = (uint8_t)sd;
+                forge_open(t);
+                for (i = 0; i < 32u; i++) {
+                    const step_t *x = &t->step[i];
+                    if (x->time != ST_NOTE || x->n < 2u)
+                        continue;
+                    chords++;
+                    if (!SCL[c])
+                        ok &= x->note[1] - x->note[0] == 3 && x->note[2] - x->note[0] == 7 &&
+                              (x->n < 4u || x->note[3] - x->note[0] == 10);
+                    else
+                        ok &= (x->note[1] - x->note[0] == 3 || x->note[1] - x->note[0] == 4) &&
+                              x->note[2] - x->note[0] >= 6 && x->note[2] - x->note[0] <= 8;
+                }
+                if (!SCL[c] && (s == FS_TRANCE || s == FS_SYNTH))
+                    for (i = 0; i < 32u; i++)           /* (E: 4; its tones E G B, octaves; a jump: +12) */
+                        if (t->step[i].time == ST_NOTE && t->step[i].n) {
+                            uint32_t pc = (uint32_t)(t->step[i].note[0] + 120 - 4) % 12u;
+                            arp &= pc == 0u || pc == 3u || pc == 7u;
+                        }
+            }
+    forge_close(0);
+    btn_up(B_SEQ); frame();
+    bad += check("0.3 chords by interval: CHR minor (0 3 7 10), MAJ / MIN their own (3rd 3-4, 5th 6-8)", ok && chords > 100u);
+    bad += check("  TRANCE and SYNTH in CHR: the root's triad and octaves only", arp);
+    return bad;
+}
+
+/* 0.3: pinned seeds. The steps FORGE writes for fixed settings, hashed (FNV-1a over steps 1..LEN), against
+ * tests/forge_golden.txt: a change of the generator shows here, so a saved seed keeps its pattern unless a release
+ * says otherwise. FORGE_GOLDEN_UPDATE=1 rewrites the file (after an intended change: say so in CHANGELOG-FORGE.md) */
+static uint32_t fg_fnv(const void *p, uint32_t n)
+{
+    const uint8_t *b = p;
+    uint32_t h = 2166136261u;
+    while (n--)
+        h = (h ^ *b++) * 16777619u;
+    return h;
+}
+static int test_golden(void)
+{
+    static const struct { uint8_t len, scl, root, evolve; } SET[4] = {{16, 2, 9, 1}, {64, 1, 0, 3}, {32, 0, 4, 2},
+                                                                     {32, 5, 7, 4}};   /* (A MIN, C MAJ, E CHR, G PEN) */
+    static const uint8_t SEED[3] = {0, 42, 99};
+    const char *path = "tests/forge_golden.txt", *upd = getenv("FORGE_GOLDEN_UPDATE");
+    char line[96];
+    FILE *f;
+    uint32_t s, k, j, n = 0, miss = 0, got[FS_N * 4 * 3];
+    track_t *t = melody(16);
+    go_page(GR_ROLL); frame();
+    btn_down(B_SEQ); frame();
+    for (s = 0; s < FS_N; s++)
+        for (k = 0; k < 4u; k++)
+            for (j = 0; j < 3u; j++) {
+                forge_close(0);
+                t->p[P_SLEN] = SET[k].len; t->p[P_SCALE] = SET[k].scl; t->p[P_ROOT] = SET[k].root;
+                fg.set = 1; fg.style = (uint8_t)s; fg.dens = FORGE_STYLE[s].dens; fg.evolve = SET[k].evolve;
+                fg.seed = SEED[j];
+                forge_open(t);
+                got[n++] = fg_fnv(t->step, SET[k].len * (uint32_t)sizeof(step_t));
+            }
+    forge_close(0);
+    btn_up(B_SEQ); frame();
+    if (upd && upd[0] == '1') {
+        f = fopen(path, "w");
+        if (!f)
+            return check("pinned seeds: write tests/forge_golden.txt", 0);
+        fprintf(f, "# FORGE pinned seeds (tests/forge_test.c test_golden): style set seed hash. FORGE_GOLDEN_UPDATE=1 rewrites\n");
+        for (n = 0, s = 0; s < FS_N; s++)
+            for (k = 0; k < 4u; k++)
+                for (j = 0; j < 3u; j++, n++)
+                    fprintf(f, "%s %u %u %08x\n", FORGE_STYLE[s].name, k, SEED[j], got[n]);
+        fclose(f);
+        printf("    wrote %s (%u patterns)\n", path, n);
+        return 0;
+    }
+    f = fopen(path, "r");
+    if (!f)
+        return check("pinned seeds: tests/forge_golden.txt there (FORGE_GOLDEN_UPDATE=1 makes it)", 0);
+    for (n = 0; fgets(line, sizeof line, f);) {
+        char name[16];
+        unsigned kk, sd, h;
+        if (line[0] == '#' || sscanf(line, "%15s %u %u %x", name, &kk, &sd, &h) != 4)
+            continue;
+        if (n < FS_N * 4u * 3u && got[n] != h) {
+            if (miss < 5u)
+                printf("    changed: %s set %u seed %u\n", name, kk, sd);
+            miss++;
+        }
+        n++;
+    }
+    fclose(f);
+    return check("pinned seeds: 8 styles x 4 settings x 3 seeds write the steps they wrote before", !miss && n == FS_N * 4u * 3u);
+}
+
 static int test_drum(void)
 {
     track_t *t = melody(16);
@@ -283,7 +396,7 @@ static int test_drum(void)
 
 int main(void)
 {
-    int bad = test_open() + test_styles() + test_evolve() + test_names() + test_drum();
+    int bad = test_open() + test_styles() + test_evolve() + test_names() + test_chords() + test_golden() + test_drum();
     printf("%s\n", bad ? "FORGE TEST FAILED" : "forge tests passed");
     return bad != 0;
 }

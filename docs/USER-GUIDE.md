@@ -1,6 +1,6 @@
 # Felucca-FORGE User Guide
 
-Felucca 1.6.1 with FORGE 0.2 · M-VAVE FM-1
+Felucca 1.6.1 with FORGE 0.3 · M-VAVE FM-1
 
 This guide covers the whole instrument: the Felucca firmware by Hügelton Instruments, and FORGE, the motif generator
 this fork adds. Felucca's own sections follow its official manual, the [Felucca wiki](https://github.com/hugelton/Felucca/wiki),
@@ -315,8 +315,8 @@ The header briefly shows `FORGE <seed> <style>` after each turn. F5 is lit while
 | SYNTH | 8 | 8ths | Root, fifth, octave | C3 |
 | AMBIENT (card: AMBI) | 16 | Very sparse, long ties | Wide intervals, some chords | C4 |
 
-Step 1 is always the root. Every note is in the track's ROOT and SCALE. Melodies move above and below the root;
-octave jumps only go up.
+Step 1 is always the root. Every note is in the track's ROOT and SCALE; chords are built from real intervals kept in
+the scale, so they work in every scale (minor in CHR). Melodies move above and below the root; octave jumps only go up.
 
 ### 9.3 EVOLVE
 

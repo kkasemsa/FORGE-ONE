@@ -1,6 +1,6 @@
 # FORGE User Guide
 
-FORGE 0.2 for Felucca-FORGE 1.6.1 · M-VAVE FM-1
+FORGE 0.3 for Felucca-FORGE 1.6.1 · M-VAVE FM-1
 
 FORGE writes a musical idea onto a melodic track in one key press, then lets that idea evolve. It lives in
 Felucca's SEQ TOOLS layer on the **F5** key. Every pattern comes from a **seed**: the same seed and settings
@@ -36,7 +36,8 @@ have not used another SEQ TOOLS key since.
 | Letting go of **SEQ** | Keeps the pattern | |
 | **SAVE** held (afterwards) | Undo the whole FORGE: the steps and their locks come back (if no other tool ran since) | |
 
-Each knob turn rewrites the pattern from the steps as they were before FORGE opened, so turning a knob back
+Turning the knobs while the sequencer plays is safe: each step is replaced whole, so you never hear half-written
+steps. Each knob turn rewrites the pattern from the steps as they were before FORGE opened, so turning a knob back
 returns the earlier pattern exactly. The exception is STYLE: any turn of K4 sets DENSITY to the style's default,
 so set DENSITY after choosing the style.
 
@@ -70,8 +71,10 @@ K1 SEED, K3 EVOLVE and K4 STYLE.
 - **Octave** is where the root sits: the root note is the track's ROOT in that octave (A minor on ACID starts on A2).
   Melodies move a few scale steps above and below the root (AMBIENT more than an octave). Octave jumps only go up.
 - **Step 1 is always the root**, so every pattern starts at home.
-- **The scale decides the notes.** Every note is in the track's ROOT and SCALE. In pentatonic and other scales with
-  fewer notes, "a third" and "a fifth" mean the scale's 3rd and 5th notes.
+- **The scale decides the notes.** Every note is in the track's ROOT and SCALE. Chords, and the TRANCE and SYNTH
+  arpeggios, are built from real intervals (a third, fifth and seventh above the note) kept inside the scale, so
+  they work in every scale. In CHR the chords are minor (root, minor third, fifth, minor seventh); in the
+  pentatonic scales the "seventh" is the scale's sixth; in WHOLE the chords are augmented.
 - **The knob card** shortens MELODIC and AMBIENT so they fit. The header shows the full names.
 
 **Picking a sound for each style.** These are starting points:
@@ -148,8 +151,9 @@ as with EUCLID. Undo (SAVE held) brings them back.
 Felucca 1.6 and 1.6.1. Projects with conditional steps do not open on Felucca 1.5.1 or older. FORGE at EVOLVE 2 and
 up can write conditions, so check SEQ > DETAIL or AUTOMATION before going back.
 
-**Seeds and settings:** the same SEED, STYLE, DENSITY, EVOLVE, LEN, ROOT and SCALE always give the same steps in
-the same FORGE version. A later FORGE version may give a seed a different pattern, so save patterns you want to keep in a project.
+**Seeds and settings:** the same SEED, STYLE, DENSITY, EVOLVE, LEN, ROOT and SCALE always give the same steps.
+From FORGE 0.3 on, a set of seeds is pinned by a test, so a later version only gives a seed a different pattern when
+its changelog says so. Patterns you want to keep for certain belong in a project.
 Change any of them and the pattern changes. At EVOLVE 0, changing DENSITY keeps the pitch of the notes that stay;
 with EVOLVE 1 and up it can also change how the later copies drift.
 

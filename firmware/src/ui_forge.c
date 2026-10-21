@@ -22,7 +22,7 @@
  *            so one short pattern still changes loop to loop; ACID and TRANCE ratchet a few
  * Separate random streams for pitch, rhythm and evolution: turning DENSITY keeps the melody, EVOLVE keeps the motif.
  * The steps as it opened are kept in EUCLID's copy (eu_from: the two are never open together). */
-#define FORGE_VERSION "0.2"
+#define FORGE_VERSION "0.3"
 
 enum { FC_WALK, FC_ARC, FC_CHORD, FC_ROOT5, FC_PEDAL, FC_WIDE };
 enum { FS_BERLIN, FS_DETROIT, FS_DUB, FS_MELODIC, FS_ACID, FS_TRANCE, FS_SYNTH, FS_AMBIENT, FS_N };
@@ -97,13 +97,45 @@ static uint32_t fg_reflect(int32_t i, int32_t lo, int32_t hi)
         i = i < lo ? 2 * lo - i : 2 * hi - i;
     return (uint32_t)i;
 }
+/* 0.3: chords and chord tones by interval, so they hold in every scale (CHR, the pentatonics, BLUES, WHOLE ..), not
+ * by counting scale notes (which made C D E a "triad" in CHR). The third, fifth and seventh above note n: the first of
+ * the intervals the scale holds (a seven-note scale holds exactly one of each: the scale's own chord); none of them in
+ * the scale: the first snapped down onto it, but above floor (the chord's note under it), else up */
+static const int8_t FG_IV3[2] = {3, 4}, FG_IV5[3] = {7, 6, 8}, FG_IV7[3] = {10, 11, 9};
+static int32_t fg_tone(const track_t *t, int32_t n, const int8_t *iv, uint32_t niv, int32_t floor)
+{
+    uint32_t i;
+    int32_t x;
+    for (i = 0; i < niv; i++)
+        if (tl_in_scale(t, n + iv[i]))
+            return n + iv[i];
+    for (x = n + iv[0]; x > floor && !tl_in_scale(t, x); x--)
+        ;
+    if (x <= floor)
+        for (x = n + iv[0]; x < n + 12 && !tl_in_scale(t, x); x++)
+            ;
+    return x;
+}
+static uint32_t fg_idx_of(const uint8_t *deg, uint32_t nd, int32_t note)   /* the first scale note at or over note */
+{
+    uint32_t i;
+    for (i = 0; i + 1u < nd && deg[i] < note; i++)
+        ;
+    return i;
+}
 /* the degree of every step of the motif, from the contour (pitch stream) */
-static void fg_pitch(const forge_style_t *st, fg_step_t *m, uint32_t ml, uint32_t nd, uint32_t a0, uint32_t oct)
+static void fg_pitch(const track_t *t, const forge_style_t *st, fg_step_t *m, uint32_t ml, const uint8_t *deg,
+                     uint32_t nd, uint32_t a0)
 {
     static const int8_t STEP[8] = {-2, -1, -1, 0, 0, 1, 1, 2};
-    static const uint8_t ARP[4][4] = {{0, 2, 4, 7}, {7, 4, 2, 0}, {0, 4, 2, 7}, {0, 2, 0, 4}};
-    int32_t lo = (int32_t)a0 - st->span, hi = (int32_t)a0 + st->span, cur = (int32_t)a0;
+    static const uint8_t ARP[4][4] = {{0, 1, 2, 3}, {3, 2, 1, 0}, {0, 2, 1, 3}, {0, 1, 0, 2}};   /* (into tone[]) */
+    int32_t lo = (int32_t)a0 - st->span, hi = (int32_t)a0 + st->span, cur = (int32_t)a0, r = deg[a0], tone[5];
     uint32_t i, arp, peak;
+    tone[0] = r;                                        /* the root's chord: root, third, fifth, octave, its third */
+    tone[1] = fg_tone(t, r, FG_IV3, 2, r);
+    tone[2] = fg_tone(t, r, FG_IV5, 3, tone[1]);
+    tone[3] = r + 12;
+    tone[4] = tone[1] + 12;
     lo = lo < 0 ? 0 : lo;
     hi = hi >= (int32_t)nd ? (int32_t)nd - 1 : hi;
     fg_seed(1);
@@ -124,19 +156,20 @@ static void fg_pitch(const forge_style_t *st, fg_step_t *m, uint32_t ml, uint32_
             cur += (tgt > cur) - (tgt < cur) + (fg_pct(25) ? STEP[fg_rnd(8)] : 0);
             break;
         }
-        case FC_CHORD:                                  /* the scale's triad + its octave, an arpeggio */
-            d = ARP[arp][i % 4u];
-            cur = (int32_t)a0 + (d == 7 ? (int32_t)oct : d) + (i % 8u >= 4u && fg_pct(40) ? 2 : 0);
+        case FC_CHORD:                                  /* the root's triad + its octave, an arpeggio (a tone up now and then) */
+            d = ARP[arp][i % 4u] + (i % 8u >= 4u && fg_pct(40) ? 1 : 0);
+            cur = (int32_t)fg_idx_of(deg, nd, tone[d]);
             break;
         case FC_ROOT5:                                  /* root, fifth, octave (a third now and then) */
-            d = (int32_t)((i % 2u) ? (fg_pct(50) ? oct : 4u) : (fg_pct(15) ? 2u : 0u));
-            cur = (int32_t)a0 + d;
+            d = (i % 2u) ? (fg_pct(50) ? 3 : 2) : (fg_pct(15) ? 1 : 0);
+            cur = (int32_t)fg_idx_of(deg, nd, tone[d]);
             break;
         case FC_PEDAL:                                  /* every other note the root, the others anywhere near */
             cur = i % 2u == 0u && fg_pct(70) ? (int32_t)a0 : (int32_t)a0 + (int32_t)fg_rnd((uint32_t)st->span * 2u + 1u) - st->span;
             break;
-        default:                                        /* FC_WIDE: fourths and fifths, a wide range */
-            cur += (fg_rnd(2) ? 1 : -1) * (int32_t)(3u + fg_rnd(2));
+        default:                                        /* FC_WIDE: fourths and fifths (by interval), a wide range */
+            d = (fg_rnd(2) ? 1 : -1) * (fg_rnd(2) ? 5 : 7);
+            cur = (int32_t)fg_idx_of(deg, nd, deg[fg_reflect(cur, 0, (int32_t)nd - 1)] + d);
             break;
         }
         if (!i)                                         /* (step 1: the root) */
@@ -166,10 +199,13 @@ static void fg_rhythm(const forge_style_t *st, fg_step_t *m, uint32_t ml)
         if (m[i].on == 1u && m[i + 1].on == 1u && fg_pct(st->slide))
             m[i].flags |= SF_SLIDE;
 }
-/* motif step f (its copy k: drifted by d degrees) into step s */
+/* motif step f (its copy k: drifted by d degrees) into step s; a chord: its third, fifth, seventh by interval */
 static void fg_write(const track_t *t, step_t *s, const fg_step_t *f, int32_t d, const uint8_t *deg, uint32_t nd)
 {
-    uint32_t k, x;
+    static const int8_t *const IV[4] = {0, FG_IV3, FG_IV5, FG_IV7};
+    static const uint8_t NIV[4] = {0, 2, 3, 3};
+    uint32_t k;
+    int32_t n0, x;
     memset(s, 0, sizeof *s);                            /* (all of it: no CHANCE, nudge or note left from before) */
     s->time = ST_REST;
     if (!f->on)
@@ -181,33 +217,38 @@ static void fg_write(const track_t *t, step_t *s, const fg_step_t *f, int32_t d,
     s->time = ST_NOTE;
     s->vel = 96;
     s->flags = f->flags;
-    for (k = 0; k < f->n && k < 4u; k++) {
-        x = fg_reflect((int32_t)f->idx + d + 2 * (int32_t)k, 0, (int32_t)nd - 1);
-        s->note[k] = (uint8_t)clamp((int32_t)deg[x] + 12 * f->oct, 24, 108);
+    n0 = clamp((int32_t)deg[fg_reflect((int32_t)f->idx + d, 0, (int32_t)nd - 1)] + 12 * f->oct, 24, 108);
+    s->note[0] = (uint8_t)n0;
+    for (k = 1; k < f->n && k < 4u; k++) {
+        x = fg_tone(t, n0, IV[k], NIV[k], s->note[k - 1]);
+        if (x > 108)                                    /* (no note over the top: a smaller chord) */
+            break;
+        s->note[k] = (uint8_t)x;
     }
     s->n = (uint8_t)k;
-    (void)t;
 }
 
-/* the track's steps 1..LEN from the steps as it opened (eu_from) and fg's values */
+/* the track's steps 1..LEN from fg's values (the steps as it opened: eu_from, for a cancel). 0.3: each step is made
+ * whole here and then put in place with the audio ISR held off (motion_guard), one at a time: the sequencer, which
+ * reads the steps in the ISR while playing, sees a step as it was or as it is, never half of one (up to 0.2 the steps
+ * were put back as they opened and then written over in place, so a turn while playing could sound a step between) */
 static void forge_render(void)
 {
     track_t *t = fg_track();
     const forge_style_t *st = &FORGE_STYLE[fg.style % FS_N];
     uint8_t deg[FG_NDEG];
     fg_step_t m[16];
-    uint32_t len = tl_len(t), ml = st->motif < len ? st->motif : len, nd, a0, oct, i, k, e = fg.evolve;
+    uint32_t len = tl_len(t), ml = st->motif < len ? st->motif : len, nd, a0, oct, i, k, e = fg.evolve, g, held = 0;
     int32_t drift = 0;
-    memcpy(t->step, eu_from, sizeof t->step);
     nd = fg_degrees(t, st, deg, &a0, &oct);
     if (!nd)
         return;
-    fg_pitch(st, m, ml, nd, a0, oct);
+    fg_pitch(t, st, m, ml, deg, nd, a0);
     fg_rhythm(st, m, ml);
     fg_seed(3);                                         /* (the evolution's stream) */
     for (i = 0; i < len; i++) {
         fg_step_t f = m[i % ml];
-        step_t *s = &t->step[i];
+        step_t s;
         k = i / ml;                                     /* the copy */
         if (i % ml == 0u)
             drift = k && e && fg_pct(e * 15u) ? (fg_rnd(2) ? 1 : -1) : drift;   /* (a copy may sit a step away) */
@@ -217,21 +258,24 @@ static void forge_render(void)
             if (e >= 3u && i % ml && fg_pct(e * 3u))    /* a note dropped, or one in a rest */
                 f.on = f.on == 1u ? 0u : f.on == 0u ? 1u : f.on;
         }
-        fg_write(t, s, &f, k ? drift : 0, deg, nd);
-        if (e && s->time == ST_NOTE && i % ml && fg_pct(st->orn * e / 2u)) {
+        fg_write(t, &s, &f, k ? drift : 0, deg, nd);
+        if (e && s.time == ST_NOTE && i % ml && fg_pct(st->orn * e / 2u)) {
             static const uint8_t COND[4] = {2, 8, 7, 9};   /* 2:2 3:4 2:4 4:4 (core.h: 1:2 2:2 1:3 2:3 3:3 1:4 2:4 3:4 4:4) */
             if (e >= 2u && fg_rnd(2))
-                step_set_chance_v(s, 100u + COND[fg_rnd(4)]);
+                step_set_chance_v(&s, 100u + COND[fg_rnd(4)]);
             else
-                step_set_chance_v(s, fg_rnd(2) ? 75u : 50u);
+                step_set_chance_v(&s, fg_rnd(2) ? 75u : 50u);
         }
-        if (e && s->time == ST_NOTE && fg_pct(st->ratch))
-            step_set_ratchet(s, 2u + fg_rnd(2));
-    }
-    for (i = 0; i < len; i++) {                         /* a TIE with nothing to hold (its note dropped): a REST */
-        const step_t *p = i ? &t->step[i - 1] : 0;
-        if (t->step[i].time == ST_TIE && (!p || !((p->time == ST_NOTE && p->n) || p->time == ST_TIE)))
-            step_clear(&t->step[i]);
+        if (e && s.time == ST_NOTE && fg_pct(st->ratch))
+            step_set_ratchet(&s, 2u + fg_rnd(2));
+        if (s.time == ST_TIE && !held) {                /* a TIE with nothing to hold (its note dropped): a REST */
+            memset(&s, 0, sizeof s);
+            s.time = ST_REST;
+        }
+        held = (s.time == ST_NOTE && s.n) || s.time == ST_TIE;
+        g = motion_guard();
+        t->step[i] = s;
+        motion_unguard(g);
     }
 }
 
@@ -290,7 +334,11 @@ static void forge_close(int apply)
         tl_unlock(t, tl_used_of(eu_from, len), len);
         return;
     }
-    memcpy(t->step, eu_from, sizeof t->step);
+    {
+        uint32_t g = motion_guard();                    /* (0.3: as forge_render, never half of the steps) */
+        memcpy(t->step, eu_from, sizeof t->step);
+        motion_unguard(g);
+    }
 }
 static uint32_t forge_sig(void)
 {
