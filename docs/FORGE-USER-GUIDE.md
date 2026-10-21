@@ -1,9 +1,10 @@
 # FORGE User Guide
 
-FORGE 0.5.1 in FORGE ONE (Felucca 1.6.1) · M-VAVE FM-1
+FORGE 0.6 in FORGE ONE (Felucca 1.6.1) · M-VAVE FM-1
 
 FORGE writes a musical idea onto a track in one key press, then lets that idea evolve: a melody on a synth track,
-a beat on a DRUM track (section 6). It lives in
+a beat on a DRUM track (section 6). From 0.6, **STARTER** on the G5 key writes all four tracks at once, sounds
+included (section 7). FORGE lives in
 Felucca's SEQ TOOLS layer on the **F5** key. Every pattern comes from a **seed**: the same seed and settings
 always give the same steps, so you can note a seed you like and get the pattern back later.
 
@@ -175,7 +176,58 @@ are not touched.
 Pick the kit first (PRESETS, or EDIT > K1 KIT): the same beat sounds very different on 80, DEEP or PERC. The beat is
 ordinary drum-grid steps once applied, so edit it on the grid, mute lanes in the EDIT layer, or run the lane tools over it.
 
-## 7. What FORGE writes, and what it leaves alone
+## 7. STARTER: a song start on all four tracks
+
+**STARTER** (SEQ TOOLS **G5**, from 0.6) is FORGE for the whole song. One press loads a sound on each of the four
+tracks and writes a pattern for each, all from one seed:
+
+| Track | Part |
+| --- | --- |
+| T1 | BASS |
+| T2 | LEAD |
+| T3 | PAD (chords) |
+| T4 | DRUM (T4 becomes a DRUM track) |
+
+1. Select a track and set its **ROOT** on the SCL page. All four tracks take that ROOT. Leave SCALE on CHR to use the
+   starter's own scale, or set one to use yours.
+2. Hold **SEQ** and tap **G5** (on any track). Four sounds load and four patterns are written at once; the tempo goes
+   to the starter's BPM (not when the FM-1 follows an external MIDI clock).
+3. Turn **K1 SEED** for another song idea and **K4 STARTER** for another genre: each starter loads its own four
+   sounds and tempo. **K2 DENSITY** makes all four busier or sparser (50–150 % of each part's own), and **K3 EVOLVE**
+   works as in FORGE. **C4** gives all four new notes, **D4** new rhythms.
+4. Press **OCT+** (or G5 again) to keep it, or **OCT−** to put all four tracks back exactly as they were: sounds,
+   settings, steps, automation and tempo.
+
+The screen shows a row a track: its preset and its first 16 steps. Under them, the C4 and D4 counts.
+
+| Starter | T1 BASS | T2 LEAD | T3 PAD | T4 DRUM | BPM | LEN (T1–T4) | SCALE* |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| BERLIN | ANALOG SQR BASS: 16th pedal sequence, octave jumps | TRIO ARP LEAD: a high, sparse line | GRAIN CLOUD PAD: one long chord a bar | DEEP KIT | 120 | 16 16 32 16 | MIN |
+| DETROIT | FM6 FM BASS: off-beat root and fifth | ANALOG PWM STR: 4-note chord stabs | FM6 TINE EP: 4-note chords | TIGHT KIT | 126 | 16 16 32 16 | DOR |
+| DUB | ANALOG SUB BASS: sparse, held | PHASE STRING: dub chord stabs | GRAIN SHIMMER: one chord a bar | DEEP KIT | 118 | 16 16 32 16 | DOR |
+| MELODIC | TRIO FAT BASS: rolling off-beat 16ths | ANALOG SAW LEAD: a rising and falling line | FM6 PAD: long chords | DRUM KIT | 122 | 16 32 32 16 | MIN |
+| ACID | ANALOG ACID: the 303 line, slides | LOFI ARP 8BIT: an arpeggio | ANALOG SOFT PAD: one chord a bar | TIGHT KIT | 128 | 16 16 32 16 | MIN |
+| TRANCE | ANALOG SUB BASS: off-beat | TRIO ARP LEAD: the rolling triad arpeggio | ANALOG STRINGS: long chords | DRUM KIT | 138 | 16 16 32 16 | MIN |
+| SYNTH | TRIO FAT BASS: 8th root and fifth | ANALOG BRASS: root-fifth riff | FM6 PAD: long chords | DRUM KIT | 110 | 16 16 32 16 | MIN |
+| AMBIENT | ANALOG SUB BASS: a drone, one note a bar | PHYS KALIMBA: wide, sparse notes | GRAIN CLOUD PAD: very long chords | PERC KIT | 80 | 32 32 64 16 | LYD |
+
+\* The starter's SCALE is used only when the selected track's SCALE is CHR (the default). Any other SCALE you set is kept.
+
+**What STARTER changes:** each track's sound (engine and factory preset, with its effect sends), its pattern, LEN,
+DIV (1/16), ROOT and SCALE, and the tempo. **It leaves alone:** each track's LEVEL, PAN and MUTE, the master and
+the effects' own settings. Steps that held something before and are now empty lose their parameter locks when you
+apply, as with FORGE; a sound load also drops automation of the old engine's own controls.
+
+**Undo:** STARTER changes four tracks, and SAVE-held undo holds only one, so after STARTER it has nothing to undo.
+**OCT−** while STARTER is open is the way back. Save your project first if it matters.
+
+**Seeds:** the same SEED, C4 and D4 numbers, STARTER, DENSITY, EVOLVE and ROOT (and SCALE, if you set one) always
+give the same four patterns. A set of starter seeds is pinned by a test, as FORGE's are.
+
+**CPU:** each starter's four engines were chosen to play together, but FORGE ONE has not yet been tested on a real
+FM-1. If you hear voices drop out, swap the pad for a lighter engine (ANALOG or FM6) on the EDIT layer.
+
+## 8. What FORGE writes, and what it leaves alone
 
 **Writes:** steps 1 to LEN of the selected track. On a synth track each step gets notes (1, 3 or 4), NOTE, TIE or REST, accent,
 slide, ratchet (×2 or ×3), and a chance or condition. Velocity follows the beat: notes on the beat are louder and
@@ -183,6 +235,7 @@ off-beat 16ths softer, with a little variation, between 40 and 124 (BERLIN, TRAN
 AMBIENT the gentlest). Accented notes play at 127 as always. Every copy of the motif has the same velocities.
 
 **Leaves alone:**
+
 - steps past LEN
 - the track's LEN, DIV, SWING and GATE, its sound, and its automation
 - the other three tracks
@@ -201,11 +254,13 @@ its changelog says so. Patterns you want to keep for certain belong in a project
 Change any of them and the pattern changes. At EVOLVE 0, changing DENSITY keeps the pitch of the notes that stay;
 with EVOLVE 1 and up it can also change how the later copies drift.
 
-## 8. When it does not do what you expect
+## 9. When it does not do what you expect
 
 | What you see | Why, and what to do |
 | --- | --- |
 | F5 does nothing | A SONG is playing ("STOP TO EDIT"), or the firmware is older than 0.5 on a DRUM track |
+| G5 does nothing | A SONG is playing ("STOP TO EDIT"), or the firmware is older than 0.6 |
+| STARTER changed my sounds and I want them back | Press **OCT−** before letting go of SEQ. After applying, there is no undo for STARTER: load your project again |
 | The notes are too low or too high | Each style has its own octave. To move a pattern, set **QNT** to **SEQ+T** on the SCL page and turn **TRN** (TRN alone, and the octave buttons, only move the keys). Or try a style in another octave |
 | Chords play as single notes | The voice mode is MONO, LEG or UNI. Set **POLY** on EDIT > VOICE |
 | ACID slides do not glide | Use MONO or LEG voice mode, and some GLIDE on EDIT > VOICE (K2) |
@@ -213,8 +268,8 @@ with EVOLVE 1 and up it can also change how the later copies drift.
 | The knobs edit LEN, not SEED | FORGE is not open (F5 is not lit). Tap F5 while holding SEQ |
 | I applied it and want the old steps back | Hold **SAVE** before using another tool (one undo). Or press **OCT−** before letting go of SEQ: it puts back everything the layer changed since it opened, LEN, DIV, SWING and GATE included |
 
-## 9. Credits
+## 10. Credits
 
 FORGE is part of FORGE ONE, a fork of [Felucca](https://github.com/hugelton/Felucca) by Leo Kuroshita, Hügelton
 Instruments, and contributors. GPL-3.0-only. Source: [github.com/kkasemsa/FORGE-ONE](https://github.com/kkasemsa/FORGE-ONE),
-`forge` branch; FORGE's code is in `firmware/src/ui_forge.c`.
+`forge` branch; FORGE's code is in `firmware/src/ui_forge.c`, STARTER's in `firmware/src/ui_starter.c`.

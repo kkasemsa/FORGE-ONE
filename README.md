@@ -1,14 +1,15 @@
 # FORGE ONE — Read Me First
 
 FORGE ONE is custom firmware for the **M-VAVE FM-1**. It is Felucca 1.6.1 by Hügelton Instruments, with one
-addition: **FORGE**, a seeded generator of melodies and beats on the SEQ TOOLS **F5** key.
+addition: **FORGE**, a seeded generator of melodies and beats on the SEQ TOOLS **F5** key, and its song starter,
+**STARTER**, on **G5**.
 Everything else works exactly as in Felucca 1.6.1. FORGE ONE is an independent fork, not made or endorsed by
 Hügelton Instruments; it was called Felucca-FORGE until 0.5.1.
 
 | | |
 | --- | --- |
 | Based on | [Felucca](https://github.com/hugelton/Felucca) 1.6.1 (GPL-3.0-only) by Leo Kuroshita, Hügelton Instruments |
-| Adds | FORGE 0.5.1: SEED, DENSITY, EVOLVE and 8 STYLES on SEQ TOOLS F5, melodies and beats ([changelog](CHANGELOG-FORGE.md)) |
+| Adds | FORGE 0.6: SEED, DENSITY, EVOLVE and 8 STYLES on SEQ TOOLS F5, melodies and beats; STARTER on G5, all four tracks with sounds ([changelog](CHANGELOG-FORGE.md)) |
 | Branch | [`forge`](https://github.com/kkasemsa/FORGE-ONE/tree/forge) (`main` is an untouched copy of upstream) |
 | Status | Firmware builds and host tests pass in CI. **Not yet tested on a real FM-1.** |
 
@@ -44,7 +45,7 @@ The official web installer only installs stock Felucca, so install FORGE with Fe
 4. Run it from that folder: `~/fm1-env/bin/python fm1_install.py forge-one.fwsc`
    It asks before writing. Don't unplug the cable or let the Mac sleep until it says the install is done.
    The FM-1 restarts on its own.
-5. Check it worked: the start-up screen says **FORGE ONE**, and when you hold **SEQ** the SEQ TOOLS map shows a **FORGE** cell for key F5.
+5. Check it worked: the start-up screen says **FORGE ONE**, and when you hold **SEQ** the SEQ TOOLS map shows **FORGE** on key F5 and **STARTER** on G5.
 
 ## Build it yourself (optional)
 

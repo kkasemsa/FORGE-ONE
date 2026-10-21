@@ -1,15 +1,28 @@
 # FORGE changelog
 
-Newest first. FORGE is the SEQ TOOLS F5 motif generator in FORGE ONE (based on Felucca 1.6.1).
+Newest first. FORGE is the SEQ TOOLS F5 motif generator in FORGE ONE (based on Felucca 1.6.1); STARTER (G5, 0.6) is its song starter.
 
 | Version | Date | Theme |
 | --- | --- | --- |
+| 0.6 | 22 Oct 2026 | STARTER: a song start on all four tracks, sounds included |
 | 0.5.1 | 22 Oct 2026 | Fixes from the second code review |
 | 0.5 | 21 Oct 2026 | FORGE on DRUM tracks: beats in the eight styles |
 | 0.4 | 21 Oct 2026 | Velocity by the beat; C4 / D4 reroll notes or rhythm |
 | 0.3 | 21 Oct 2026 | Safe live turns, chords in every scale, pinned seeds |
 | 0.2 | 21 Oct 2026 | The generator: SEED, DENSITY, EVOLVE, 8 styles |
 | 0.1 | 21 Oct 2026 | Scaffold: F5 FORGE cell, CI build |
+
+## 0.6
+
+- **STARTER on SEQ TOOLS G5.** One press loads a factory sound on each track and writes a pattern for each from one
+  seed: T1 BASS, T2 LEAD, T3 PAD (chords), T4 DRUM. Eight starters with the FORGE style names, each with its own four
+  sounds, LENs, tempo and scale (used when the selected track's SCALE is CHR). All four take the selected track's ROOT.
+- K1 SEED, K2 DENSITY (50–150 % of each part's own), K3 EVOLVE, K4 STARTER (wraps, loads its sounds and tempo);
+  C4 / D4 reroll the notes / rhythms of all four. OCT+ or G5 again keeps it; OCT− puts all four tracks back exactly
+  (sound, parameters, steps, FM6 patch, automation, tempo). LEVEL, PAN and MUTE are never changed.
+- The SEQ TOOLS map has a G5 STARTER cell (on a DRUM track, F and G as letter cells at the end of the lanes row).
+  STARTER's screen shows each track's preset and first 16 steps.
+- FORGE itself is unchanged: its 144 pinned seeds write the same steps. 24 starter seeds are pinned too.
 
 ## 0.5.1
 

@@ -1,6 +1,6 @@
 # FORGE ONE User Guide
 
-Felucca 1.6.1 with FORGE 0.5.1 · M-VAVE FM-1
+Felucca 1.6.1 with FORGE 0.6 · M-VAVE FM-1
 
 This guide covers the whole instrument: the Felucca firmware by Hügelton Instruments, and FORGE, the motif generator
 this fork adds. Felucca's own sections follow its official manual, the [Felucca wiki](https://github.com/hugelton/Felucca/wiki),
@@ -261,6 +261,7 @@ Hold **SEQ** on any page. The white keys become pattern tools for the selected t
 | D5 | DOUBLE | The pattern twice (LEN ×2, up to 64 steps) |
 | E5 | HALF | The first half (LEN ÷ 2) |
 | **F5** | **FORGE** | FORGE ONE: a seeded motif generator, a melody on a synth track or a beat on a DRUM track (chapter 9). While it is open, C4 and D4 reroll its two halves |
+| **G5** | **STARTER** | FORGE ONE 0.6: all four tracks at once, a sound and a pattern each (bass, lead, pad, drums), from one seed (9.6). OCT− puts all four back |
 
 Tools only work while no SONG is playing ("STOP TO EDIT").
 
@@ -362,6 +363,31 @@ bottom, an accent brighter (at LEN 33 to 64, two columns: kick, snare, clap, tom
 | SYNTH | Kick on 1 and 7, heavy snare on 2 and 4, 8th hats |
 | AMBIENT | A kick on 1, sparse hats, tom, rim and bell |
 
+### 9.6 STARTER: all four tracks (G5)
+
+Hold **SEQ** and tap **G5** on any track. STARTER loads a sound on each track and writes a pattern for each from one
+seed: **T1 BASS, T2 LEAD, T3 PAD, T4 DRUM** (T4 becomes a DRUM track). All four take the selected track's ROOT; the
+SCALE is yours if you set one, or the starter's if the track is on CHR. The tempo goes to the starter's BPM, unless
+the FM-1 follows an external clock.
+
+K1 SEED, K2 DENSITY (50–150 % of each part's own), K3 EVOLVE and K4 STARTER (the eight style names; each loads its own
+sounds and tempo). C4 rerolls the notes of all four, D4 the rhythms. **OCT+** (or G5 again) keeps it; **OCT−** puts
+all four tracks back as they were, sounds, steps, automation and tempo included. SAVE-held undo cannot undo
+STARTER, so use OCT− before you let go of SEQ. LEVEL, PAN and MUTE are never changed.
+
+| Starter | T1 BASS | T2 LEAD | T3 PAD | T4 DRUM | BPM | LEN (T1–T4) | SCALE* |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| BERLIN | ANALOG SQR BASS: 16th pedal sequence, octave jumps | TRIO ARP LEAD: a high, sparse line | GRAIN CLOUD PAD: one long chord a bar | DEEP KIT | 120 | 16 16 32 16 | MIN |
+| DETROIT | FM6 FM BASS: off-beat root and fifth | ANALOG PWM STR: 4-note chord stabs | FM6 TINE EP: 4-note chords | TIGHT KIT | 126 | 16 16 32 16 | DOR |
+| DUB | ANALOG SUB BASS: sparse, held | PHASE STRING: dub chord stabs | GRAIN SHIMMER: one chord a bar | DEEP KIT | 118 | 16 16 32 16 | DOR |
+| MELODIC | TRIO FAT BASS: rolling off-beat 16ths | ANALOG SAW LEAD: a rising and falling line | FM6 PAD: long chords | DRUM KIT | 122 | 16 32 32 16 | MIN |
+| ACID | ANALOG ACID: the 303 line, slides | LOFI ARP 8BIT: an arpeggio | ANALOG SOFT PAD: one chord a bar | TIGHT KIT | 128 | 16 16 32 16 | MIN |
+| TRANCE | ANALOG SUB BASS: off-beat | TRIO ARP LEAD: the rolling triad arpeggio | ANALOG STRINGS: long chords | DRUM KIT | 138 | 16 16 32 16 | MIN |
+| SYNTH | TRIO FAT BASS: 8th root and fifth | ANALOG BRASS: root-fifth riff | FM6 PAD: long chords | DRUM KIT | 110 | 16 16 32 16 | MIN |
+| AMBIENT | ANALOG SUB BASS: a drone, one note a bar | PHYS KALIMBA: wide, sparse notes | GRAIN CLOUD PAD: very long chords | PERC KIT | 80 | 32 32 64 16 | LYD |
+
+\* The starter's SCALE is used only when the selected track's SCALE is CHR (the default). Any other SCALE you set is kept.
+
 ---
 
 ## 10. Quick layers
@@ -418,7 +444,7 @@ The white keys from F3 pick the **engines**, one key each, in PRESETS order. Aft
 
 ### SEQ layer (hold SEQ)
 
-SEQ TOOLS: chapter 7, and FORGE on F5: chapter 9.
+SEQ TOOLS: chapter 7, FORGE on F5 and STARTER on G5: chapter 9.
 
 ### REC layer (hold REC)
 
@@ -611,6 +637,7 @@ These are setup suggestions for sequencing the FM-1 from a controller, a grooveb
 | The Mac does not see the USB audio input | MENU > SYSTEM > USB SERIAL OFF (macOS 13–15) |
 | A tool says STOP TO EDIT | A SONG is playing. Stop it first |
 | F5 shows no FORGE | The firmware is stock Felucca, or older than FORGE 0.5 on a DRUM track |
+| G5 shows no STARTER | The firmware is older than FORGE 0.6 |
 | A step sometimes does not play | It has a CHANCE or a condition: check SEQ > DETAIL |
 | Chords play one note | Voice mode is MONO, LEG or UNI: set POLY on EDIT > VOICE |
 | A project does not open on an older firmware | See Appendix B |
