@@ -1,14 +1,15 @@
-# Felucca-FORGE — Read Me First
+# FORGE ONE — Read Me First
 
-Felucca-FORGE is custom firmware for the **M-VAVE FM-1**. It is Felucca 1.6.1 by Hügelton Instruments, with one
+FORGE ONE is custom firmware for the **M-VAVE FM-1**. It is Felucca 1.6.1 by Hügelton Instruments, with one
 addition: **FORGE**, a seeded generator of melodies and beats on the SEQ TOOLS **F5** key.
-Everything else works exactly as in Felucca 1.6.1.
+Everything else works exactly as in Felucca 1.6.1. FORGE ONE is an independent fork, not made or endorsed by
+Hügelton Instruments; it was called Felucca-FORGE until 0.5.1.
 
 | | |
 | --- | --- |
 | Based on | [Felucca](https://github.com/hugelton/Felucca) 1.6.1 (GPL-3.0-only) by Leo Kuroshita, Hügelton Instruments |
 | Adds | FORGE 0.5.1: SEED, DENSITY, EVOLVE and 8 STYLES on SEQ TOOLS F5, melodies and beats ([changelog](CHANGELOG-FORGE.md)) |
-| Branch | [`forge`](https://github.com/kkasemsa/Felucca-FORGE/tree/forge) (`main` is an untouched copy of upstream) |
+| Branch | [`forge`](https://github.com/kkasemsa/FORGE-ONE/tree/forge) (`main` is an untouched copy of upstream) |
 | Status | Firmware builds and host tests pass in CI. **Not yet tested on a real FM-1.** |
 
 ## Before you install
@@ -24,9 +25,9 @@ Everything else works exactly as in Felucca 1.6.1.
 
 ## Get the firmware
 
-1. Open the [Releases](https://github.com/kkasemsa/Felucca-FORGE/releases) page and download `felucca.fwsc` from the newest release.
-2. If there is no release yet, open [Actions](https://github.com/kkasemsa/Felucca-FORGE/actions), click the newest
-   green **Build** run on `forge`, and download the `felucca-forge-…` artifact. It is a zip, and `felucca.fwsc` is
+1. Open the [Releases](https://github.com/kkasemsa/FORGE-ONE/releases) page and download `forge-one.fwsc` from the newest release.
+2. If there is no release yet, open [Actions](https://github.com/kkasemsa/FORGE-ONE/actions), click the newest
+   green **Build** run on `forge`, and download the `forge-one-…` artifact. It is a zip, and `forge-one.fwsc` is
    inside. You need to be signed in to GitHub to download artifacts.
 
 ## Install (macOS)
@@ -38,21 +39,21 @@ The official web installer only installs stock Felucca, so install FORGE with Fe
     - `python3 -m venv ~/fm1-env`
     - `~/fm1-env/bin/pip install mido python-rtmidi`
 3. Download the installer script
-   [`tools/fm1_install.py`](https://raw.githubusercontent.com/kkasemsa/Felucca-FORGE/forge/tools/fm1_install.py)
-   into the folder that holds `felucca.fwsc`.
-4. Run it from that folder: `~/fm1-env/bin/python fm1_install.py felucca.fwsc`
+   [`tools/fm1_install.py`](https://raw.githubusercontent.com/kkasemsa/FORGE-ONE/forge/tools/fm1_install.py)
+   into the folder that holds `forge-one.fwsc`.
+4. Run it from that folder: `~/fm1-env/bin/python fm1_install.py forge-one.fwsc`
    It asks before writing. Don't unplug the cable or let the Mac sleep until it says the install is done.
    The FM-1 restarts on its own.
-5. Check it worked: hold **SEQ**. The SEQ TOOLS map should show a **FORGE** cell for key F5.
+5. Check it worked: the start-up screen says **FORGE ONE**, and when you hold **SEQ** the SEQ TOOLS map shows a **FORGE** cell for key F5.
 
 ## Build it yourself (optional)
 
 GitHub builds every push, so you only need this to build your own changes. On a Mac with Docker Desktop running:
 
 ```
-git clone --recurse-submodules -b forge https://github.com/kkasemsa/Felucca-FORGE.git ~/Felucca-FORGE
-cd ~/Felucca-FORGE
-tools/forge_build.sh            # set up and build build/felucca.fwsc
+git clone --recurse-submodules -b forge https://github.com/kkasemsa/FORGE-ONE.git ~/FORGE-ONE
+cd ~/FORGE-ONE
+tools/forge_build.sh            # set up and build build/forge-one.fwsc
 tools/forge_build.sh --flash    # build and install on the FM-1
 ```
 
@@ -80,8 +81,8 @@ later runs only build. `--test` also runs the host tests (about 10 minutes). See
 | --- | --- |
 | **Read Me First** (this page) | What this is, the risks, getting it on your FM-1, getting back |
 | [FORGE User Guide](docs/FORGE-USER-GUIDE.md) ([PDF](docs/pdf/FORGE-User-Guide.pdf)) | FORGE only: controls, the 8 styles, EVOLVE, recipes |
-| [Felucca-FORGE User Guide](docs/USER-GUIDE.md) ([PDF](docs/pdf/Felucca-FORGE-User-Guide.pdf)) | The whole instrument: panel, pages, sequencer, engines, effects, MIDI, menu, and FORGE |
-| [Tutorial (ภาษาไทย)](docs/TUTORIAL-TH.md) ([PDF](docs/pdf/Felucca-FORGE-Tutorial-TH.pdf)) | A first 4-track jam: FORGE on tracks 1–3, drums by hand on track 4 |
+| [FORGE ONE User Guide](docs/USER-GUIDE.md) ([PDF](docs/pdf/FORGE-ONE-User-Guide.pdf)) | The whole instrument: panel, pages, sequencer, engines, effects, MIDI, menu, and FORGE |
+| [Tutorial (ภาษาไทย)](docs/TUTORIAL-TH.md) ([PDF](docs/pdf/FORGE-ONE-Tutorial-TH.pdf)) | A first 4-track jam: FORGE on tracks 1–3, drums by hand on track 4 |
 | [Felucca README](README-FELUCCA.md) | Upstream's own README, unchanged |
 | [BUILDING.md](BUILDING.md) | Building the firmware yourself (CI does it on every push) |
 

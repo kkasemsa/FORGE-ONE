@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-3.0-only
- * Copyright (C) 2026 the Felucca-FORGE contributors */
-/* Felucca-FORGE: SEQ TOOLS F5 FORGE (TL_FORGE, ui_tools.c), a seeded generator for the selected track:
+ * Copyright (C) 2026 the FORGE ONE contributors */
+/* FORGE ONE: SEQ TOOLS F5 FORGE (TL_FORGE, ui_tools.c), a seeded generator for the selected track:
  * melodies on a melodic track, beats on a drum track (0.5, forge_render_drum).
  * Included by ui_layer.c after ui_tools.c.
  *
@@ -24,7 +24,7 @@
  *            so one short pattern still changes loop to loop; ACID and TRANCE ratchet a few
  * Separate random streams for pitch, rhythm and evolution: turning DENSITY keeps the melody, EVOLVE keeps the motif.
  * The steps as it opened are kept in EUCLID's copy (eu_from: the two are never open together). */
-#define FORGE_VERSION "0.5.1"
+/* FORGE_VERSION: core.h */
 
 enum { FC_WALK, FC_ARC, FC_CHORD, FC_ROOT5, FC_PEDAL, FC_WIDE };
 enum { FS_BERLIN, FS_DETROIT, FS_DUB, FS_MELODIC, FS_ACID, FS_TRANCE, FS_SYNTH, FS_AMBIENT, FS_N };

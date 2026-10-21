@@ -663,7 +663,7 @@ static void state(void)                          /* a playing song with steps on
     ui_power_on();
     seq_fill = 0;                                /* (1.5.5: GLO's FILL, held in layer_glo_fill only; */
     eu.on = 0;                                   /* SEQ TOOLS' EUCLID, open in layer_seq_euclid*) */
-    fg.on = 0;                                   /* (Felucca-FORGE, open in layer_seq_forge*) */
+    fg.on = 0;                                   /* (FORGE ONE, open in layer_seq_forge*) */
     if (large_on) ui_prefs |= PREF_LARGE;
     song.playing = 1;
     song.g[G_BPM] = 124;
@@ -1538,7 +1538,7 @@ static void setup(int s)
         eu.rot = s == S_SEQ_EUCLID ? 2 : 0;
         eu_render(TSEL); ui.msg_t = 0;
         break;
-    /* Felucca-FORGE: SEQ TOOLS' FORGE open: BERLIN seed 42 (HELP ON, KNOB 4 just turned), DUB (chords, ties, the
+    /* FORGE ONE: SEQ TOOLS' FORGE open: BERLIN seed 42 (HELP ON, KNOB 4 just turned), DUB (chords, ties, the
      * longest DENSITY), AMBIENT (the longest STYLE name), MELODIC over 64 steps (four rows, EVOLVE 4) */
     case S_SEQ_FORGE_DRUM: case S_SEQ_FORGE_DRUM_64:   /* 0.5: on the DRUM track, ACID at LEN 16, TRANCE EVOLVE 3 at 64 */
         drum(0); ui.lane = 3;
@@ -1668,7 +1668,7 @@ static void draw(int s)
     }
     if (s == S_SPLASH) {                          /* the power-on splash (main.c, before the UI): its lines, the version
                                                    * shown FELUCCA_VERSION (run_tests.sh: src/felucca.c's) */
-        static const char WANT[] = "Felucca|" FELUCCA_VERSION "|H\xFCgelton Instruments|with community";
+        static const char WANT[] = FORGE_ONE_NAME "|" FORGE_VERSION "|on Felucca " FELUCCA_VERSION "|by H\xFCgelton";   /* (FORGE ONE) */
         splash_seen[0] = 0;
         in_splash = 1;
         draw_splash();
@@ -1692,7 +1692,7 @@ static void draw(int s)
                         if (x - q0 < ix) ix = x - q0;
                         if (y - q0 < iy) iy = y - q0;
                     }
-            if (bad || ix != 16 || iy != 16) {
+            if (bad || ix != 16 || (iy != 16 && iy != 15)) {   /* (FORGE ONE: its round O / G overshoot the capitals 1 px) */
                 if (rep) fprintf(rep, "FIND %-26s the splash square not whole (edges %s) or its text not 16 px in (left %d, top %d)\n",
                                  cur_name, bad ? "off" : "ok", (int)ix, (int)iy);
                 nfind++;

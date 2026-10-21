@@ -7,6 +7,11 @@
  * Sections: sizes, parameters, voices and engines, tracks and the song, system. */
 #include <stdint.h>
 
+/* FORGE ONE (this fork, GPL-3.0-only): its name and version on the splash and ABOUT; Felucca's own name stays in the
+ * protocol (editor.c ED_INFO), the loader and the console, which the editor and the tools read */
+#define FORGE_ONE_NAME "FORGE ONE"
+#define FORGE_VERSION "0.5.1"
+
 /* ------------------------------------------------------------ sizes --- */
 #define NVOICE 8                 /* voices per part, and the budget shared by all parts */
 #define NPART 4                  /* synth parts: tracks 1..4 */

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-only
-"""Felucca-FORGE CI: turn the failures in a tests/run_tests.sh log into GitHub annotations, one per failing
+"""FORGE ONE CI: turn the failures in a tests/run_tests.sh log into GitHub annotations, one per failing
 section (the "== name" line before them), so they show on the run's summary page and through the API.
     test_failures.py build/test.log"""
 import re

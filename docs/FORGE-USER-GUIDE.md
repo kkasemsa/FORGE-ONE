@@ -1,6 +1,6 @@
 # FORGE User Guide
 
-FORGE 0.5.1 for Felucca-FORGE 1.6.1 · M-VAVE FM-1
+FORGE 0.5.1 in FORGE ONE (Felucca 1.6.1) · M-VAVE FM-1
 
 FORGE writes a musical idea onto a track in one key press, then lets that idea evolve: a melody on a synth track,
 a beat on a DRUM track (section 6). It lives in
@@ -215,6 +215,6 @@ with EVOLVE 1 and up it can also change how the later copies drift.
 
 ## 9. Credits
 
-FORGE is part of Felucca-FORGE, a fork of [Felucca](https://github.com/hugelton/Felucca) by Leo Kuroshita, Hügelton
-Instruments, and contributors. GPL-3.0-only. Source: [github.com/kkasemsa/Felucca-FORGE](https://github.com/kkasemsa/Felucca-FORGE),
+FORGE is part of FORGE ONE, a fork of [Felucca](https://github.com/hugelton/Felucca) by Leo Kuroshita, Hügelton
+Instruments, and contributors. GPL-3.0-only. Source: [github.com/kkasemsa/FORGE-ONE](https://github.com/kkasemsa/FORGE-ONE),
 `forge` branch; FORGE's code is in `firmware/src/ui_forge.c`.

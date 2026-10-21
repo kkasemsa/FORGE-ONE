@@ -282,7 +282,7 @@ if [ -f build/gen/felucca_tables.h ]; then
     $CC -O1 -w -Ibuild/gen -Ifirmware/src -o "$OUT/v16_test" tests/v16_test.c -lm
     run "1.6: SEQ's piano roll follows the play position (#242: STEP, DETAIL; held by the knobs, 3 s or one pass)" "$OUT/v16_test"
     $CC -O1 -w -Ibuild/gen -Ifirmware/src -o "$OUT/forge_test" tests/forge_test.c -lm
-    run "Felucca-FORGE: SEQ TOOLS F5 FORGE (melodies and beats, pinned seeds)" "$OUT/forge_test"
+    run "FORGE ONE: SEQ TOOLS F5 FORGE (melodies and beats, pinned seeds)" "$OUT/forge_test"
     $CC -O1 -w -Ibuild/gen -Ifirmware/src -o "$OUT/fun10_test" tests/fun10_test.c -lm
     run "1.2 (FUN10): LFO 2 SYNC / TRIG / POL, NUDGE (record, QUANTIZE, play, controls), 128 motion records, FUN10 / FUN9 / FUN8 / FUN7, user presets" "$OUT/fun10_test"
     $CC -O1 -w -Ibuild/gen -Ifirmware/src -o "$OUT/midi_control_test" tests/midi_control_test.c -lm

@@ -1,6 +1,6 @@
 # FORGE changelog
 
-Newest first. FORGE is the SEQ TOOLS F5 motif generator in Felucca-FORGE (based on Felucca 1.6.1).
+Newest first. FORGE is the SEQ TOOLS F5 motif generator in FORGE ONE (based on Felucca 1.6.1).
 
 | Version | Date | Theme |
 | --- | --- | --- |
@@ -13,6 +13,10 @@ Newest first. FORGE is the SEQ TOOLS F5 motif generator in Felucca-FORGE (based 
 
 ## 0.5.1
 
+- **New name: FORGE ONE** (was Felucca-FORGE). The start-up screen and MENU > ABOUT show FORGE ONE with its
+  version and Felucca's credit; the firmware file is `forge-one.fwsc`; the repository is
+  [kkasemsa/FORGE-ONE](https://github.com/kkasemsa/FORGE-ONE). The editor protocol still reports Felucca, so the
+  Felucca web editor and backups work as before.
 - **Drum fill never replaces the kick on step 1.** At LEN 2 or 3 with EVOLVE 2 or more, the fill could land on step 1
   and put a snare in place of the kick. The fill now needs a motif of at least 4 steps and never touches step 1.
 - **STYLE wraps** like SEED: past AMBIENT comes BERLIN, and back. Changing STYLE also sets the C4 / D4 counts back to 0,

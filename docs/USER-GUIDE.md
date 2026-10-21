@@ -1,4 +1,4 @@
-# Felucca-FORGE User Guide
+# FORGE ONE User Guide
 
 Felucca 1.6.1 with FORGE 0.5.1 · M-VAVE FM-1
 
@@ -37,10 +37,10 @@ Values given as settings are starting points. Judge them by ear.
 
 ## 1. Installing and going back
 
-**Felucca-FORGE** is installed with Felucca's command-line installer, because the official web installer only
+**FORGE ONE** is installed with Felucca's command-line installer, because the official web installer only
 installs stock Felucca. The steps are in the [Read Me First](../README.md#install-macos). In short:
 
-1. Download `felucca.fwsc` from the fork's Releases page (or from the newest green Actions build).
+1. Download `forge-one.fwsc` from the fork's Releases page (or from the newest green Actions build).
 2. Quit every app that uses MIDI. Connect the FM-1 with a USB data cable.
 3. Install `mido` and `python-rtmidi` in a Python environment, then run the installer (exact commands in the Read Me First).
 4. Wait for the FM-1 to restart. Hold SEQ: the SEQ TOOLS map shows FORGE on F5.
@@ -260,7 +260,7 @@ Hold **SEQ** on any page. The white keys become pattern tools for the selected t
 | G4 – C5 | Lane CLEAR, REVERSE, FILL, RANDOM | DRUM only: the selected lane (black keys 1–8 pick it) |
 | D5 | DOUBLE | The pattern twice (LEN ×2, up to 64 steps) |
 | E5 | HALF | The first half (LEN ÷ 2) |
-| **F5** | **FORGE** | Felucca-FORGE: a seeded motif generator, a melody on a synth track or a beat on a DRUM track (chapter 9). While it is open, C4 and D4 reroll its two halves |
+| **F5** | **FORGE** | FORGE ONE: a seeded motif generator, a melody on a synth track or a beat on a DRUM track (chapter 9). While it is open, C4 and D4 reroll its two halves |
 
 Tools only work while no SONG is playing ("STOP TO EDIT").
 
@@ -616,7 +616,7 @@ These are setup suggestions for sequencing the FM-1 from a controller, a grooveb
 | A project does not open on an older firmware | See Appendix B |
 
 Bugs in Felucca itself: [Felucca Issues](https://github.com/hugelton/Felucca/issues). Bugs in FORGE or this fork:
-[Felucca-FORGE Issues](https://github.com/kkasemsa/Felucca-FORGE/issues).
+[FORGE ONE Issues](https://github.com/kkasemsa/FORGE-ONE/issues).
 
 ---
 
@@ -649,7 +649,7 @@ Bugs in Felucca itself: [Felucca Issues](https://github.com/hugelton/Felucca/iss
 
 | From | To | What to know |
 | --- | --- | --- |
-| Felucca-FORGE | Felucca 1.6 / 1.6.1 | Everything opens and plays the same; FORGE patterns are ordinary steps |
+| FORGE ONE | Felucca 1.6 / 1.6.1 | Everything opens and plays the same; FORGE patterns are ordinary steps |
 | 1.6 / 1.6.1 (and FORGE) | 1.5 / 1.5.1 | Projects with **conditional steps** do not open there (FORGE at EVOLVE 2 and up can write them). Clear conditions first, or keep a backup. MIDI IN TRACK plays as a channel block, FOLD is ignored, DEEP / TIGHT / PERC play as 77, MOD VEL / TIME read as DEPTH |
 | 1.5 or later | 1.2 – 1.4.1 | Projects saved by 1.5 or later do not open |
 | 1.4 or later | 1.1.5.x | Projects saved by 1.4 or later do not open |
@@ -665,7 +665,7 @@ contributors: see [CREDITS.md](../CREDITS.md). Its engines and DSP include work 
 Instruments' eurorack code, Dexed, klattsch and others, each under its own licence ([LICENSES/](../LICENSES/)). This guide
 draws on the [Felucca wiki](https://github.com/hugelton/Felucca/wiki), the official manual.
 
-**FORGE** and this fork, Felucca-FORGE, are by the Felucca-FORGE contributors.
+**FORGE** and this fork, FORGE ONE, are by the FORGE ONE contributors.
 
-Felucca and Felucca-FORGE are free software under GPL-3.0-only. M-VAVE and FM-1 are trademarks of their respective
+Felucca and FORGE ONE are free software under GPL-3.0-only. M-VAVE and FM-1 are trademarks of their respective
 owners; neither project is affiliated with or endorsed by them.

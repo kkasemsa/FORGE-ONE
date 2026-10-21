@@ -1,10 +1,10 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-3.0-only
-# Copyright (C) 2026 the Felucca-FORGE contributors
+# Copyright (C) 2026 the FORGE ONE contributors
 #
-# Felucca-FORGE: build the firmware on your own Mac (or Linux x86-64), from setup to a .fwsc, in one command.
+# FORGE ONE: build the firmware on your own Mac (or Linux x86-64), from setup to a .fwsc, in one command.
 #
-#   tools/forge_build.sh            set up what is missing, then build build/felucca.fwsc
+#   tools/forge_build.sh            set up what is missing, then build build/forge-one.fwsc
 #   tools/forge_build.sh --test     ... and run the host tests (tests/run_tests.sh, about 10 minutes)
 #   tools/forge_build.sh --flash    ... and install it on the FM-1 over USB (asks before writing)
 #   tools/forge_build.sh --clean    remove build/ first
@@ -48,7 +48,7 @@ OS=$(uname -s); ARCH=$(uname -m)
 command -v git >/dev/null || die "git is missing. On a Mac: xcode-select --install"
 command -v python3 >/dev/null || die "python3 is missing. On a Mac: xcode-select --install (or brew install python)"
 command -v curl >/dev/null || die "curl is missing"
-[ -f firmware/src/ui_forge.c ] || die "this is not a Felucca-FORGE checkout (no firmware/src/ui_forge.c)"
+[ -f firmware/src/ui_forge.c ] || die "this is not a FORGE ONE checkout (no firmware/src/ui_forge.c)"
 ok "$OS $ARCH, $(python3 --version 2>&1), git $(git --version | awk '{print $3}')"
 if [ "$OS" != Linux ] || [ "$ARCH" != x86_64 ]; then
     command -v docker >/dev/null || die "Docker is missing. Install Docker Desktop: https://www.docker.com/products/docker-desktop/"
@@ -121,9 +121,10 @@ t0=$(date +%s)
 ./build.sh
 [ -f build/felucca.fwsc ] || die "the build made no build/felucca.fwsc"
 if command -v shasum >/dev/null; then SUM="shasum -a 256"; else SUM=sha256sum; fi
-( cd build && $SUM felucca.fwsc felucca.bin loader/ota.bin > SHA256SUMS )
-ok "build/felucca.fwsc ($(wc -c < build/felucca.fwsc | tr -d ' ') bytes, $(( $(date +%s) - t0 )) s)"
-ok "FORGE $(sed -n 's/^#define FORGE_VERSION "\(.*\)"/\1/p' firmware/src/ui_forge.c) on Felucca $(sed -n 's/^#define FELUCCA_VERSION "\(.*\)".*/\1/p' firmware/src/felucca.c | head -1)"
+cp build/felucca.fwsc build/forge-one.fwsc                # (FORGE ONE: the package under its own name)
+( cd build && $SUM forge-one.fwsc felucca.bin loader/ota.bin > SHA256SUMS )
+ok "build/forge-one.fwsc ($(wc -c < build/felucca.fwsc | tr -d ' ') bytes, $(( $(date +%s) - t0 )) s)"
+ok "FORGE $(sed -n 's/^#define FORGE_VERSION "\(.*\)"/\1/p' firmware/src/core.h) on Felucca $(sed -n 's/^#define FELUCCA_VERSION "\(.*\)".*/\1/p' firmware/src/felucca.c | head -1)"
 
 # ----------------------------------------------------------------------------------------------- tests ---
 if [ $TEST = 1 ]; then
@@ -139,9 +140,9 @@ if [ $FLASH = 1 ]; then
     step "Install on the FM-1"
     echo "   Quit Ableton Live and every other MIDI app; connect the FM-1 with a USB data cable and turn it on."
     echo "   Do not unplug it or let the Mac sleep while it writes."
-    "$PYTHON" tools/fm1_install.py build/felucca.fwsc
+    "$PYTHON" tools/fm1_install.py build/forge-one.fwsc
 fi
 
 step "Done"
-echo "   Firmware: $ROOT/build/felucca.fwsc"
-[ $FLASH = 1 ] || echo "   To install: tools/forge_build.sh --flash   (or: $PYTHON tools/fm1_install.py build/felucca.fwsc)"
+echo "   Firmware: $ROOT/build/forge-one.fwsc"
+[ $FLASH = 1 ] || echo "   To install: tools/forge_build.sh --flash   (or: $PYTHON tools/fm1_install.py build/forge-one.fwsc)"

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-only
-# Copyright (C) 2026 the Felucca-FORGE contributors
-"""Felucca-FORGE: the user documents as PDFs, from their Markdown.
+# Copyright (C) 2026 the FORGE ONE contributors
+"""FORGE ONE: the user documents as PDFs, from their Markdown.
 
     python3 tools/docs/build_pdfs.py            (from the repository root)
 
@@ -24,16 +24,16 @@ from pypdf import PdfReader, PdfWriter
 ROOT = Path(__file__).resolve().parents[2]
 FONTS = Path(__file__).resolve().parent / "fonts"
 OUT = ROOT / "docs" / "pdf"
-REPO = "https://github.com/kkasemsa/Felucca-FORGE/blob/forge/"
+REPO = "https://github.com/kkasemsa/FORGE-ONE/blob/forge/"
 
 DOCS = [   # (source, output, cover kicker, cover subtitle)
-    ("README.md", "Felucca-FORGE-Read-Me-First.pdf", "Read me first",
+    ("README.md", "FORGE-ONE-Read-Me-First.pdf", "Read me first",
      "What it is, the risks, installing, and getting back"),
     ("docs/FORGE-USER-GUIDE.md", "FORGE-User-Guide.pdf", "User guide",
      "The seeded motif generator on SEQ TOOLS F5"),
-    ("docs/USER-GUIDE.md", "Felucca-FORGE-User-Guide.pdf", "Complete user guide",
+    ("docs/USER-GUIDE.md", "FORGE-ONE-User-Guide.pdf", "Complete user guide",
      "Felucca 1.6.1 and FORGE 0.5.1 on the M-VAVE FM-1"),
-    ("docs/TUTORIAL-TH.md", "Felucca-FORGE-Tutorial-TH.pdf", "Tutorial (ภาษาไทย)",
+    ("docs/TUTORIAL-TH.md", "FORGE-ONE-Tutorial-TH.pdf", "Tutorial (ภาษาไทย)",
      "แจม 4 แทร็ก: FORGE บนแทร็ก 1–3 และกลองบนแทร็ก 4"),
 ]
 
@@ -119,8 +119,8 @@ def page(src, kicker, sub):
   <div class="top"><div class="kicker">{html.escape(kicker)}</div>
   <div class="title">{html.escape(title)}</div><div class="sub">{html.escape(sub)}</div></div>
   <div><div class="grid">{steps}</div>
-  <div class="meta"><b>Felucca-FORGE</b> · Felucca 1.6.1 + FORGE 0.5.1 · M-VAVE FM-1<br>
-  github.com/kkasemsa/Felucca-FORGE (forge branch) · {today}<br>
+  <div class="meta"><b>FORGE ONE</b> · Felucca 1.6.1 + FORGE 0.5.1 · M-VAVE FM-1<br>
+  github.com/kkasemsa/FORGE-ONE (forge branch) · {today}<br>
   Felucca by Hügelton Instruments and contributors · GPL-3.0-only</div></div></section>"""
     css = CSS.replace("FONTS", FONTS.as_uri())
     return f"""<!doctype html><html><head><meta charset="utf-8"><title>{html.escape(title)}</title>
@@ -143,7 +143,7 @@ def underlay(pdf, paper):
         if "/Annots" in p:
             base[__import__("pypdf").generic.NameObject("/Annots")] = p["/Annots"]
     wr.add_metadata({"/Title": rd.metadata.title if rd.metadata and rd.metadata.title else pdf.stem,
-                     "/Author": "Felucca-FORGE contributors"})
+                     "/Author": "FORGE ONE contributors"})
     with open(pdf, "wb") as f:
         wr.write(f)
     paper.unlink()

@@ -50,7 +50,7 @@
  * a double tap leaves the page as it was. A first tap that acted instead of opening a page (EDIT on STEP: clear the
  * step; on USER / PROJECT: rename) arms no double tap: two quick taps there still act twice. */
 #include "ui_tools.c"                                   /* SEQ TOOLS' actions */
-#include "ui_forge.c"                                   /* Felucca-FORGE: SEQ TOOLS F5 */
+#include "ui_forge.c"                                   /* FORGE ONE: SEQ TOOLS F5 */
 enum { LK_HOLD, LK_SET };
 typedef struct {
     uint8_t btn, kind, fam;            /* the button, HOLD / SET, the family whose first page KNOB 1..4 edit */
@@ -402,12 +402,12 @@ static void tools_key(uint32_t p)
             return;
         }
     }
-    if (fg.on && (p == TL_RANDOM || p == TL_COOK)) {    /* (Felucca-FORGE 0.4 open: C4 new notes, D4 a new rhythm) */
+    if (fg.on && (p == TL_RANDOM || p == TL_COOK)) {    /* (FORGE ONE 0.4 open: C4 new notes, D4 a new rhythm) */
         forge_reroll(p == TL_COOK);
         ui.force = 1;
         return;
     }
-    if (fg.on) {                                        /* (Felucca-FORGE open: applied; F5 again does only that) */
+    if (fg.on) {                                        /* (FORGE ONE open: applied; F5 again does only that) */
         forge_close(1);
         if (p == TL_FORGE) {
             ui_message("FORGE APPLIED");
@@ -415,7 +415,7 @@ static void tools_key(uint32_t p)
             return;
         }
     }
-    if (p == TL_FORGE) {                                /* Felucca-FORGE (ui_forge.c): one undo copy for all of it */
+    if (p == TL_FORGE) {                                /* FORGE ONE (ui_forge.c): one undo copy for all of it */
         forge_key(TSEL);
         if (!lys.loaded)
             str_cpy(ui.msg2, "[SAVE] HOLD TO UNDO", sizeof ui.msg2);
@@ -1123,7 +1123,7 @@ static void layer_seq(void)
 {
     uint32_t p, st = chain_busy() ? LS_DIM : LS_OFF, drum = (uint32_t)drum_track(TSEL);
     char n[3] = {0, 0, 0}, nm[8];
-    if (fg.on) {                                        /* (Felucca-FORGE open: its pattern) */
+    if (fg.on) {                                        /* (FORGE ONE open: its pattern) */
         layer_forge();
         return;
     }
@@ -1146,7 +1146,7 @@ static void layer_seq(void)
         GFX_HOOK_ALIGN(x, 100, x + 18, 118, AL_HV, "tools lane cell name centred");
         cv_text_in(x, 100 + CAP_IN(S, 18), 18, &AF_S, drum_lane_abbr(TSEL, p), ink, fill);
     }
-    if (!drum && !eu.on) {                              /* Felucca-FORGE: F5 in the lanes' row (a melodic track has */
+    if (!drum && !eu.on) {                              /* FORGE ONE: F5 in the lanes' row (a melodic track has */
         n[0] = W_NOTE[TL_FORGE];                        /* none), first cell */
         lcell(LC_X(0u), 4 + 32 * 2, 28, n, TL_ICON[TL_FORGE], 0, TL_NAME[TL_FORGE], st, 0);
     }

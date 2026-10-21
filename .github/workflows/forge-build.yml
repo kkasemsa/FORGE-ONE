@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: GPL-3.0-only
-# Felucca-FORGE: build the firmware package and run the host tests on Linux x86-64,
+# FORGE ONE: build the firmware package and run the host tests on Linux x86-64,
 # where the JieLi toolchain runs natively (no Docker, no Rosetta).
 #   push / PR to forge, or run by hand (Actions > Build > Run workflow)
-# Artifact: felucca-forge-<sha>: felucca.fwsc, felucca.bin, loader/ota.bin, SHA256SUMS
+# Artifact: forge-one-<sha>: forge-one.fwsc, felucca.bin, loader/ota.bin, SHA256SUMS
 name: Build
 
 on:
@@ -95,15 +95,16 @@ jobs:
         if: always()
         run: |
           [ -f build/felucca.fwsc ] || exit 0
-          cd build && sha256sum felucca.fwsc felucca.bin loader/ota.bin > SHA256SUMS
+          cp build/felucca.fwsc build/forge-one.fwsc        # (FORGE ONE: the package under its own name)
+          cd build && sha256sum forge-one.fwsc felucca.bin loader/ota.bin > SHA256SUMS
 
       - name: Upload firmware
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: felucca-forge-${{ github.sha }}
+          name: forge-one-${{ github.sha }}
           path: |
-            build/felucca.fwsc
+            build/forge-one.fwsc
             build/felucca.bin
             build/loader/ota.bin
             build/SHA256SUMS
@@ -123,5 +124,5 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" build/felucca.fwsc build/SHA256SUMS \
-            --title "Felucca-FORGE $GITHUB_REF_NAME" --notes "Felucca with the FORGE tool. Install at your own risk."
+          gh release create "$GITHUB_REF_NAME" build/forge-one.fwsc build/SHA256SUMS \
+            --title "FORGE ONE $GITHUB_REF_NAME" --notes "FORGE ONE: Felucca 1.6.1 with the FORGE generator. Install at your own risk."
