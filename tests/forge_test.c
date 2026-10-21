@@ -1,47 +1,289 @@
 /* SPDX-License-Identifier: GPL-3.0-only
  * Copyright (C) 2026 the Felucca-FORGE contributors */
-/* Felucca-FORGE (firmware/src/ui_forge.c): SEQ TOOLS F5, on the real sequencer and UI sources (with the stubs of
- * tests/ui_test.c). Scaffold: F5 on a melodic track says FORGE and its version and leaves the steps as they were;
- * on a DRUM track it is not there. Built and run by tests/run_tests.sh. */
+/* Felucca-FORGE (firmware/src/ui_forge.c): SEQ TOOLS F5 FORGE, on the real sequencer and UI sources (with the stubs of
+ * tests/ui_test.c):
+ *   open       F5 on a melodic track writes steps 1..LEN at once ("FORGE <seed> <style>"), F5 lit; past LEN untouched
+ *   the steps  every note in ROOT / SCALE, step 1 a note, a TIE always after a note or a TIE, at most 4 notes a step,
+ *              notes 24..108, conditions / chances only with EVOLVE, none at EVOLVE 0 (a pure loop: copies the same)
+ *   seeded     the same SEED STYLE DENSITY EVOLVE LEN ROOT SCALE: the same steps (again after other values); another
+ *              SEED: other steps; DENSITY alone: the melody of the notes kept stays (the pitch stream is its own)
+ *   knobs      KNOB 1 SEED (0..99, round), 2 DENSITY (10..100 by 5), 3 EVOLVE (0..4), 4 STYLE (8; its DENSITY)
+ *   styles     all 8 at LEN 16, 32 and 64, in MIN, MAJ, PEN and CHR, every ROOT: the rules above hold
+ *   close      OCT- cancels (the steps and a lock as they were), OCT+ / F5 again / the layer let go apply (an emptied
+ *              step's lock goes); SAVE held after: one undo for all of it
+ *   DRUM       F5 is not there (nothing happens)
+ * Built and run by tests/run_tests.sh. */
 #define UI_TEST_NO_MAIN 1
 #include "ui_test.c"
 
 static void tkey(uint32_t w) { key_down(white(w)); frame(); key_up(white(w)); frame(); }
+static void oct_fwd(void) { btn_down(B_OCTUP); frame(); btn_up(B_OCTUP); frame(); }
+static void kt(uint32_t role, int32_t s) { memset(ui.enc_t, 0, sizeof ui.enc_t); turn(role, s); }
 
-static track_t *melody(void)
+/* track 1 alone, LEN len of 1/16, a few notes (C4 on 1, F4 on 6), a lock on step 6; past LEN a note on 31 or 63 */
+static track_t *melody(uint32_t len)
 {
     track_t *t;
-    uint32_t i;
     ui_power_on();
     song.sel = 0;
     t = &trk[0];
     track_defaults_steps(t);
     motion_clear(t);
-    t->p[P_SLEN] = 16;
-    for (i = 0; i < 16u; i += 2u)
-        t->step[i] = (step_t){{(uint8_t)(60u + i)}, 1, ST_NOTE, 0, 0};
+    t->p[P_SLEN] = (int16_t)len;
+    t->p[P_SDIV] = 2;
+    t->p[P_ROOT] = 9;                                   /* A minor */
+    t->p[P_SCALE] = 2;
+    t->step[0] = (step_t){{60}, 1, ST_NOTE, 0, 96};
+    t->step[5] = (step_t){{65}, 1, ST_NOTE, 0, 96};
+    t->step[63] = (step_t){{90}, 1, ST_NOTE, 0, 96};
+    motion_set_lock(t, 5, P_REV, 50);
     return t;
 }
+static int lock_at5(void) { int16_t v; return motion_lock_get(&trk[0], 5, P_REV, &v) && v == 50; }
 
-static int test_scaffold(void)
+/* the rules every FORGE pattern keeps (why: 0 = fine, else what broke) */
+static const char *rules(const track_t *t, uint32_t len)
 {
+    uint32_t i, k;
+    if (t->step[0].time != ST_NOTE || !t->step[0].n)
+        return "step 1 is not a note";
+    for (i = 0; i < len; i++) {
+        const step_t *s = &t->step[i];
+        if (s->time == ST_NOTE && s->n) {
+            if (s->n > 4u)
+                return "more than 4 notes";
+            for (k = 0; k < s->n; k++) {
+                if (s->note[k] < 24u || s->note[k] > 108u)
+                    return "a note out of 24..108";
+                if (!tl_in_scale(t, s->note[k]))
+                    return "a note out of the scale";
+            }
+            if (s->vel != 96u)
+                return "VEL not 96";
+        } else if (s->time == ST_TIE) {
+            const step_t *p = &t->step[i - 1];
+            if (!i || !((p->time == ST_NOTE && p->n) || p->time == ST_TIE))
+                return "a TIE with nothing to hold";
+        } else if (s->n) {
+            return "a REST with notes";
+        }
+        if (s->hit)
+            return "drum hits on a melodic step";
+    }
+    return 0;
+}
+static int no_extras(const track_t *t, uint32_t len)   /* no chance, condition or ratchet */
+{
+    uint32_t i;
+    for (i = 0; i < len; i++)
+        if (step_chance_v(&t->step[i]) != 100u || step_ratchet(&t->step[i]) != 1u)
+            return 0;
+    return 1;
+}
+static int copies_equal(const track_t *t, uint32_t len, uint32_t ml)   /* every copy of the motif the same */
+{
+    uint32_t i;
+    for (i = ml; i < len; i++)
+        if (memcmp(&t->step[i], &t->step[i % ml], sizeof(step_t)))
+            return 0;
+    return 1;
+}
+
+static int test_open(void)
+{
+    int bad = 0, ok;
+    step_t ref[NSTEP], a[NSTEP];
+    track_t *t = melody(16);
+    uint32_t i;
+    memcpy(ref, t->step, sizeof ref);
+    go_page(GR_ROLL); frame();
+    fg.set = 0;
+    btn_down(B_SEQ); frame();
+    tkey(TL_FORGE);                                     /* F5 */
+    ok = fg.on && fg.style == FS_BERLIN && fg.evolve == 1u && fg.dens == 85u && fg.seed < 100u &&
+         str_eq(ui.msg, "FORGE ") == 0 && !memcmp(ui.msg, "FORGE ", 6) && !rules(t, 16) && t->step[63].note[0] == 90;
+    bad += check("FORGE (F5): open on BERLIN, EVOLVE 1, its DENSITY; steps 1..LEN written by the rules; past LEN kept", ok);
+    {
+        char want[24], n[4];
+        str_cpy(want, "FORGE ", sizeof want);
+        fmt_int(n, fg.seed);
+        str_cpy(want + str_len(want), n, sizeof want - str_len(want));
+        str_cpy(want + str_len(want), " BERLIN", sizeof want - str_len(want));
+        bad += check("  its message: FORGE <seed> BERLIN", msg_is(want));
+    }
+    /* seeded */
+    fg.seed = 41; kt(EN_K1, 1);
+    memcpy(a, t->step, sizeof a);
+    ok = fg.seed == 42u && msg_is("FORGE 42 BERLIN");
+    kt(EN_K1, 5); kt(EN_K4, 3); kt(EN_K3, 2); kt(EN_K2, -4);
+    ok &= memcmp(a, t->step, sizeof a) != 0;
+    kt(EN_K4, -3); kt(EN_K3, -2); kt(EN_K1, -5);       /* (STYLE back: its DENSITY back) */
+    ok &= fg.seed == 42u && fg.style == FS_BERLIN && fg.evolve == 1u && fg.dens == 85u && !memcmp(a, t->step, sizeof a);
+    bad += check("  seeded: the same values, the same steps (after others); KNOB 1 SEED, 4 STYLE with its DENSITY", ok);
+    kt(EN_K1, 1);
+    ok = memcmp(a, t->step, sizeof a) != 0;
+    kt(EN_K1, -1);
+    bad += check("  another SEED: other steps", ok);
+    kt(EN_K1, -43);
+    ok = fg.seed == 99u;
+    kt(EN_K1, 1);
+    ok &= fg.seed == 0u;
+    kt(EN_K1, 42);
+    kt(EN_K2, 100);
+    ok &= fg.dens == 100u;
+    kt(EN_K2, -100);
+    ok &= fg.dens == 10u && !rules(t, 16);
+    kt(EN_K3, 10);
+    ok &= fg.evolve == 4u;
+    kt(EN_K3, -10);
+    ok &= fg.evolve == 0u;
+    kt(EN_K4, 20);
+    ok &= fg.style == FS_AMBIENT && fg.dens == FORGE_STYLE[FS_AMBIENT].dens;
+    kt(EN_K4, -20);
+    ok &= fg.style == FS_BERLIN && fg.dens == 85u;
+    bad += check("  KNOB 1 SEED 0..99 round, 2 DENSITY 10..100, 3 EVOLVE 0..4, 4 STYLE BERLIN..AMBIENT", ok);
+    {   /* DENSITY alone: a note kept on a step plays the same pitch */
+        step_t lo[NSTEP];
+        kt(EN_K2, -5);                                  /* 60 */
+        memcpy(lo, t->step, sizeof lo);
+        kt(EN_K2, 3);                                   /* 75 */
+        ok = 1;
+        for (i = 0; i < 16u; i++)
+            if (lo[i].time == ST_NOTE && lo[i].n && t->step[i].time == ST_NOTE && t->step[i].n)
+                ok &= lo[i].note[0] == t->step[i].note[0];
+        kt(EN_K2, 2);
+        bad += check("  DENSITY alone: the notes on steps kept keep their pitch", ok && fg.dens == 85u);
+    }
+    ui.force = 1; frame();
+    oct_back();
+    ok = !fg.on && !memcmp(t->step, ref, sizeof ref) && lock_at5() && msg_is("FORGE CANCELLED") && ui.layer == LAYER_SEQ;
+    bad += check("  OCT-: cancelled, the steps and the lock as they were (the layer stays open)", ok);
+    tkey(TL_FORGE);
+    memcpy(a, t->step, sizeof a);
+    oct_fwd();
+    ok = !fg.on && msg_is("FORGE APPLIED") && !memcmp(a, t->step, sizeof a);
+    ok &= (t->step[5].time == ST_NOTE && t->step[5].n) ? lock_at5() : !lock_at5();
+    bad += check("  OCT+: applied (an emptied step's lock goes)", ok);
+    btn_up(B_SEQ); frame();
+    hold(B_SAVE);
+    bad += check("  SAVE held: one undo for all of it (the steps and the lock back)", !memcmp(t->step, ref, sizeof ref) && lock_at5());
+    btn_down(B_SEQ); frame();
+    tkey(TL_FORGE);
+    ok = fg.on;
+    tkey(TL_FORGE);
+    ok &= !fg.on && msg_is("FORGE APPLIED");
+    tkey(TL_FORGE);
+    ok &= fg.on;
+    btn_up(B_SEQ); frame();
+    ok &= !fg.on && !ui.layer && !rules(t, 16);
+    bad += check("  F5 again: applied; the layer let go with it open: applied", ok);
+    btn_down(B_SEQ); frame();
+    tkey(TL_FORGE);
+    tkey(7);                                            /* F4 EUCLID: FORGE applied first, then EUCLID open */
+    ok = !fg.on && eu.on;
+    oct_back();
+    btn_up(B_SEQ); frame();
+    bad += check("  another tool (F4 EUCLID) with it open: FORGE applied, EUCLID opens", ok);
+    return bad;
+}
+
+/* every style, LEN, scale and root: the rules; EVOLVE 0 a pure loop with no extras */
+static int test_styles(void)
+{
+    static const uint8_t LEN[3] = {16, 32, 64}, SCL[4] = {2, 1, 5, 0};
     int bad = 0;
+    uint32_t s, l, c, r, e, sd;
+    const char *why = 0, *why0 = 0;
+    char where[64] = "";
+    track_t *t = melody(16);
+    go_page(GR_ROLL); frame();
+    btn_down(B_SEQ); frame();
+    for (s = 0; s < FS_N; s++)
+        for (l = 0; l < 3u; l++)
+            for (c = 0; c < 4u; c++)
+                for (r = 0; r < 12u; r += 5u)
+                    for (e = 0; e <= 4u; e += 2u)
+                        for (sd = 0; sd < 100u; sd += 33u) {
+                            const char *w;
+                            forge_close(0);
+                            t->p[P_SLEN] = LEN[l];
+                            t->p[P_SCALE] = SCL[c];
+                            t->p[P_ROOT] = (int16_t)r;
+                            fg.set = 1; fg.style = (uint8_t)s; fg.dens = FORGE_STYLE[s].dens; fg.evolve = (uint8_t)e;
+                            fg.seed = (uint8_t)sd;
+                            forge_open(t);
+                            w = rules(t, LEN[l]);
+                            if (w && !why) {
+                                why = w;
+                                str_cpy(where, FORGE_STYLE[s].name, sizeof where);
+                            }
+                            if (!e && !why0 && !(no_extras(t, LEN[l]) &&
+                                                 copies_equal(t, LEN[l], FORGE_STYLE[s].motif < LEN[l] ? FORGE_STYLE[s].motif : LEN[l])))
+                            {
+                                why0 = FORGE_STYLE[s].name;
+                                printf("    EVOLVE 0 breaks: %s LEN %u SCL %u ROOT %u seed %u\n", why0, LEN[l], SCL[c], r, sd);
+                            }
+                        }
+    forge_close(0);
+    btn_up(B_SEQ); frame();
+    if (why)
+        printf("    %s: %s\n", where, why);
+    bad += check("styles: all 8 x LEN 16/32/64 x MIN MAJ PEN CHR x ROOTs x EVOLVE 0/2/4 x seeds: the rules hold", !why);
+    if (why0)
+        printf("    %s\n", why0);
+    bad += check("  EVOLVE 0: a pure loop (every copy the motif), no CHANCE, condition or RATCH", !why0);
+    return bad;
+}
+
+/* EVOLVE: copies drift and ornaments appear (over many seeds, somewhere) */
+static int test_evolve(void)
+{
+    int bad = 0, drift = 0, orn = 0;
+    uint32_t sd, i;
+    track_t *t = melody(64);
+    go_page(GR_ROLL); frame();
+    btn_down(B_SEQ); frame();
+    for (sd = 0; sd < 20u; sd++) {
+        forge_close(0);
+        fg.set = 1; fg.style = FS_MELODIC; fg.dens = 75; fg.evolve = 4; fg.seed = (uint8_t)sd;
+        forge_open(t);
+        drift += !copies_equal(t, 64, 16);
+        for (i = 0; i < 64u; i++)
+            orn += step_chance_v(&t->step[i]) != 100u;
+    }
+    forge_close(0);
+    btn_up(B_SEQ); frame();
+    bad += check("EVOLVE 4: the copies drift, ornaments get a CHANCE or a condition", drift >= 15 && orn > 20);
+    return bad;
+}
+
+static int test_names(void)                             /* the STYLE card's names fit its value (S font) */
+{
+    uint32_t s, ok = 1;
+    for (s = 0; s < FS_N; s++)
+        ok &= text_w(&AF_S, FORGE_STYLE[s].card) <= COL_W - 8 && str_len(FORGE_STYLE[s].name) < 8u;
+    return check("STYLE: every card name fits the card", (int)ok);
+}
+
+static int test_drum(void)
+{
+    track_t *t = melody(16);
     step_t ref[NSTEP];
-    track_t *t = melody();
+    int ok;
+    set_engine_of(t, ENGI_DRUM);
     memcpy(ref, t->step, sizeof ref);
     go_page(GR_ROLL); frame();
     btn_down(B_SEQ); frame();
-    tkey(TL_FORGE);                                    /* F5 */
-    bad += check("FORGE (F5) on a melodic track: its message, the steps untouched",
-                 msg_is("FORGE " FORGE_VERSION) && !memcmp(t->step, ref, sizeof ref));
+    ok = !tl_cell(t, TL_FORGE);
+    tkey(TL_FORGE);
+    ok &= !fg.on && !memcmp(ref, t->step, sizeof ref);
     btn_up(B_SEQ); frame();
-    bad += check("FORGE: F5 (white key 14), there on a melodic track", tl_cell(t, TL_FORGE) && TL_FORGE == 14u);
-    return bad;
+    return check("DRUM: F5 not there (nothing happens)", ok);
 }
 
 int main(void)
 {
-    int bad = test_scaffold();
+    int bad = test_open() + test_styles() + test_evolve() + test_names() + test_drum();
     printf("%s\n", bad ? "FORGE TEST FAILED" : "forge tests passed");
     return bad != 0;
 }

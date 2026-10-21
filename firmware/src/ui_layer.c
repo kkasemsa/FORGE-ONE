@@ -166,6 +166,7 @@ static void layer_let_go(uint32_t quiet)
 {
     if (eu.on)                                          /* (SEQ TOOLS: an open EUCLID is applied) */
         eu_close(&trk[lys.trk % NTRK], 1);
+    forge_close(1);                                     /* (.. and an open FORGE) */
     if (ui.ly == LAYER_FX && !perf_latch_on)
         perf_k[0] = perf_k[1] = perf_k[2] = perf_k[3] = 0;
     if (lys.rp_dirty) {                                 /* REC: its settings kept, as MENU does when it closes (FX: the map) */
@@ -401,8 +402,19 @@ static void tools_key(uint32_t p)
             return;
         }
     }
-    if (p == TL_FORGE) {                                /* Felucca-FORGE (ui_forge.c) */
+    if (fg.on) {                                        /* (Felucca-FORGE open: applied; F5 again does only that) */
+        forge_close(1);
+        if (p == TL_FORGE) {
+            ui_message("FORGE APPLIED");
+            ui.force = 1;
+            return;
+        }
+    }
+    if (p == TL_FORGE) {                                /* Felucca-FORGE (ui_forge.c): one undo copy for all of it */
         forge_key(TSEL);
+        if (!lys.loaded)
+            str_cpy(ui.msg2, "[SAVE] HOLD TO UNDO", sizeof ui.msg2);
+        lys.loaded = 1;
         ui.force = 1;
         return;
     }
@@ -730,6 +742,8 @@ static void layer_knob(uint32_t k, int32_t s)
             rec_set(k, (uint32_t)clamp((int32_t)rp_get(RL_F[k]) + s, 0, 2));
     } else if (l == LAYER_SEQ && eu.on) {               /* EUCLID: HITS STEPS ROT (KNOB 4: none) */
         eu_knob(TSEL, k, s);
+    } else if (l == LAYER_SEQ && fg.on) {               /* FORGE: SEED DENSITY EVOLVE STYLE */
+        forge_knob(k, s);
     } else if (l) {                                     /* the page's knobs, wherever the page is */
         uint8_t h = ui.home, pg = ui.page;
         ui.home = 0;
@@ -778,6 +792,12 @@ static uint32_t layer_oct(uint32_t pressed, uint32_t oct)
     if ((mine & 3u) && eu.on && lys.l == LAYER_SEQ) {   /* EUCLID open: OCT+ applies, OCT- cancels (only that) */
         eu_close(&trk[lys.trk % NTRK], mine & 2u);
         ui_message(mine & 2u ? "EUCLID APPLIED" : "EUCLID CANCELLED");
+        ui.force = 1;
+        mine = 0;
+    }
+    if ((mine & 3u) && fg.on && lys.l == LAYER_SEQ) {   /* FORGE open: the same */
+        forge_close((int)(mine & 2u));
+        ui_message(mine & 2u ? "FORGE APPLIED" : "FORGE CANCELLED");
         ui.force = 1;
         mine = 0;
     }
@@ -866,7 +886,8 @@ static uint32_t layer_leds(uint32_t *br)
             on = a->on(TSEL, a->arg) != 0u;             /* a HOLD one off breathes, none dark */
             can = a->kind == LK_HOLD;
         } else if (l == LAYER_SEQ) {                    /* the tools breathe (not while a song plays); DRUM: the lane */
-            on = (b && p < NLANE && drum_track(TSEL) && p == ui.lane) || (!b && p == TL_EUCLID && eu.on);   /* lit, the */
+            on = (b && p < NLANE && drum_track(TSEL) && p == ui.lane) || (!b && p == TL_EUCLID && eu.on) ||
+                 (!b && p == TL_FORGE && fg.on);   /* lit, the */
             can = b ? p < NLANE && drum_track(TSEL) : tl_cell(TSEL, p) && !chain_busy();
         } else if (l == LAYER_REC && !b && p < 4u) {    /* a setting on (LEVEL: the click on) lit, the rest breathe; */
             on = p == 1u ? rp_get(RP_CLICK) != 0u : p == 2u ? rp_get(RP_COUNTIN) != 0u :   /* CLEAR: something to */
@@ -1097,6 +1118,10 @@ static void layer_seq(void)
 {
     uint32_t p, st = chain_busy() ? LS_DIM : LS_OFF, drum = (uint32_t)drum_track(TSEL);
     char n[3] = {0, 0, 0}, nm[8];
+    if (fg.on) {                                        /* (Felucca-FORGE open: its pattern) */
+        layer_forge();
+        return;
+    }
     if (eu.on)
         layer_euclid();
     for (p = 0; p < TL_DOUBLE && !eu.on; p++) {
@@ -1203,6 +1228,8 @@ static void layer_cards(uint32_t l)
         }
     } else if (l == LAYER_EDIT) {
         engine_columns();
+    } else if (l == LAYER_SEQ && fg.on) {               /* FORGE: SEED DENSITY EVOLVE STYLE */
+        forge_cards();
     } else if (l == LAYER_SEQ && eu.on) {               /* EUCLID: HITS STEPS ROT, the lane (DRUM) */
         fmt_int(val, eu.hits);
         draw_column(0, "HITS", val, "", VAL(0u), eu.steps ? eu.hits * 1000 / eu.steps : 0, ICON_PULSE);
@@ -1259,7 +1286,7 @@ static void draw_layer(void)
         sig += (uint32_t)ui_rec_prefs * 31u + (uint32_t)chain_busy() * 3u + (uint32_t)rec_clearable() * 5u + song.sel * 977u;
     else if (l == LAYER_SEQ)
         sig += (uint32_t)drum_track(TSEL) * 31u + ui.lane * 5u + (uint32_t)chain_busy() * 3u + (uint32_t)TSEL->p[P_E0] * 131u + song.sel * 977u +
-               (eu.on ? 7u + eu.hits * 13u + eu.steps * 1031u + eu.rot * 65537u + (uint32_t)TSEL->p[P_SLEN] * 257u : 0u);
+               (eu.on ? 7u + eu.hits * 13u + eu.steps * 1031u + eu.rot * 65537u + (uint32_t)TSEL->p[P_SLEN] * 257u : 0u) + forge_sig();
     else
         sig += snd_id() * 31u + (uint32_t)preset_favorite() * 5u + (uint32_t)chain_busy() * 3u + up_gen * 101u +
                eqa_sig() * 2654435761u;
@@ -1285,9 +1312,9 @@ static void draw_layer(void)
     if (ui.force) {                                     /* the footer: what the keys, knobs and buttons do */
         cv_begin(240, H_FOOT, T_BG);
         const khint_t *ft = l == LAYER_FX && fx_key_held() ? FX_KEY_FOOT : l == LAYER_FX && perf_latch_on ? FX_LATCH_FOOT :
-                            l == LAYER_GLO && ui.lock == LAYER_GLO ? GLO_LOCK_FOOT : l == LAYER_SEQ && eu.on ? EU_FOOT :
+                            l == LAYER_GLO && ui.lock == LAYER_GLO ? GLO_LOCK_FOOT : l == LAYER_SEQ && (eu.on || fg.on) ? EU_FOOT :
                             LAYERS[l].foot;
-        int h = help_on() && help_row(l == LAYER_SEQ && eu.on ? H_EUCLID : HELP_LAYER[l], 21);   /* 1.5, HELP ON: a
+        int h = help_on() && help_row(l == LAYER_SEQ && eu.on ? H_EUCLID : l == LAYER_SEQ && fg.on ? H_FORGE : HELP_LAYER[l], 21);   /* 1.5, HELP ON: a
                                                          * second row, what this one does not say */
         cv_key_row(8, 232, h ? 2 : 9, ft, ft[2].act ? 3u : 2u, 7u, T_BG);
         cv_blit(0, Y_FOOT);
