@@ -67,6 +67,7 @@ The official web installer only installs stock Felucca, so install FORGE with Fe
 | **Read Me First** (this page) | What this is, the risks, getting it on your FM-1, getting back |
 | [FORGE User Guide](docs/FORGE-USER-GUIDE.md) ([PDF](docs/pdf/FORGE-User-Guide.pdf)) | FORGE only: controls, the 8 styles, EVOLVE, recipes |
 | [Felucca-FORGE User Guide](docs/USER-GUIDE.md) ([PDF](docs/pdf/Felucca-FORGE-User-Guide.pdf)) | The whole instrument: panel, pages, sequencer, engines, effects, MIDI, menu, and FORGE |
+| [Tutorial (ภาษาไทย)](docs/TUTORIAL-TH.md) ([PDF](docs/pdf/Felucca-FORGE-Tutorial-TH.pdf)) | A first 4-track jam: FORGE on tracks 1–3, drums by hand on track 4 |
 | [Felucca README](README-FELUCCA.md) | Upstream's own README, unchanged |
 | [BUILDING.md](BUILDING.md) | Building the firmware yourself (CI does it on every push) |
 

@@ -7,7 +7,7 @@
 
 Markdown -> HTML (python-markdown: tables, fenced code, attribute lists) -> PDF (Chromium through Playwright), in
 the warm amber / cream booklet style: Lora headings (tools/docs/fonts, SIL OFL), Liberation Sans body, Liberation
-Mono for values (system fonts; Helvetica / Menlo where they are missing). Chromium leaves the page margins white,
+Mono for values, Loma for Thai (system fonts; Helvetica / Menlo where they are missing). Chromium leaves the page margins white,
 so each page is laid over a cream page (pypdf). Relative links become links to the repository on GitHub.
 Out: docs/pdf/*.pdf.  Needs: pip install markdown playwright pypdf (and a Chromium for Playwright).
 """
@@ -33,6 +33,8 @@ DOCS = [   # (source, output, cover kicker, cover subtitle)
      "The seeded motif generator on SEQ TOOLS F5"),
     ("docs/USER-GUIDE.md", "Felucca-FORGE-User-Guide.pdf", "Complete user guide",
      "Felucca 1.6.1 and FORGE 0.4 on the M-VAVE FM-1"),
+    ("docs/TUTORIAL-TH.md", "Felucca-FORGE-Tutorial-TH.pdf", "Tutorial (ภาษาไทย)",
+     "แจม 4 แทร็ก: FORGE บนแทร็ก 1–3 และกลองบนแทร็ก 4"),
 ]
 
 CSS = """
@@ -46,9 +48,9 @@ CSS = """
 }
 @page { size: A4; margin: 20mm 18mm 20mm 18mm; }
 html { background: transparent; }
-body { font-family: 'Liberation Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 10.2pt;
+body { font-family: 'Liberation Sans', 'Loma', 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 10.2pt;
        line-height: 1.5; color: var(--ink); background: transparent; margin: 0; }
-h1, h2, h3, h4 { font-family: 'Lora', Georgia, serif; color: var(--ink); line-height: 1.25; break-after: avoid; }
+h1, h2, h3, h4 { font-family: 'Lora', 'Loma', Georgia, serif; color: var(--ink); line-height: 1.25; break-after: avoid; }
 h1 { font-size: 24pt; font-weight: 700; margin: 0 0 4mm; }
 h2 { font-size: 15.5pt; font-weight: 600; margin: 9mm 0 3mm; padding-bottom: 1.6mm; border-bottom: 1.4pt solid var(--amber); }
 h3 { font-size: 12pt; font-weight: 600; margin: 6mm 0 2mm; color: var(--amber-deep); }
@@ -67,7 +69,7 @@ table { width: 100%; border-collapse: collapse; margin: 2mm 0 4.5mm; font-size: 
         break-inside: auto; }
 thead { display: table-header-group; }
 tr { break-inside: avoid; }
-th { font-family: 'Lora', Georgia, serif; font-weight: 600; text-align: left; background: var(--band);
+th { font-family: 'Lora', 'Loma', Georgia, serif; font-weight: 600; text-align: left; background: var(--band);
      color: var(--ink); padding: 1.6mm 2.2mm; border-bottom: 1pt solid var(--amber); }
 td { padding: 1.5mm 2.2mm; border-bottom: 0.5pt solid var(--rule); vertical-align: top; }
 tbody tr:nth-child(even) td { background: var(--band-2); }
@@ -75,8 +77,8 @@ td strong { color: var(--amber-deep); }
 /* the cover */
 .cover { height: 247mm; display: flex; flex-direction: column; justify-content: space-between; break-after: page; }
 .cover .top { border-top: 5pt solid var(--amber); padding-top: 9mm; }
-.cover .kicker { font-family: 'Lora', serif; font-style: italic; color: var(--amber-deep); font-size: 13pt; }
-.cover .title { font-family: 'Lora', serif; font-weight: 700; font-size: 36pt; line-height: 1.1; margin: 5mm 0 4mm; }
+.cover .kicker { font-family: 'Lora', 'Loma', serif; font-style: italic; color: var(--amber-deep); font-size: 13pt; }
+.cover .title { font-family: 'Lora', 'Loma', serif; font-weight: 700; font-size: 36pt; line-height: 1.1; margin: 5mm 0 4mm; }
 .cover .sub { font-size: 12.5pt; color: var(--soft); max-width: 140mm; }
 .cover .grid { display: grid; grid-template-columns: repeat(16, 1fr); gap: 1.4mm; margin: 0 0 6mm; }
 .cover .grid span { height: 13mm; border-radius: 1.2mm; background: var(--band); }
@@ -85,7 +87,7 @@ td strong { color: var(--amber-deep); }
 .cover .meta { font-size: 9pt; color: var(--soft); border-top: 0.6pt solid var(--rule); padding-top: 3mm; line-height: 1.6; }
 .cover .meta b { color: var(--ink); }
 .doc > h1:first-child { display: none; }        /* (the cover holds the title) */
-.doc > h1:first-child + p { font-family: 'Lora', serif; font-style: italic; color: var(--soft); }
+.doc > h1:first-child + p { font-family: 'Lora', 'Loma', serif; font-style: italic; color: var(--soft); }
 """
 
 # a FORGE-like row of 16 steps for the cover: on, tie, rest
