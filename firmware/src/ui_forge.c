@@ -144,7 +144,7 @@ static void fg_pitch(const forge_style_t *st, fg_step_t *m, uint32_t ml, uint32_
         m[i].idx = (uint8_t)fg_reflect(cur, st->contour == FC_CHORD || st->contour == FC_ROOT5 ? 0 : lo,
                                        st->contour == FC_CHORD || st->contour == FC_ROOT5 ? (int32_t)nd - 1 : hi);
         cur = m[i].idx;
-        m[i].oct = (int8_t)(i && fg_pct(st->octv) ? 1 : 0);   /* (up only: the style's octave is its floor) */
+        m[i].oct = (int8_t)(i && fg_pct(st->octv) ? 1 : 0);   /* (octave jumps go up only) */
         m[i].n = (uint8_t)(st->chord && fg_pct(st->chord_p) ? st->chord : 1u);
     }
 }
