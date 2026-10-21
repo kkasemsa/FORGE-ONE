@@ -51,6 +51,7 @@
  * step; on USER / PROJECT: rename) arms no double tap: two quick taps there still act twice. */
 #include "ui_tools.c"                                   /* SEQ TOOLS' actions */
 #include "ui_forge.c"                                   /* FORGE ONE: SEQ TOOLS F5 */
+#include "ui_starter.c"                                 /* FORGE ONE 0.6: SEQ TOOLS G5 */
 enum { LK_HOLD, LK_SET };
 typedef struct {
     uint8_t btn, kind, fam;            /* the button, HOLD / SET, the family whose first page KNOB 1..4 edit */
@@ -166,7 +167,8 @@ static void layer_let_go(uint32_t quiet)
 {
     if (eu.on)                                          /* (SEQ TOOLS: an open EUCLID is applied) */
         eu_close(&trk[lys.trk % NTRK], 1);
-    forge_close(1);                                     /* (.. and an open FORGE) */
+    forge_close(1);                                     /* (.. and an open FORGE, STARTER) */
+    fs_close(1);
     if (ui.ly == LAYER_FX && !perf_latch_on)
         perf_k[0] = perf_k[1] = perf_k[2] = perf_k[3] = 0;
     if (lys.rp_dirty) {                                 /* REC: its settings kept, as MENU does when it closes (FX: the map) */
@@ -402,6 +404,19 @@ static void tools_key(uint32_t p)
             return;
         }
     }
+    if (fs.on && (p == TL_RANDOM || p == TL_COOK)) {    /* (FORGE ONE 0.6 STARTER open: the same, all four) */
+        fs_reroll(p == TL_COOK);
+        ui.force = 1;
+        return;
+    }
+    if (fs.on) {                                        /* (STARTER open: applied; G5 again does only that) */
+        fs_close(1);
+        if (p == TL_STARTER) {
+            ui_message("STARTER APPLIED");
+            ui.force = 1;
+            return;
+        }
+    }
     if (fg.on && (p == TL_RANDOM || p == TL_COOK)) {    /* (FORGE ONE 0.4 open: C4 new notes, D4 a new rhythm) */
         forge_reroll(p == TL_COOK);
         ui.force = 1;
@@ -414,6 +429,11 @@ static void tools_key(uint32_t p)
             ui.force = 1;
             return;
         }
+    }
+    if (p == TL_STARTER) {                              /* FORGE ONE 0.6 (ui_starter.c): all four tracks; OCT- */
+        fs_open();                                      /* puts them back */
+        ui.force = 1;
+        return;
     }
     if (p == TL_FORGE) {                                /* FORGE ONE (ui_forge.c): one undo copy for all of it */
         forge_key(TSEL);
@@ -749,6 +769,8 @@ static void layer_knob(uint32_t k, int32_t s)
         eu_knob(TSEL, k, s);
     } else if (l == LAYER_SEQ && fg.on) {               /* FORGE: SEED DENSITY EVOLVE STYLE */
         forge_knob(k, s);
+    } else if (l == LAYER_SEQ && fs.on) {               /* STARTER: SEED DENSITY EVOLVE STARTER */
+        fs_knob(k, s);
     } else if (l) {                                     /* the page's knobs, wherever the page is */
         uint8_t h = ui.home, pg = ui.page;
         ui.home = 0;
@@ -797,6 +819,12 @@ static uint32_t layer_oct(uint32_t pressed, uint32_t oct)
     if ((mine & 3u) && eu.on && lys.l == LAYER_SEQ) {   /* EUCLID open: OCT+ applies, OCT- cancels (only that) */
         eu_close(&trk[lys.trk % NTRK], mine & 2u);
         ui_message(mine & 2u ? "EUCLID APPLIED" : "EUCLID CANCELLED");
+        ui.force = 1;
+        mine = 0;
+    }
+    if ((mine & 3u) && fs.on && lys.l == LAYER_SEQ) {   /* STARTER open: the same, all four tracks */
+        fs_close((int)(mine & 2u));
+        ui_message(mine & 2u ? "STARTER APPLIED" : "STARTER CANCELLED");
         ui.force = 1;
         mine = 0;
     }
@@ -892,7 +920,7 @@ static uint32_t layer_leds(uint32_t *br)
             can = a->kind == LK_HOLD;
         } else if (l == LAYER_SEQ) {                    /* the tools breathe (not while a song plays); DRUM: the lane */
             on = (b && p < NLANE && drum_track(TSEL) && p == ui.lane) || (!b && p == TL_EUCLID && eu.on) ||
-                 (!b && p == TL_FORGE && fg.on);   /* lit, the */
+                 (!b && p == TL_FORGE && fg.on) || (!b && p == TL_STARTER && fs.on);   /* lit, the */
             can = b ? p < NLANE && drum_track(TSEL) : tl_cell(TSEL, p) && !chain_busy();
         } else if (l == LAYER_REC && !b && p < 4u) {    /* a setting on (LEVEL: the click on) lit, the rest breathe; */
             on = p == 1u ? rp_get(RP_CLICK) != 0u : p == 2u ? rp_get(RP_COUNTIN) != 0u :   /* CLEAR: something to */
@@ -1105,9 +1133,10 @@ static void layer_edit(void)                            /* the engines from F3, 
  * track the lanes of black keys 1..8 under them (the selected one: the selection's fill). A melodic track: the two
  * rows of the sequence's tools only */
 static const uint8_t TL_ICON[TL_N] = {ICON_CLEAR, ICON_X_REVERSE, ICON_X_LEFT, ICON_X_RIGHT, ICON_PROB, ICON_W_SH,
-    ICON_DRUM, ICON_PULSE, ICON_CLEAR, ICON_X_REVERSE, ICON_STEPS, ICON_PROB, ICON_LENGTH, ICON_DIVISION, ICON_W_SH};
+    ICON_DRUM, ICON_PULSE, ICON_CLEAR, ICON_X_REVERSE, ICON_STEPS, ICON_PROB, ICON_LENGTH, ICON_DIVISION, ICON_W_SH,
+    ICON_X_SONG};
 static const char *const TL_NAME[TL_N] = {"CLEAR", "REVERSE", "SHIFT", "SHIFT", "RANDOM", "COOK", "BEAT", "EUCLID",
-    "CLR", "REV", "FILL", "RND", "DOUBLE", "HALF", "FORGE"};
+    "CLR", "REV", "FILL", "RND", "DOUBLE", "HALF", "FORGE", "STARTER"};
 /* EUCLID open (1.5.5): its cycle as cells, 16 a row (up to 4 rows), the hits filled; past it, inside LEN, the cells
  * of its repeats faint (DRUM: the lanes' row under them as always) */
 static void layer_euclid(void)
@@ -1125,6 +1154,10 @@ static void layer_seq(void)
     char n[3] = {0, 0, 0}, nm[8];
     if (fg.on) {                                        /* (FORGE ONE open: its pattern) */
         layer_forge();
+        return;
+    }
+    if (fs.on) {                                        /* (0.6 STARTER open: the four tracks) */
+        layer_starter();
         return;
     }
     if (eu.on)
@@ -1149,22 +1182,28 @@ static void layer_seq(void)
     if (!drum && !eu.on) {                              /* FORGE ONE: F5 in the lanes' row (a melodic track has */
         n[0] = W_NOTE[TL_FORGE];                        /* none), first cell */
         lcell(LC_X(0u), 4 + 32 * 2, 28, n, TL_ICON[TL_FORGE], 0, TL_NAME[TL_FORGE], st, 0);
+        n[0] = W_NOTE[TL_STARTER];                      /* 0.6: G5 STARTER next to it */
+        lcell(LC_X(1u), 4 + 32 * 2, 28, n, TL_ICON[TL_STARTER], 0, TL_NAME[TL_STARTER], st, 0);
     }
     for (p = TL_DOUBLE; !eu.on && p < TL_N; p++) {         /* 1.5.5: D5 DOUBLE (x2), E5 HALF (/2) at the row's end, */
-        int32_t w = drum ? 24 : 31, x = drum ? 159 + 25 * (int32_t)(p - TL_DOUBLE) : 168 + 35 * (int32_t)(p - TL_DOUBLE);
+        int32_t w = !drum ? 31 : p >= TL_FORGE ? 12 : 24,   /* (0.6 DRUM: F5 G5 12 px each, their letters only) */
+                x = drum ? 159 + 25 * (int32_t)(p - TL_DOUBLE) - 12 * (int32_t)(p == TL_STARTER) : 168 + 35 * (int32_t)(p - TL_DOUBLE);
         uint16_t ink, fill;                             /* 31 px each (the lanes' row: no room for their names); 0.5: */
         char m[4];                                      /* on DRUM 24 px each, "Dx2" "E/2" as one word, and F5 FORGE */
-        if (p == TL_FORGE && !drum)                     /* (its letter and icon) after them */
+        if (p >= TL_FORGE && !drum)                     /* (its letter and icon) after them; 0.6: G5 too */
             break;
         fill = lc_box(x, 100, w, 18, lc_fill(st, &ink));
         n[0] = W_NOTE[p];
         if (drum) {
             m[0] = W_NOTE[p];
             str_cpy(m + 1, p == TL_DOUBLE ? "x2" : p == TL_HALF ? "/2" : "", 3);
+            if (p >= TL_FORGE) {                        /* (F5 FORGE, G5 STARTER: the letter, centred) */
+                GFX_HOOK_ALIGN(x, 100, x + w, 118, AL_HV, "tools F5 G5 letter centred");
+                cv_text_in(x, 100 + CAP_IN(S, 18), w, &AF_S, m, ink, fill);
+                continue;
+            }
             GFX_HOOK_ALIGN(0, 100, 0, 118, AL_V, "tools resize cell on its middle");
             cv_text_on(x + 2, 100 + CAP_IN(S, 18), &AF_S, m, ink, fill);
-            if (p == TL_FORGE)
-                cv_icon_on(x + w - 14, 103, 12, TL_ICON[TL_FORGE], ink, fill);
             continue;
         }
         GFX_HOOK_ALIGN(0, 100, 0, 118, AL_V, "tools resize cell on its middle");
@@ -1248,6 +1287,8 @@ static void layer_cards(uint32_t l)
         engine_columns();
     } else if (l == LAYER_SEQ && fg.on) {               /* FORGE: SEED DENSITY EVOLVE STYLE */
         forge_cards();
+    } else if (l == LAYER_SEQ && fs.on) {               /* STARTER: SEED DENSITY EVOLVE STARTER */
+        starter_cards();
     } else if (l == LAYER_SEQ && eu.on) {               /* EUCLID: HITS STEPS ROT, the lane (DRUM) */
         fmt_int(val, eu.hits);
         draw_column(0, "HITS", val, "", VAL(0u), eu.steps ? eu.hits * 1000 / eu.steps : 0, ICON_PULSE);
@@ -1304,7 +1345,7 @@ static void draw_layer(void)
         sig += (uint32_t)ui_rec_prefs * 31u + (uint32_t)chain_busy() * 3u + (uint32_t)rec_clearable() * 5u + song.sel * 977u;
     else if (l == LAYER_SEQ)
         sig += (uint32_t)drum_track(TSEL) * 31u + ui.lane * 5u + (uint32_t)chain_busy() * 3u + (uint32_t)TSEL->p[P_E0] * 131u + song.sel * 977u +
-               (eu.on ? 7u + eu.hits * 13u + eu.steps * 1031u + eu.rot * 65537u + (uint32_t)TSEL->p[P_SLEN] * 257u : 0u) + forge_sig();
+               (eu.on ? 7u + eu.hits * 13u + eu.steps * 1031u + eu.rot * 65537u + (uint32_t)TSEL->p[P_SLEN] * 257u : 0u) + forge_sig() + fs_sig();
     else
         sig += snd_id() * 31u + (uint32_t)preset_favorite() * 5u + (uint32_t)chain_busy() * 3u + up_gen * 101u +
                eqa_sig() * 2654435761u;
@@ -1330,9 +1371,9 @@ static void draw_layer(void)
     if (ui.force) {                                     /* the footer: what the keys, knobs and buttons do */
         cv_begin(240, H_FOOT, T_BG);
         const khint_t *ft = l == LAYER_FX && fx_key_held() ? FX_KEY_FOOT : l == LAYER_FX && perf_latch_on ? FX_LATCH_FOOT :
-                            l == LAYER_GLO && ui.lock == LAYER_GLO ? GLO_LOCK_FOOT : l == LAYER_SEQ && (eu.on || fg.on) ? EU_FOOT :
+                            l == LAYER_GLO && ui.lock == LAYER_GLO ? GLO_LOCK_FOOT : l == LAYER_SEQ && (eu.on || fg.on || fs.on) ? EU_FOOT :
                             LAYERS[l].foot;
-        int h = help_on() && help_row(l == LAYER_SEQ && eu.on ? H_EUCLID : l == LAYER_SEQ && fg.on ? H_FORGE : HELP_LAYER[l], 21);   /* 1.5, HELP ON: a
+        int h = help_on() && help_row(l == LAYER_SEQ && eu.on ? H_EUCLID : l == LAYER_SEQ && fg.on ? H_FORGE : l == LAYER_SEQ && fs.on ? H_STARTER : HELP_LAYER[l], 21);   /* 1.5, HELP ON: a
                                                          * second row, what this one does not say */
         cv_key_row(8, 232, h ? 2 : 9, ft, ft[2].act ? 3u : 2u, 7u, T_BG);
         cv_blit(0, Y_FOOT);

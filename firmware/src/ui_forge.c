@@ -83,10 +83,14 @@ static track_t *fg_track(void) { return &trk[fg.trk % NTRK]; }
  * velocity, in a state of its own (fg_vr) so the others draw as in 0.3. 0.4: C4 / D4 while open reroll the pitch /
  * rhythm stream alone (fg.nvar, fg.rvar: 0 = as 0.3, so a seed with both 0 keeps its 0.3 notes and rhythm) */
 static uint32_t fg_r, fg_vr;
+/* 0.6 STARTER (ui_starter.c) renders four tracks through forge_render: fg_role (1..4, 0 = FORGE itself) gives each its
+ * own streams from the one SEED, fg_ovr its part's row (0: FORGE_STYLE). Both 0 outside STARTER: FORGE as before */
+static uint8_t fg_role;
+static const forge_style_t *fg_ovr;
 static uint32_t fg_start(uint32_t salt)
 {
     uint32_t r = ((uint32_t)fg.seed + 1u) * 2654435761u ^ ((uint32_t)fg.style + 1u) * 40503u ^ salt * 0x9E3779B9u ^
-                 (salt == 1u ? fg.nvar * 0x85EBCA6Bu : salt == 2u ? fg.rvar * 0xC2B2AE35u : 0u);
+                 (salt == 1u ? fg.nvar * 0x85EBCA6Bu : salt == 2u ? fg.rvar * 0xC2B2AE35u : 0u) ^ fg_role * 0x27D4EB2Fu;
     return r ? r : 0x1234567u;
 }
 static void fg_seed(uint32_t salt) { fg_r = fg_start(salt); }
@@ -345,7 +349,7 @@ static void forge_render_drum(track_t *t, uint32_t len)
 static void forge_render(void)
 {
     track_t *t = fg_track();
-    const forge_style_t *st = &FORGE_STYLE[fg.style % FS_N];
+    const forge_style_t *st = fg_ovr ? fg_ovr : &FORGE_STYLE[fg.style % FS_N];
     uint8_t deg[FG_NDEG], vel[16];
     fg_step_t m[16];
     uint32_t len = tl_len(t), ml = st->motif < len ? st->motif : len, nd, a0, i, k, e = fg.evolve, g, held = 0;

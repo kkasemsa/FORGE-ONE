@@ -663,7 +663,7 @@ static void state(void)                          /* a playing song with steps on
     ui_power_on();
     seq_fill = 0;                                /* (1.5.5: GLO's FILL, held in layer_glo_fill only; */
     eu.on = 0;                                   /* SEQ TOOLS' EUCLID, open in layer_seq_euclid*) */
-    fg.on = 0;                                   /* (FORGE ONE, open in layer_seq_forge*) */
+    fg.on = 0; fs.on = 0;                        /* (FORGE ONE, open in layer_seq_forge*, layer_seq_starter*) */
     if (large_on) ui_prefs |= PREF_LARGE;
     song.playing = 1;
     song.g[G_BPM] = 124;
@@ -774,7 +774,7 @@ enum { S_HOME, S_HOME_IDLE, S_MESSAGE, S_MESSAGE_KEY, S_MESSAGE_NOFILE, S_PRESET
        S_DETAIL_COND, S_DETAIL_FILL, S_AUTO_COND, S_GLO_FILL, S_SEQ_EUCLID, S_SEQ_EUCLID_DRUM, S_SEQ_EUCLID_64,
        S_MENU_SELECT, S_PROJECT_ERASE, S_CONFIRM_ERASE_PROJ, S_TOOLS_CLEAN, S_CONFIRM_CLEAN,
        S_MENU_MIDI_TRACK, S_MENU_MIDI_TCH_UNUSED, S_MENU_MIDI_AUTO, S_HOME_TRACKS_MIDI, S_MIXER_MIDI, S_EDIT_PHASE_FOLD,
-       S_SEQ_FORGE, S_SEQ_FORGE_DUB, S_SEQ_FORGE_AMBIENT, S_SEQ_FORGE_64, S_SEQ_FORGE_DRUM, S_SEQ_FORGE_DRUM_64, S_COUNT };
+       S_SEQ_FORGE, S_SEQ_FORGE_DUB, S_SEQ_FORGE_AMBIENT, S_SEQ_FORGE_64, S_SEQ_FORGE_DRUM, S_SEQ_FORGE_DRUM_64, S_SEQ_STARTER, S_SEQ_STARTER_AMBIENT, S_COUNT };
 static const char *const S_NAME[S_COUNT] = {"home", "home_idle", "message", "message_key", "message_nofile", "presets", "presets_nofav", "user",
     "phrases", "project", "tools", "song_empty", "song", "step", "auto_steps", "auto_add_chance", "automation", "drum",
     "drum_hand", "drum_cym", "mixer", "mixer_from_home", "mixer_pan", "env", "env_dest", "lfo", "mod", "fx", "slicer", "dly", "scl", "chord", "chord_wide", "chord_off", "chord_kit", "arp",
@@ -807,7 +807,7 @@ static const char *const S_NAME[S_COUNT] = {"home", "home_idle", "message", "mes
     "menu_select", "project_erase", "confirm_erase_project", "tools_clean", "confirm_clean",
     "menu_midi_track", "menu_midi_channels_unused", "menu_midi_auto_select", "home_tracks_midi", "mixer_midi", "edit_phase_fold",
     "layer_seq_forge", "layer_seq_forge_dub", "layer_seq_forge_ambient", "layer_seq_forge_64", "layer_seq_forge_drum",
-    "layer_seq_forge_drum_64"};
+    "layer_seq_forge_drum_64", "layer_seq_starter", "layer_seq_starter_ambient"};
 
 /* the STEP page's piano roll (ui_graph.c graph_roll) on track 1, stopped unless said: an empty pattern; ACID in
  * A minor; POLY chords (Am7 F C G, tied); a line with ties, slides and accents in C major; LEN 32 on its second
@@ -1540,6 +1540,17 @@ static void setup(int s)
         break;
     /* FORGE ONE: SEQ TOOLS' FORGE open: BERLIN seed 42 (HELP ON, KNOB 4 just turned), DUB (chords, ties, the
      * longest DENSITY), AMBIENT (the longest STYLE name), MELODIC over 64 steps (four rows, EVOLVE 4) */
+    case S_SEQ_STARTER: case S_SEQ_STARTER_AMBIENT:   /* 0.6: STARTER open: BERLIN (HELP ON, KNOB 4 just turned, the
+                                                   * rerolls lit), AMBIENT (LEN 32 / 64 parts, its long names) */
+        roll_scene(S_ROLL_ACID);
+        if (s == S_SEQ_STARTER) { ui_prefs2 |= PREF_HELP >> 16; ui.hot_col = 3; ui.hot_t = 30; }
+        go_page(GR_ROLL); ui.layer = LAYER_SEQ; lys.trk = song.sel;
+        fg.set = 1; fg.seed = 42; fg.evolve = 1; fs.set = 1; fs.dens = 100;
+        fs.style = s == S_SEQ_STARTER ? FS_BERLIN : FS_AMBIENT;
+        fs_open();
+        if (s == S_SEQ_STARTER) { fs_reroll(0); fs_reroll(1); }
+        ui.msg_t = 0;
+        break;
     case S_SEQ_FORGE_DRUM: case S_SEQ_FORGE_DRUM_64:   /* 0.5: on the DRUM track, ACID at LEN 16, TRANCE EVOLVE 3 at 64 */
         drum(0); ui.lane = 3;
         if (s == S_SEQ_FORGE_DRUM_64) TSEL->p[P_SLEN] = 64;

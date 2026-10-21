@@ -15,6 +15,7 @@
  *   rerolls    (0.4) C4 new notes, D4 a new rhythm while open; K1 starts them again; VEL by place
  *   golden     (0.3) pinned seeds: tests/forge_golden.txt
  *   DRUM       (0.5) F5 opens: hits only, KICK on 1, DENSITY, C4 LOW / D4 HATS, the rules over the styles
+ *   STARTER    (0.6) G5: four tracks' sounds and patterns, seeded; K1..K4, C4 / D4; OCT- all four back; OCT+
  *   0.5.1      step 1 ROOT in every SCALE / ROOT; no drum fill on step 1 at LEN 2..4; STYLE wraps, resets C4 / D4
  * Built and run by tests/run_tests.sh. */
 #define UI_TEST_NO_MAIN 1
@@ -598,9 +599,167 @@ static int test_051(void)
     return bad;
 }
 
+/* 0.6 STARTER (ui_starter.c): G5 writes all four tracks, sound and pattern; OCT- puts all four back */
+static uint32_t all_sig(void)
+{
+    uint32_t h = 2166136261u, i, j;
+    for (i = 0; i < NTRK; i++)
+        for (j = 0; j < sizeof trk[i].step; j++)
+            h = (h ^ ((const uint8_t *)trk[i].step)[j]) * 16777619u;
+    return h;
+}
+static int test_starter(void)
+{
+    int bad = 0, ok = 1;
+    uint32_t s, i, e, k, sd, ev, sig;
+    const char *why = 0;
+    static track_t before[NTRK];
+    static uint8_t fm6b[NTRK][FP_SIZE + 1u];
+    motion_store_t mo;
+    int16_t bpm;
+    track_t *t = melody(16);
+    for (s = 0; s < FS_N; s++)                          /* every sound names a real factory preset */
+        for (i = 0; i < FP_N; i++)
+            if (fs_find(&FORGE_STARTER[s].snd[i], &e, &k)) {
+                printf("    %s T%u: %s %s not found\n", FORGE_STYLE[s].name, (unsigned)i + 1u,
+                       FORGE_STARTER[s].snd[i].eng, FORGE_STARTER[s].snd[i].preset);
+                ok = 0;
+            }
+    bad += check("STARTER (0.6): every part's sound is a factory preset of a selectable engine (by name)", ok);
+    t->p[P_SCALE] = 0;                                  /* (CHR: the starter's own SCALE) */
+    t->p[P_ROOT] = 9;
+    trk[3].step[2] = (step_t){{50}, 1, ST_NOTE, 0, 96};
+    motion_set_lock(&trk[2], 3, P_REV, 40);
+    song.g[G_BPM] = 99;
+    memcpy(before, trk, sizeof before);
+    for (i = 0; i < NTRK; i++)
+        memcpy(fm6b[i], fm6_patch[i], sizeof fm6b[i]);
+    mo = motion;
+    bpm = song.g[G_BPM];
+    go_page(GR_ROLL); frame();
+    btn_down(B_SEQ); frame();
+    fg.set = 1; fg.seed = 42; fg.evolve = 1; fs.set = 1; fs.style = FS_BERLIN; fs.dens = 100;
+    tkey(TL_STARTER);                                   /* G5 */
+    ok = fs.on && !fg.on && msg_is("START 42 BERLIN") && song.g[G_BPM] == 120;
+    for (i = 0; i < FP_N; i++) {
+        (void)fs_find(&FORGE_STARTER[FS_BERLIN].snd[i], &e, &k);
+        ok &= trk[i].eng_req == e && trk[i].preset == k && trk[i].p[P_ROOT] == 9 && trk[i].p[P_SCALE] == 2 &&
+              trk[i].p[P_SLEN] == FORGE_STARTER[FS_BERLIN].len[i];
+        ok &= i < FP_DRUM ? !rules(&trk[i], tl_len(&trk[i])) && !drum_track(&trk[i])
+                          : drum_track(&trk[i]) && !drum_rules(&trk[i], tl_len(&trk[i]));
+    }
+    ok &= trk[0].step[0].note[0] == 36 + 9 && trk[1].step[0].note[0] == 60 + 9;   /* (bass on A1, lead on A3) */
+    bad += check("  G5: BERLIN's four sounds, LENs, A MIN (CHR: the starter's), 120 BPM; bass, lead, pad, drums by the rules", ok);
+    sig = all_sig();
+    ok = memcmp(trk[0].step, trk[1].step, sizeof trk[0].step) && memcmp(trk[1].step, trk[2].step, sizeof trk[1].step);
+    kt(EN_K1, 1);
+    ok &= all_sig() != sig && msg_is("START 43 BERLIN");
+    kt(EN_K1, -1);
+    ok &= all_sig() == sig;
+    bad += check("  seeded: each part its own pattern; K1 SEED another song, back: the same four", ok);
+    kt(EN_K2, -10);
+    ok = fs.dens == 50u && hits_of(&trk[3], 16, 0xFFu) < 99u;
+    kt(EN_K2, 100);
+    ok &= fs.dens == 150u;
+    kt(EN_K2, -10);
+    ok &= fs.dens == 100u && all_sig() == sig;
+    bad += check("  K2 DENSITY 50..150 % of each part's own", ok);
+    tkey(4);                                            /* C4 */
+    ok = fg.nvar == 1u && msg_is("NEW NOTES 1") && all_sig() != sig;
+    tkey(5);                                            /* D4 */
+    ok &= fg.rvar == 1u && msg_is("NEW RHYTHMS 1") && fs.on;
+    bad += check("  C4 / D4: new notes / rhythms on all four, STARTER stays open", ok);
+    kt(EN_K4, -1);                                      /* (wraps: AMBIENT) */
+    (void)fs_find(&FORGE_STARTER[FS_AMBIENT].snd[1], &e, &k);
+    ok = fs.style == FS_AMBIENT && song.g[G_BPM] == 80 && trk[1].eng_req == e && trk[1].preset == k &&
+         trk[2].p[P_SLEN] == 64 && !fg.nvar && msg_is("START 42 AMBIENT");
+    bad += check("  K4 STARTER wraps (BERLIN > AMBIENT): its sounds and 80 BPM, C4 / D4 from 0", ok);
+    oct_back();
+    ok = !fs.on && song.g[G_BPM] == bpm && !memcmp(&motion, &mo, sizeof mo) && msg_is("STARTER CANCELLED");
+    for (i = 0; i < NTRK; i++)
+        ok &= trk[i].eng_req == before[i].eng_req && trk[i].preset == before[i].preset &&
+              !memcmp(trk[i].p, before[i].p, sizeof trk[i].p) && !memcmp(trk[i].step, before[i].step, sizeof trk[i].step) &&
+              !memcmp(fm6_patch[i], fm6b[i], FP_SIZE);
+    bad += check("  OCT-: all four tracks as they were (sound, parameters, steps, FM6 patch), the automation, the tempo", ok);
+    t->p[P_SCALE] = 3;                                  /* DOR: the user's SCALE stays */
+    tkey(TL_STARTER);
+    ok = fs.on && trk[0].p[P_SCALE] == 3 && trk[3].p[P_SCALE] == 3 && !rules(&trk[0], 16) && !rules(&trk[1], 16);
+    oct_fwd();
+    ok &= !fs.on && msg_is("STARTER APPLIED") && !undo.trk;
+    bad += check("  a SCALE set (DOR) is kept; OCT+ applies (no one-track undo copy left)", ok);
+    tkey(TL_FORGE);                                     /* FORGE open, then G5: FORGE applied, STARTER opens */
+    ok = fg.on;
+    tkey(TL_STARTER);
+    ok &= !fg.on && fs.on;
+    tkey(TL_STARTER);                                   /* G5 again: applied */
+    ok &= !fs.on && msg_is("STARTER APPLIED");
+    bad += check("  G5 with FORGE open: FORGE applied, STARTER opens; G5 again applies", ok);
+    for (s = 0; s < FS_N && !why; s++)                  /* every starter, seeds, EVOLVE: the rules on all four */
+        for (ev = 0; ev <= 4u && !why; ev += 2u)
+            for (sd = 0; sd < 100u && !why; sd += 17u) {
+                fg.seed = (uint8_t)sd; fg.evolve = (uint8_t)ev; fs.style = (uint8_t)s; fs.dens = 100;
+                tkey(TL_STARTER);
+                for (i = 0; i < FP_N && !why; i++)
+                    why = i < FP_DRUM ? rules(&trk[i], tl_len(&trk[i])) : drum_rules(&trk[i], tl_len(&trk[i]));
+                if (!why && !ev)
+                    for (i = 0; i < FP_DRUM && !why; i++)
+                        if (!no_extras(&trk[i], tl_len(&trk[i])))
+                            why = "EVOLVE 0 with extras";
+                oct_back();
+            }
+    if (why)
+        printf("    %s\n", why);
+    bad += check("  every starter x seeds x EVOLVE 0/2/4: the rules on all four tracks; OCT- each time", !why);
+    {   /* pinned: every starter x seeds 0 42 99 (A, the starter's SCALE, EVOLVE 1): the four tracks' steps */
+        static const uint8_t SEED[3] = {0, 42, 99};
+        const char *path = "tests/starter_golden.txt", *upd = getenv("FORGE_GOLDEN_UPDATE");
+        uint32_t got[FS_N * 3], n = 0, miss = 0, j;
+        char line[96];
+        FILE *f;
+        t->p[P_SCALE] = 0;
+        t->p[P_ROOT] = 9;
+        for (s = 0; s < FS_N; s++)
+            for (j = 0; j < 3u; j++) {
+                fg.seed = SEED[j]; fg.evolve = 1; fs.style = (uint8_t)s; fs.dens = 100;
+                tkey(TL_STARTER);
+                got[n++] = all_sig();
+                oct_back();
+            }
+        if (upd && upd[0] == '1') {
+            f = fopen(path, "w");
+            if (f) {
+                fprintf(f, "# STARTER pinned seeds (tests/forge_test.c test_starter): starter seed hash. FORGE_GOLDEN_UPDATE=1 rewrites\n");
+                for (n = 0, s = 0; s < FS_N; s++)
+                    for (j = 0; j < 3u; j++, n++)
+                        fprintf(f, "%s %u %08x\n", FORGE_STYLE[s].name, SEED[j], got[n]);
+                fclose(f);
+                printf("    wrote %s\n", path);
+            }
+        }
+        f = fopen(path, "r");
+        n = 0;
+        while (f && fgets(line, sizeof line, f)) {
+            char nm[16];
+            unsigned sd, h;
+            if (line[0] == '#' || sscanf(line, "%15s %u %x", nm, &sd, &h) != 3)
+                continue;
+            if (n < FS_N * 3u && h != got[n]) {
+                printf("    %s seed %u: %08x, pinned %08x\n", nm, sd, (unsigned)got[n], h);
+                miss++;
+            }
+            n++;
+        }
+        if (f)
+            fclose(f);
+        bad += check("  pinned seeds: 8 starters x 3 seeds write the four tracks they wrote before", f && n == FS_N * 3u && !miss);
+    }
+    btn_up(B_SEQ); frame();
+    return bad;
+}
+
 int main(void)
 {
-    int bad = test_open() + test_styles() + test_evolve() + test_names() + test_chords() + test_reroll() + test_golden() + test_drum() + test_051();
+    int bad = test_open() + test_styles() + test_evolve() + test_names() + test_chords() + test_reroll() + test_golden() + test_drum() + test_051() + test_starter();
     printf("%s\n", bad ? "FORGE TEST FAILED" : "forge tests passed");
     return bad != 0;
 }
