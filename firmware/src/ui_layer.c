@@ -50,6 +50,7 @@
  * a double tap leaves the page as it was. A first tap that acted instead of opening a page (EDIT on STEP: clear the
  * step; on USER / PROJECT: rename) arms no double tap: two quick taps there still act twice. */
 #include "ui_tools.c"                                   /* SEQ TOOLS' actions */
+#include "ui_forge.c"                                   /* Felucca-FORGE: SEQ TOOLS F5 */
 enum { LK_HOLD, LK_SET };
 typedef struct {
     uint8_t btn, kind, fam;            /* the button, HOLD / SET, the family whose first page KNOB 1..4 edit */
@@ -399,6 +400,11 @@ static void tools_key(uint32_t p)
             ui_message("EUCLID APPLIED");
             return;
         }
+    }
+    if (p == TL_FORGE) {                                /* Felucca-FORGE (ui_forge.c) */
+        forge_key(TSEL);
+        ui.force = 1;
+        return;
     }
     if (p == TL_EUCLID) {                               /* (its message: eu_say; one undo copy for all of it) */
         eu_open(TSEL);
@@ -1073,9 +1079,9 @@ static void layer_edit(void)                            /* the engines from F3, 
  * track the lanes of black keys 1..8 under them (the selected one: the selection's fill). A melodic track: the two
  * rows of the sequence's tools only */
 static const uint8_t TL_ICON[TL_N] = {ICON_CLEAR, ICON_X_REVERSE, ICON_X_LEFT, ICON_X_RIGHT, ICON_PROB, ICON_W_SH,
-    ICON_DRUM, ICON_PULSE, ICON_CLEAR, ICON_X_REVERSE, ICON_STEPS, ICON_PROB, ICON_LENGTH, ICON_DIVISION};
+    ICON_DRUM, ICON_PULSE, ICON_CLEAR, ICON_X_REVERSE, ICON_STEPS, ICON_PROB, ICON_LENGTH, ICON_DIVISION, ICON_W_SH};
 static const char *const TL_NAME[TL_N] = {"CLEAR", "REVERSE", "SHIFT", "SHIFT", "RANDOM", "COOK", "BEAT", "EUCLID",
-    "CLR", "REV", "FILL", "RND", "DOUBLE", "HALF"};
+    "CLR", "REV", "FILL", "RND", "DOUBLE", "HALF", "FORGE"};
 /* EUCLID open (1.5.5): its cycle as cells, 16 a row (up to 4 rows), the hits filled; past it, inside LEN, the cells
  * of its repeats faint (DRUM: the lanes' row under them as always) */
 static void layer_euclid(void)
@@ -1110,7 +1116,11 @@ static void layer_seq(void)
         GFX_HOOK_ALIGN(x, 100, x + 18, 118, AL_HV, "tools lane cell name centred");
         cv_text_in(x, 100 + CAP_IN(S, 18), 18, &AF_S, drum_lane_abbr(TSEL, p), ink, fill);
     }
-    for (p = TL_DOUBLE; !eu.on && p < TL_N; p++) {     /* 1.5.5: D5 DOUBLE (x2), E5 HALF (/2) at the row's end, */
+    if (!drum && !eu.on && tl_cell(TSEL, TL_FORGE)) {  /* Felucca-FORGE: F5 in the lanes' row (a melodic track has */
+        n[0] = W_NOTE[TL_FORGE];                        /* none), first cell */
+        lcell(LC_X(0u), 4 + 32 * 2, 28, n, TL_ICON[TL_FORGE], 0, TL_NAME[TL_FORGE], st, 0);
+    }
+    for (p = TL_DOUBLE; !eu.on && p <= TL_HALF; p++) {     /* 1.5.5: D5 DOUBLE (x2), E5 HALF (/2) at the row's end, */
         int32_t x = 168 + 35 * (int32_t)(p - TL_DOUBLE);   /* 31 px each (the lanes' row: no room for their names) */
         uint16_t ink, fill = lc_box(x, 100, 31, 18, lc_fill(st, &ink));
         n[0] = W_NOTE[p];
