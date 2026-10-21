@@ -1,6 +1,6 @@
 # FORGE User Guide
 
-FORGE 0.5 for Felucca-FORGE 1.6.1 · M-VAVE FM-1
+FORGE 0.5.1 for Felucca-FORGE 1.6.1 · M-VAVE FM-1
 
 FORGE writes a musical idea onto a track in one key press, then lets that idea evolve: a melody on a synth track,
 a beat on a DRUM track (section 6). It lives in
@@ -30,7 +30,7 @@ have not used another SEQ TOOLS key since.
 | **K1 SEED** | Picks the pattern. Each seed is a different idea; turning past 99 wraps to 0 | 0–99 |
 | **K2 DENSITY** | How many of the style's steps sound; above 75 % it also adds notes off the style's rhythm | 10–100 %, steps of 5 |
 | **K3 EVOLVE** | How much the idea changes across the pattern and from loop to loop (section 4) | 0–4 |
-| **K4 STYLE** | The rhythm and pitch profile (section 3). Choosing a style sets DENSITY to that style's default | 8 styles |
+| **K4 STYLE** | The rhythm and pitch profile (section 3). Choosing a style sets DENSITY to that style's default; turning past AMBIENT wraps to BERLIN | 8 styles |
 | **C4** (RANDOM) | New notes on the same rhythm. Each press is the next variation | NOTES 0–99 |
 | **D4** (COOK) | A new rhythm; each step that still sounds keeps its pitch (with EVOLVE, later copies may drift differently) | RHYTHM 0–99 |
 | **OCT+** | Keep the pattern and close FORGE | |
@@ -54,7 +54,7 @@ cards show SEED, DENSITY, EVOLVE and STYLE. Below them, every step of the patter
 - a **dark cell** is a rest
 
 Under the cells, **C4 NOTES** and **D4 RHYTHM** show how many times you have rerolled each (lit once above 0).
-Turning K1 SEED sets both back to 0.
+Turning K1 SEED or K4 STYLE sets both back to 0.
 
 The footer shows **OCT+ APPLY** and **OCT− CANCEL**. With MENU > SYSTEM > HELP on, a second row shows
 K1 SEED, K3 EVOLVE and K4 STYLE.
@@ -156,7 +156,8 @@ of a melody. The map shows FORGE as a small **F** cell at the right end of the l
 | **D4** (HATS) | New hats, rim and bell; the low lanes stay |
 
 The screen shows every step as a column of eight strips, KICK at the bottom and BELL at the top; a brighter strip is an
-accent. The kick on step 1 is always there, and kicks on 1 and 9 are accented; snares and claps on 2 and 4 are
+accent. At LEN 33 to 64 the strips would be too thin, so each step shows two columns of marks instead: kick, snare,
+clap and tom on the left, hats, rim and bell on the right. The kick on step 1 is always there, and kicks on 1 and 9 are accented; snares and claps on 2 and 4 are
 accented half the time. Velocity follows the beat as on melodic tracks. Lane mutes (EDIT layer) and lane levels
 are not touched.
 

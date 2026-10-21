@@ -7,7 +7,7 @@
  *              notes 24..108, conditions / chances only with EVOLVE, none at EVOLVE 0 (a pure loop: copies the same)
  *   seeded     the same SEED STYLE DENSITY EVOLVE LEN ROOT SCALE: the same steps (again after other values); another
  *              SEED: other steps; DENSITY alone: the melody of the notes kept stays (the pitch stream is its own)
- *   knobs      KNOB 1 SEED (0..99, round), 2 DENSITY (10..100 by 5), 3 EVOLVE (0..4), 4 STYLE (8; its DENSITY)
+ *   knobs      KNOB 1 SEED (0..99, round), 2 DENSITY (10..100 by 5), 3 EVOLVE (0..4), 4 STYLE (8, round; its DENSITY)
  *   styles     all 8 at LEN 16, 32 and 64, in MIN, MAJ, PEN and CHR, every ROOT: the rules above hold
  *   close      OCT- cancels (the steps and a lock as they were), OCT+ / F5 again / the layer let go apply (an emptied
  *              step's lock goes); SAVE held after: one undo for all of it
@@ -15,6 +15,7 @@
  *   rerolls    (0.4) C4 new notes, D4 a new rhythm while open; K1 starts them again; VEL by place
  *   golden     (0.3) pinned seeds: tests/forge_golden.txt
  *   DRUM       (0.5) F5 opens: hits only, KICK on 1, DENSITY, C4 LOW / D4 HATS, the rules over the styles
+ *   0.5.1      step 1 ROOT in every SCALE / ROOT; no drum fill on step 1 at LEN 2..4; STYLE wraps, resets C4 / D4
  * Built and run by tests/run_tests.sh. */
 #define UI_TEST_NO_MAIN 1
 #include "ui_test.c"
@@ -140,11 +141,11 @@ static int test_open(void)
     ok &= fg.evolve == 4u;
     kt(EN_K3, -10);
     ok &= fg.evolve == 0u;
-    kt(EN_K4, 20);
+    kt(EN_K4, 7);
     ok &= fg.style == FS_AMBIENT && fg.dens == FORGE_STYLE[FS_AMBIENT].dens;
-    kt(EN_K4, -20);
+    kt(EN_K4, -7);
     ok &= fg.style == FS_BERLIN && fg.dens == 85u;
-    bad += check("  KNOB 1 SEED 0..99 round, 2 DENSITY 10..100, 3 EVOLVE 0..4, 4 STYLE BERLIN..AMBIENT", ok);
+    bad += check("  KNOB 1 SEED 0..99 round, 2 DENSITY 10..100, 3 EVOLVE 0..4, 4 STYLE BERLIN..AMBIENT round", ok);
     {   /* DENSITY alone: a note kept on a step plays the same pitch */
         step_t lo[NSTEP];
         kt(EN_K2, -5);                                  /* 60 */
@@ -545,9 +546,61 @@ static int test_drum(void)
     return bad;
 }
 
+/* 0.5.1 (Beam's second review): step 1 is ROOT in every SCALE and ROOT; a drum fill never on step 1 (LEN 2 .. 4);
+ * STYLE wraps and starts C4 / D4 again */
+static int test_051(void)
+{
+    int bad = 0, ok = 1;
+    uint32_t sc, r, s, e, sd, len;
+    const char *why = 0;
+    track_t *t = melody(16);
+    go_page(GR_ROLL); frame();
+    btn_down(B_SEQ); frame();
+    for (sc = 0; sc < 16u && ok; sc++)
+        for (r = 0; r < 12u && ok; r++)
+            for (s = 0; s < FS_N && ok; s++) {
+                forge_close(0);
+                t->p[P_SCALE] = (int16_t)sc;
+                t->p[P_ROOT] = (int16_t)r;
+                fg.set = 1; fg.drum = 0; fg.style = (uint8_t)s; fg.dens = FORGE_STYLE[s].dens; fg.evolve = 2;
+                fg.seed = (uint8_t)(sc * 12u + r); fg.nvar = fg.rvar = 0;
+                forge_open(t);
+                ok = t->step[0].time == ST_NOTE && t->step[0].note[0] == FORGE_STYLE[s].base + r && !rules(t, 16);
+                if (!ok)
+                    printf("    SCALE %u ROOT %u %s: step 1 is %u, not %u\n", (unsigned)sc, (unsigned)r,
+                           FORGE_STYLE[s].name, (unsigned)t->step[0].note[0], (unsigned)(FORGE_STYLE[s].base + r));
+            }
+    bad += check("0.5.1: step 1 is ROOT at the style's octave, in all 16 SCALEs, every ROOT, every STYLE", ok);
+    forge_close(0);
+    set_engine_of(t, ENGI_DRUM);
+    for (len = 2; len <= 4u && !why; len++)
+        for (s = 0; s < FS_N && !why; s++)
+            for (e = 0; e <= 4u && !why; e++)
+                for (sd = 0; sd < 100u && !why; sd += 7u) {
+                    forge_close(0);
+                    t->p[P_SLEN] = (int16_t)len;
+                    fg.set = 1; fg.drum = 1; fg.style = (uint8_t)s; fg.dens = FORGE_BEAT[s].dens; fg.evolve = (uint8_t)e;
+                    fg.seed = (uint8_t)sd; fg.nvar = fg.rvar = 0;
+                    forge_open(t);
+                    why = drum_rules(t, len);
+                }
+    if (why)
+        printf("    %s\n", why);
+    bad += check("0.5.1: DRUM at LEN 2, 3, 4: KICK stays on step 1 (no fill over it), every style, seed, EVOLVE", !why);
+    fg.style = FS_AMBIENT; fg.nvar = 3; fg.rvar = 2;
+    kt(EN_K4, 1);
+    ok = fg.style == FS_BERLIN && !fg.nvar && !fg.rvar;
+    kt(EN_K4, -1);
+    ok &= fg.style == FS_AMBIENT;
+    bad += check("0.5.1: STYLE wraps (AMBIENT > BERLIN > AMBIENT) and starts C4 / D4 again", ok);
+    forge_close(0);
+    btn_up(B_SEQ); frame();
+    return bad;
+}
+
 int main(void)
 {
-    int bad = test_open() + test_styles() + test_evolve() + test_names() + test_chords() + test_reroll() + test_golden() + test_drum();
+    int bad = test_open() + test_styles() + test_evolve() + test_names() + test_chords() + test_reroll() + test_golden() + test_drum() + test_051();
     printf("%s\n", bad ? "FORGE TEST FAILED" : "forge tests passed");
     return bad != 0;
 }

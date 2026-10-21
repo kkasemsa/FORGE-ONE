@@ -1,6 +1,6 @@
 # Felucca-FORGE User Guide
 
-Felucca 1.6.1 with FORGE 0.5 · M-VAVE FM-1
+Felucca 1.6.1 with FORGE 0.5.1 · M-VAVE FM-1
 
 This guide covers the whole instrument: the Felucca firmware by Hügelton Instruments, and FORGE, the motif generator
 this fork adds. Felucca's own sections follow its official manual, the [Felucca wiki](https://github.com/hugelton/Felucca/wiki),
@@ -349,7 +349,7 @@ The same knobs and style names make a beat: K1 SEED, K2 DENSITY (the style's mai
 over 75 %), K3 EVOLVE (0 a pure loop; 1 and up moves hats and adds ghost snares with a chance; 2 and up ends the last bar
 in a snare-roll fill on a 4:4 condition; 3 and up moves kicks off the beat), K4 STYLE. **C4** rerolls the low lanes
 (kick, snare, clap, tom) and **D4** the hats, rim and bell. The screen shows each step as eight strips, KICK at the
-bottom, an accent brighter. The kick on step 1 is always there. The result is ordinary drum-grid steps.
+bottom, an accent brighter (at LEN 33 to 64, two columns: kick, snare, clap, tom on the left; hats, rim, bell on the right). The kick on step 1 is always there. The result is ordinary drum-grid steps.
 
 | Style | Beat |
 | --- | --- |

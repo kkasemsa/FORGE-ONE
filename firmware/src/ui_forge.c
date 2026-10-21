@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-3.0-only
  * Copyright (C) 2026 the Felucca-FORGE contributors */
-/* Felucca-FORGE: SEQ TOOLS F5 FORGE (TL_FORGE, ui_tools.c), a seeded motif generator for the selected melodic track.
+/* Felucca-FORGE: SEQ TOOLS F5 FORGE (TL_FORGE, ui_tools.c), a seeded generator for the selected track:
+ * melodies on a melodic track, beats on a drum track (0.5, forge_render_drum).
  * Included by ui_layer.c after ui_tools.c.
  *
  * F5 opens it as EUCLID opens (the undo copy is taken, one undo for all of it, and the pattern is written at once, heard
@@ -9,12 +10,13 @@
  * one (until the power goes); the first since the power came takes a random SEED.
  *
  * What it writes: steps 1..LEN of the track (past LEN stays), only the fields a project already holds (notes, NOTE /
- * TIE / REST, accent, slide, RATCH, CHANCE or a condition; VEL 96): no format change. The same SEED, STYLE, DENSITY,
+ * TIE / REST, accent, slide, RATCH, CHANCE or a condition, VEL by place (0.4); on a drum track the lanes and their accents):
+ * no format change. The same SEED, STYLE, DENSITY,
  * EVOLVE, LEN, ROOT and SCALE always write the same steps.
  *
  * How (forge_render): a motif of the style's length (8 or 16 steps, at most LEN):
  *   pitch    a scale degree for every step from the style's contour (WALK, ARC, CHORD tones, ROOT-5TH, PEDAL, WIDE),
- *            anchored on ROOT at the style's octave; some become chords (3 or 4 scale notes), some jump an octave up
+ *            anchored on ROOT at the style's octave (step 1 is ROOT); some become chords (3 or 4 scale notes), some jump an octave up
  *   rhythm   the style's 16-step template thinned / filled by DENSITY; step 1 always sounds; TIEs after notes
  *   copies   the motif repeated through LEN; with EVOLVE each copy after the first drifts (scale steps, from EVOLVE 3
  *            a note dropped or added); the first copy is the motif as written
@@ -22,7 +24,7 @@
  *            so one short pattern still changes loop to loop; ACID and TRANCE ratchet a few
  * Separate random streams for pitch, rhythm and evolution: turning DENSITY keeps the melody, EVOLVE keeps the motif.
  * The steps as it opened are kept in EUCLID's copy (eu_from: the two are never open together). */
-#define FORGE_VERSION "0.5"
+#define FORGE_VERSION "0.5.1"
 
 enum { FC_WALK, FC_ARC, FC_CHORD, FC_ROOT5, FC_PEDAL, FC_WIDE };
 enum { FS_BERLIN, FS_DETROIT, FS_DUB, FS_MELODIC, FS_ACID, FS_TRANCE, FS_SYNTH, FS_AMBIENT, FS_N };
@@ -98,20 +100,22 @@ static uint32_t fg_xs(uint32_t *r, uint32_t n)
 static uint32_t fg_rnd(uint32_t n) { return fg_xs(&fg_r, n); }
 static int fg_pct(uint32_t p) { return fg_rnd(100) < p; }
 
-/* the track's scale notes from an octave under the style's to two over it (deg), ROOT's place in it (*a0) and the
- * notes an octave holds (*oct) */
+/* the track's scale notes from an octave under the style's to two over it (deg) and ROOT's place in it (*a0). Every
+ * SCALE holds its root (SCALE_MASK bit 0, tested over all of them), so ROOT is found; were it not, the in-scale note
+ * nearest to it (0.5.1) */
 #define FG_NDEG 40u
-static uint32_t fg_degrees(const track_t *t, const forge_style_t *st, uint8_t *deg, uint32_t *a0, uint32_t *oct)
+static uint32_t fg_degrees(const track_t *t, const forge_style_t *st, uint8_t *deg, uint32_t *a0)
 {
-    uint32_t n = 0, mask = scale_mask(t), x;
+    uint32_t n = 0, x, best = 99;
     int32_t root = (int32_t)st->base + t->p[P_ROOT] % 12;
-    *oct = (uint32_t)__builtin_popcount(mask & 0xFFFu);
-    *oct = *oct ? *oct : 12u;
     *a0 = 0;
     for (x = (uint32_t)clamp(root - 12, 12, 115); x <= (uint32_t)clamp(root + 24, 12, 115) && n < FG_NDEG; x++)
         if (tl_in_scale(t, (int32_t)x)) {
-            if ((int32_t)x == root)
+            uint32_t d = (uint32_t)((int32_t)x > root ? (int32_t)x - root : root - (int32_t)x);
+            if (d < best) {
+                best = d;
                 *a0 = n;
+            }
             deg[n++] = (uint8_t)x;
         }
     return n;
@@ -303,9 +307,9 @@ static void forge_render_drum(track_t *t, uint32_t len)
             if (e >= 3u && (i % 4u) && fg_pct(e * 2u))  /* a kick off the beat dropped or added */
                 h ^= 1u << DV_KICK;
         }
-        if (e >= 2u && k + 1u == copies && i % ml >= ml - (ml > 8u ? 3u : 2u) && fg_pct(60)) {
-            h = 1u << DV_SNARE;                         /* the fill: a snare roll, every 4th loop */
-            a = 0;
+        if (e >= 2u && ml >= 4u && k + 1u == copies && i % ml >= ml - (ml > 8u ? 3u : 2u) && fg_pct(60)) {
+            h = 1u << DV_SNARE;                         /* the fill: a snare roll, every 4th loop (never on step 1 */
+            a = 0;                                      /* of a copy: LEN 2 / 3 have none, 0.5.1) */
             fill = 1;
         }
         memset(&s, 0, sizeof s);
@@ -344,13 +348,13 @@ static void forge_render(void)
     const forge_style_t *st = &FORGE_STYLE[fg.style % FS_N];
     uint8_t deg[FG_NDEG], vel[16];
     fg_step_t m[16];
-    uint32_t len = tl_len(t), ml = st->motif < len ? st->motif : len, nd, a0, oct, i, k, e = fg.evolve, g, held = 0;
+    uint32_t len = tl_len(t), ml = st->motif < len ? st->motif : len, nd, a0, i, k, e = fg.evolve, g, held = 0;
     int32_t drift = 0;
     if (drum_track(t)) {                                /* (0.5) */
         forge_render_drum(t, len);
         return;
     }
-    nd = fg_degrees(t, st, deg, &a0, &oct);
+    nd = fg_degrees(t, st, deg, &a0);
     if (!nd)
         return;
     fg_pitch(t, st, m, ml, deg, nd, a0);
@@ -437,7 +441,8 @@ static void forge_knob(uint32_t k, int32_t s)
     else if (k == 2u)
         fg.evolve = (uint8_t)clamp((int32_t)fg.evolve + s, 0, 4);
     else {
-        fg.style = (uint8_t)clamp((int32_t)fg.style + s, 0, FS_N - 1);
+        fg.style = (uint8_t)(((int32_t)fg.style + s % FS_N + FS_N) % FS_N);   /* (0.5.1: wraps, as SEED) */
+        fg.nvar = fg.rvar = 0;                          /* (a new style: its own notes and rhythm, as a new seed) */
         fg.dens = drum_track(fg_track()) ? FORGE_BEAT[fg.style].dens : FORGE_STYLE[fg.style].dens;   /* (each style's own) */
     }
     forge_render();
@@ -502,12 +507,14 @@ static void layer_forge(void)
         int32_t x = 8 + 14 * (int32_t)(i % 16u), y = 6 + (h + 2) * (int32_t)(i / 16u);
         int note = s->time == ST_NOTE && s->n;
         if (drum) {                                     /* 0.5: a strip a lane, KICK at the foot, an accent brighter */
-            int32_t sh = (h - 2) / NLANE, l;
-            uint32_t m = step_lanes(s), ac = step_accents(s);
+            static const uint8_t COL[NLANE] = {0, 0, 0, 1, 1, 0, 1, 1}, ROW[NLANE] = {0, 1, 2, 0, 1, 3, 2, 3};
+            int32_t two = (h - 2) / NLANE < 3, sh = (h - 2) / (two ? NLANE / 2 : NLANE), l;   /* 0.5.1: LEN 33..64 */
+            uint32_t m = step_lanes(s), ac = step_accents(s);   /* two columns (KICK SNARE CLAP TOM | HATS RIM BELL) */
             cv_rrect(x, y, 12, h, 2, T_RAISE, T_SURF);
             for (l = 0; l < NLANE; l++)
                 if ((m >> l) & 1u)
-                    cv_rect(x + 2, y + h - 1 - sh * (l + 1), 8, sh - (sh > 2), (ac >> l) & 1u ? T_TEXT : T_THEME);
+                    cv_rect(two ? x + 2 + 5 * COL[l] : x + 2, y + h - 1 - sh * ((two ? ROW[l] : l) + 1), two ? 3 : 8,
+                            sh - (sh > 2), (ac >> l) & 1u ? T_TEXT : T_THEME);
             continue;
         }
         cv_rrect(x, y, 12, h, 2, note ? T_THEME : s->time == ST_TIE ? T_MID : T_RAISE, T_SURF);

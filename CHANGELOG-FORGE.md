@@ -4,11 +4,25 @@ Newest first. FORGE is the SEQ TOOLS F5 motif generator in Felucca-FORGE (based 
 
 | Version | Date | Theme |
 | --- | --- | --- |
+| 0.5.1 | 22 Oct 2026 | Fixes from the second code review |
 | 0.5 | 21 Oct 2026 | FORGE on DRUM tracks: beats in the eight styles |
 | 0.4 | 21 Oct 2026 | Velocity by the beat; C4 / D4 reroll notes or rhythm |
 | 0.3 | 21 Oct 2026 | Safe live turns, chords in every scale, pinned seeds |
 | 0.2 | 21 Oct 2026 | The generator: SEED, DENSITY, EVOLVE, 8 styles |
 | 0.1 | 21 Oct 2026 | Scaffold: F5 FORGE cell, CI build |
+
+## 0.5.1
+
+- **Drum fill never replaces the kick on step 1.** At LEN 2 or 3 with EVOLVE 2 or more, the fill could land on step 1
+  and put a snare in place of the kick. The fill now needs a motif of at least 4 steps and never touches step 1.
+- **STYLE wraps** like SEED: past AMBIENT comes BERLIN, and back. Changing STYLE also sets the C4 / D4 counts back to 0,
+  as a new SEED does.
+- **Long drum patterns are easier to read.** At LEN 33 to 64 each step shows two columns of 3 px marks (kick, snare,
+  clap, tom on the left; hats, rim, bell on the right) instead of eight 1 px strips.
+- **Step 1 is always ROOT.** Every SCALE contains its root, so this already held; a new test checks all 16 scales,
+  12 roots and 8 styles, and the code would fall back to the nearest scale note if a scale ever lacked its root.
+- Code clean-up: an unused value removed, comments and the test-suite label brought up to date.
+- Same seeds, same patterns: all 144 pinned seeds are unchanged.
 
 ## 0.5
 
