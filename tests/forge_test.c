@@ -14,7 +14,7 @@
  *   chords     (0.3) by interval: CHR minor 0 3 7 10, seven-note scales their own; TRANCE / SYNTH in CHR on the triad
  *   rerolls    (0.4) C4 new notes, D4 a new rhythm while open; K1 starts them again; VEL by place
  *   golden     (0.3) pinned seeds: tests/forge_golden.txt
- *   DRUM       F5 is not there (nothing happens)
+ *   DRUM       (0.5) F5 opens: hits only, KICK on 1, DENSITY, C4 LOW / D4 HATS, the rules over the styles
  * Built and run by tests/run_tests.sh. */
 #define UI_TEST_NO_MAIN 1
 #include "ui_test.c"
@@ -331,7 +331,7 @@ static int test_golden(void)
     const char *path = "tests/forge_golden.txt", *upd = getenv("FORGE_GOLDEN_UPDATE");
     char line[96];
     FILE *f;
-    uint32_t s, k, j, n = 0, miss = 0, got[FS_N * 4 * 3];
+    uint32_t s, k, j, n = 0, miss = 0, got[FS_N * 6 * 3];
     track_t *t = melody(16);
     go_page(GR_ROLL); frame();
     btn_down(B_SEQ); frame();
@@ -340,10 +340,22 @@ static int test_golden(void)
             for (j = 0; j < 3u; j++) {
                 forge_close(0);
                 t->p[P_SLEN] = SET[k].len; t->p[P_SCALE] = SET[k].scl; t->p[P_ROOT] = SET[k].root;
-                fg.set = 1; fg.style = (uint8_t)s; fg.dens = FORGE_STYLE[s].dens; fg.evolve = SET[k].evolve;
-                fg.seed = SEED[j];
+                fg.set = 1; fg.drum = 0; fg.style = (uint8_t)s; fg.dens = FORGE_STYLE[s].dens; fg.evolve = SET[k].evolve;
+                fg.seed = SEED[j]; fg.nvar = fg.rvar = 0;
                 forge_open(t);
                 got[n++] = fg_fnv(t->step, SET[k].len * (uint32_t)sizeof(step_t));
+            }
+    forge_close(0);
+    set_engine_of(t, ENGI_DRUM);                        /* 0.5: the beats, LEN 16 EVOLVE 1 and LEN 64 EVOLVE 3 */
+    for (s = 0; s < FS_N; s++)
+        for (k = 0; k < 2u; k++)
+            for (j = 0; j < 3u; j++) {
+                forge_close(0);
+                t->p[P_SLEN] = k ? 64 : 16;
+                fg.set = 1; fg.drum = 1; fg.style = (uint8_t)s; fg.dens = FORGE_BEAT[s].dens; fg.evolve = k ? 3 : 1;
+                fg.seed = SEED[j]; fg.nvar = fg.rvar = 0;
+                forge_open(t);
+                got[n++] = fg_fnv(t->step, (uint32_t)t->p[P_SLEN] * (uint32_t)sizeof(step_t));
             }
     forge_close(0);
     btn_up(B_SEQ); frame();
@@ -356,6 +368,10 @@ static int test_golden(void)
             for (k = 0; k < 4u; k++)
                 for (j = 0; j < 3u; j++, n++)
                     fprintf(f, "%s %u %u %08x\n", FORGE_STYLE[s].name, k, SEED[j], got[n]);
+        for (s = 0; s < FS_N; s++)
+            for (k = 0; k < 2u; k++)
+                for (j = 0; j < 3u; j++, n++)
+                    fprintf(f, "D-%s %u %u %08x\n", FORGE_STYLE[s].name, k, SEED[j], got[n]);
         fclose(f);
         printf("    wrote %s (%u patterns)\n", path, n);
         return 0;
@@ -368,7 +384,7 @@ static int test_golden(void)
         unsigned kk, sd, h;
         if (line[0] == '#' || sscanf(line, "%15s %u %u %x", name, &kk, &sd, &h) != 4)
             continue;
-        if (n < FS_N * 4u * 3u && got[n] != h) {
+        if (n < FS_N * 6u * 3u && got[n] != h) {
             if (miss < 5u)
                 printf("    changed: %s set %u seed %u\n", name, kk, sd);
             miss++;
@@ -376,7 +392,7 @@ static int test_golden(void)
         n++;
     }
     fclose(f);
-    return check("pinned seeds: 8 styles x 4 settings x 3 seeds write the steps they wrote before", !miss && n == FS_N * 4u * 3u);
+    return check("pinned seeds: 8 styles x (4 melodic + 2 drum settings) x 3 seeds write the steps they wrote before", !miss && n == FS_N * 6u * 3u);
 }
 
 /* 0.4: C4 / D4 while FORGE is open reroll the notes / the rhythm alone; VEL by place */
@@ -434,20 +450,99 @@ static int test_reroll(void)
     return bad;
 }
 
+/* 0.5: FORGE on a DRUM track: hits only (no notes), KICK on step 1, the rules; DENSITY thins; EVOLVE 0 a pure
+ * loop; C4 rerolls the low lanes alone, D4 the hats alone; OCT- puts the grid back */
+static const char *drum_rules(const track_t *t, uint32_t len)
+{
+    uint32_t i;
+    if (!(step_lanes(&t->step[0]) & (1u << DV_KICK)))
+        return "no KICK on step 1";
+    for (i = 0; i < len; i++) {
+        const step_t *s = &t->step[i];
+        if (s->n)
+            return "a note on a drum step";
+        if (s->time == ST_TIE)
+            return "a TIE";
+        if (s->time == ST_NOTE && !s->hit)
+            return "a NOTE step with no hits";
+        if (s->time == ST_NOTE && (s->vel < 20u || s->vel > 124u))
+            return "VEL out of range";
+        if (s->acc & ~s->hit)
+            return "an accent with no hit";
+    }
+    return 0;
+}
+static uint32_t hits_of(const track_t *t, uint32_t len, uint32_t lanes)
+{
+    uint32_t i, n = 0;
+    for (i = 0; i < len; i++)
+        n += (uint32_t)__builtin_popcount(step_lanes(&t->step[i]) & lanes);
+    return n;
+}
 static int test_drum(void)
 {
+    int bad = 0, ok;
+    step_t ref[NSTEP], a[NSTEP];
+    uint32_t i, s, sd, e, lo, hi;
+    const char *why = 0;
     track_t *t = melody(16);
-    step_t ref[NSTEP];
-    int ok;
     set_engine_of(t, ENGI_DRUM);
+    t->step[0] = (step_t){{0}, 0, ST_NOTE, 0, 96, 1u << DV_KICK, 0};
+    t->step[63] = (step_t){{0}, 0, ST_NOTE, 0, 96, 1u << DV_SNARE, 0};
     memcpy(ref, t->step, sizeof ref);
     go_page(GR_ROLL); frame();
     btn_down(B_SEQ); frame();
-    ok = !tl_cell(t, TL_FORGE);
+    fg.set = 1; fg.drum = 0; fg.style = FS_BERLIN; fg.evolve = 1; fg.seed = 42; fg.nvar = fg.rvar = 0; fg.dens = 85;
     tkey(TL_FORGE);
-    ok &= !fg.on && !memcmp(ref, t->step, sizeof ref);
+    ok = fg.on && tl_cell(t, TL_FORGE) && fg.dens == FORGE_BEAT[FS_BERLIN].dens && !drum_rules(t, 16) &&
+         t->step[63].hit == (1u << DV_SNARE) && hits_of(t, 16, 1u << DV_HATC) >= 6u;
+    bad += check("DRUM (0.5): F5 opens on the beat's DENSITY, hits only (no notes), KICK on 1, past LEN kept", ok);
+    hi = hits_of(t, 16, 0xFFu);
+    kt(EN_K2, -10);                                     /* 20 % */
+    lo = hits_of(t, 16, 0xFFu);
+    ok = fg.dens == 20u && lo < hi && !drum_rules(t, 16);
+    kt(EN_K2, 10);
+    bad += check("  DENSITY thins the beat", ok);
+    memcpy(a, t->step, sizeof a);
+    tkey(4);                                            /* C4: LOW */
+    ok = fg.nvar == 1u && msg_is("NEW LOW 1");
+    for (i = 0; i < 16u; i++)
+        ok &= (step_lanes(&a[i]) & ~FG_LOW_LANES) == (step_lanes(&t->step[i]) & ~FG_LOW_LANES);
+    bad += check("  C4: the low lanes rerolled, the hats as they were", ok);
+    memcpy(a, t->step, sizeof a);
+    tkey(5);                                            /* D4: HATS */
+    ok = fg.rvar == 1u && msg_is("NEW HATS 1");
+    for (i = 0; i < 16u; i++)
+        ok &= (step_lanes(&a[i]) & FG_LOW_LANES) == (step_lanes(&t->step[i]) & FG_LOW_LANES);
+    bad += check("  D4: the hats rerolled, the low lanes as they were", ok);
+    oct_back();
+    ok = !fg.on && !memcmp(t->step, ref, sizeof ref);
+    bad += check("  OCT-: the grid as it was", ok);
+    for (s = 0; s < FS_N && !why; s++)                  /* every style and seed at LEN 16 and 64, EVOLVE 0 .. 4 */
+        for (e = 0; e <= 4u && !why; e += 2u)
+            for (sd = 0; sd < 100u && !why; sd += 13u) {
+                forge_close(0);
+                t->p[P_SLEN] = e ? 64 : 16;
+                fg.set = 1; fg.drum = 1; fg.style = (uint8_t)s; fg.dens = FORGE_BEAT[s].dens; fg.evolve = (uint8_t)e;
+                fg.seed = (uint8_t)sd; fg.nvar = fg.rvar = 0;
+                forge_open(t);
+                why = drum_rules(t, (uint32_t)t->p[P_SLEN]);
+                if (!e && !why && !(no_extras(t, 16) && copies_equal(t, 16, 16)))
+                    why = "EVOLVE 0 with extras";
+                if (e >= 2u && !why) {                  /* (the fill: a 4:4 somewhere in the last 3 steps) */
+                    int f = 0;
+                    for (i = 61; i < 64u; i++)
+                        f |= step_cond(&t->step[i]) == 9u;
+                    if (!f && sd == 0u && s == FS_TRANCE)
+                        why = "no fill";
+                }
+            }
+    forge_close(0);
     btn_up(B_SEQ); frame();
-    return check("DRUM: F5 not there (nothing happens)", ok);
+    if (why)
+        printf("    %s\n", why);
+    bad += check("  every style x EVOLVE 0 / 2 / 4 x seeds: the rules hold; EVOLVE 0 a pure loop", !why);
+    return bad;
 }
 
 int main(void)

@@ -774,7 +774,7 @@ enum { S_HOME, S_HOME_IDLE, S_MESSAGE, S_MESSAGE_KEY, S_MESSAGE_NOFILE, S_PRESET
        S_DETAIL_COND, S_DETAIL_FILL, S_AUTO_COND, S_GLO_FILL, S_SEQ_EUCLID, S_SEQ_EUCLID_DRUM, S_SEQ_EUCLID_64,
        S_MENU_SELECT, S_PROJECT_ERASE, S_CONFIRM_ERASE_PROJ, S_TOOLS_CLEAN, S_CONFIRM_CLEAN,
        S_MENU_MIDI_TRACK, S_MENU_MIDI_TCH_UNUSED, S_MENU_MIDI_AUTO, S_HOME_TRACKS_MIDI, S_MIXER_MIDI, S_EDIT_PHASE_FOLD,
-       S_SEQ_FORGE, S_SEQ_FORGE_DUB, S_SEQ_FORGE_AMBIENT, S_SEQ_FORGE_64, S_COUNT };
+       S_SEQ_FORGE, S_SEQ_FORGE_DUB, S_SEQ_FORGE_AMBIENT, S_SEQ_FORGE_64, S_SEQ_FORGE_DRUM, S_SEQ_FORGE_DRUM_64, S_COUNT };
 static const char *const S_NAME[S_COUNT] = {"home", "home_idle", "message", "message_key", "message_nofile", "presets", "presets_nofav", "user",
     "phrases", "project", "tools", "song_empty", "song", "step", "auto_steps", "auto_add_chance", "automation", "drum",
     "drum_hand", "drum_cym", "mixer", "mixer_from_home", "mixer_pan", "env", "env_dest", "lfo", "mod", "fx", "slicer", "dly", "scl", "chord", "chord_wide", "chord_off", "chord_kit", "arp",
@@ -806,7 +806,8 @@ static const char *const S_NAME[S_COUNT] = {"home", "home_idle", "message", "mes
     "layer_seq_euclid_64",
     "menu_select", "project_erase", "confirm_erase_project", "tools_clean", "confirm_clean",
     "menu_midi_track", "menu_midi_channels_unused", "menu_midi_auto_select", "home_tracks_midi", "mixer_midi", "edit_phase_fold",
-    "layer_seq_forge", "layer_seq_forge_dub", "layer_seq_forge_ambient", "layer_seq_forge_64"};
+    "layer_seq_forge", "layer_seq_forge_dub", "layer_seq_forge_ambient", "layer_seq_forge_64", "layer_seq_forge_drum",
+    "layer_seq_forge_drum_64"};
 
 /* the STEP page's piano roll (ui_graph.c graph_roll) on track 1, stopped unless said: an empty pattern; ACID in
  * A minor; POLY chords (Am7 F C G, tied); a line with ties, slides and accents in C major; LEN 32 on its second
@@ -1539,12 +1540,20 @@ static void setup(int s)
         break;
     /* Felucca-FORGE: SEQ TOOLS' FORGE open: BERLIN seed 42 (HELP ON, KNOB 4 just turned), DUB (chords, ties, the
      * longest DENSITY), AMBIENT (the longest STYLE name), MELODIC over 64 steps (four rows, EVOLVE 4) */
+    case S_SEQ_FORGE_DRUM: case S_SEQ_FORGE_DRUM_64:   /* 0.5: on the DRUM track, ACID at LEN 16, TRANCE EVOLVE 3 at 64 */
+        drum(0); ui.lane = 3;
+        if (s == S_SEQ_FORGE_DRUM_64) TSEL->p[P_SLEN] = 64;
+        go_page(GR_ROLL); ui.layer = LAYER_SEQ; lys.trk = song.sel;
+        fg.set = 1; fg.drum = 1; fg.seed = 7; fg.evolve = s == S_SEQ_FORGE_DRUM_64 ? 3 : 1; fg.nvar = fg.rvar = 0;
+        fg.style = s == S_SEQ_FORGE_DRUM_64 ? FS_TRANCE : FS_ACID; fg.dens = FORGE_BEAT[fg.style].dens;
+        forge_open(TSEL); ui.msg_t = 0;
+        break;
     case S_SEQ_FORGE: case S_SEQ_FORGE_DUB: case S_SEQ_FORGE_AMBIENT: case S_SEQ_FORGE_64:
         roll_scene(S_ROLL_ACID);
         if (s == S_SEQ_FORGE) { ui_prefs2 |= PREF_HELP >> 16; ui.hot_col = 3; ui.hot_t = 30; }
         if (s == S_SEQ_FORGE_64) TSEL->p[P_SLEN] = 64;
         go_page(GR_ROLL); ui.layer = LAYER_SEQ; lys.trk = song.sel;
-        fg.set = 1; fg.seed = 42; fg.evolve = s == S_SEQ_FORGE_64 ? 4 : 1;
+        fg.set = 1; fg.drum = 0; fg.seed = 42; fg.evolve = s == S_SEQ_FORGE_64 ? 4 : 1;
         fg.style = s == S_SEQ_FORGE_DUB ? FS_DUB : s == S_SEQ_FORGE_AMBIENT ? FS_AMBIENT : s == S_SEQ_FORGE_64 ? FS_MELODIC : FS_BERLIN;
         fg.dens = s == S_SEQ_FORGE_DUB ? 100 : FORGE_STYLE[fg.style].dens;
         forge_open(TSEL);

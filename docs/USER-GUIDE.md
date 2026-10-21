@@ -1,6 +1,6 @@
 # Felucca-FORGE User Guide
 
-Felucca 1.6.1 with FORGE 0.4 · M-VAVE FM-1
+Felucca 1.6.1 with FORGE 0.5 · M-VAVE FM-1
 
 This guide covers the whole instrument: the Felucca firmware by Hügelton Instruments, and FORGE, the motif generator
 this fork adds. Felucca's own sections follow its official manual, the [Felucca wiki](https://github.com/hugelton/Felucca/wiki),
@@ -43,7 +43,7 @@ installs stock Felucca. The steps are in the [Read Me First](../README.md#instal
 1. Download `felucca.fwsc` from the fork's Releases page (or from the newest green Actions build).
 2. Quit every app that uses MIDI. Connect the FM-1 with a USB data cable.
 3. Install `mido` and `python-rtmidi` in a Python environment, then run the installer (exact commands in the Read Me First).
-4. Wait for the FM-1 to restart. Hold SEQ on a melodic track: the SEQ TOOLS map shows FORGE on F5.
+4. Wait for the FM-1 to restart. Hold SEQ: the SEQ TOOLS map shows FORGE on F5.
 
 **Stock Felucca** is installed from the [web installer](https://hugelton.github.io/Felucca/) in Chrome or Edge: connect
 the FM-1, open the page, press **Install**. No extra hardware is needed. You can also
@@ -260,7 +260,7 @@ Hold **SEQ** on any page. The white keys become pattern tools for the selected t
 | G4 – C5 | Lane CLEAR, REVERSE, FILL, RANDOM | DRUM only: the selected lane (black keys 1–8 pick it) |
 | D5 | DOUBLE | The pattern twice (LEN ×2, up to 64 steps) |
 | E5 | HALF | The first half (LEN ÷ 2) |
-| **F5** | **FORGE** | Felucca-FORGE: a seeded motif generator on melodic tracks (chapter 9). While it is open, C4 and D4 reroll its notes and rhythm |
+| **F5** | **FORGE** | Felucca-FORGE: a seeded motif generator, a melody on a synth track or a beat on a DRUM track (chapter 9). While it is open, C4 and D4 reroll its two halves |
 
 Tools only work while no SONG is playing ("STOP TO EDIT").
 
@@ -280,13 +280,14 @@ Tools only work while no SONG is playing ("STOP TO EDIT").
 
 ## 9. FORGE
 
-FORGE writes a musical idea onto a melodic track in one key press, then lets that idea evolve. Every pattern comes
+FORGE writes a musical idea onto a track in one key press, then lets that idea evolve: a melody on a synth track, a
+beat on a DRUM track (9.5). Every pattern comes
 from a **seed**: the same seed and settings always give the same steps. The [FORGE User Guide](FORGE-USER-GUIDE.md)
 has more recipes and detail.
 
 ### 9.1 Using it
 
-1. Select a melodic track. Set its ROOT and SCALE (SCL page) and LEN (SEQ TOOLS K1) first.
+1. Select a track. On a synth track set its ROOT and SCALE (SCL page) and LEN (SEQ TOOLS K1) first.
 2. Hold **SEQ**, tap **F5**. The pattern is written at once (heard while playing) and drawn as a grid of steps:
    bright cells are notes with a pitch mark, half-bright cells are ties, dark cells are rests.
 3. Turn the knobs. Each turn rewrites the pattern from the steps as they were before FORGE opened.
@@ -339,6 +340,27 @@ to the motif length there is only one copy.
 Steps 1 to LEN of the selected track: notes, NOTE / TIE / REST, accent, slide, ratchet, chance or condition, and
 velocity (louder on the beat, softer on off-beat 16ths). It does not change steps past LEN, the track's LEN, DIV, SWING or GATE, its sound, or the other tracks. Applying
 removes locks from steps that end up empty. Projects made with FORGE open on stock Felucca 1.6 and 1.6.1.
+
+---
+
+### 9.5 On a DRUM track
+
+The same knobs and style names make a beat: K1 SEED, K2 DENSITY (the style's main hits stay from 50 % up, extra hats
+over 75 %), K3 EVOLVE (0 a pure loop; 1 and up moves hats and adds ghost snares with a chance; 2 and up ends the last bar
+in a snare-roll fill on a 4:4 condition; 3 and up moves kicks off the beat), K4 STYLE. **C4** rerolls the low lanes
+(kick, snare, clap, tom) and **D4** the hats, rim and bell. The screen shows each step as eight strips, KICK at the
+bottom, an accent brighter. The kick on step 1 is always there. The result is ordinary drum-grid steps.
+
+| Style | Beat |
+| --- | --- |
+| BERLIN | Four on the floor, straight hats, rim ticks, no snare |
+| DETROIT | Four on the floor, clap on 2 and 4, open hats off the beat |
+| DUB | Kick on 1 and 9, rim on 2 and 4, sparse hats |
+| MELODIC | Four on the floor, clap on 2 and 4, off-beat hats |
+| ACID | Four on the floor, snare on 2 and 4, off-beat 16th hats, ratchets |
+| TRANCE | Four on the floor, clap on 2 and 4, open hats off the beat, dense |
+| SYNTH | Kick on 1 and 7, heavy snare on 2 and 4, 8th hats |
+| AMBIENT | A kick on 1, sparse hats, tom, rim and bell |
 
 ---
 
@@ -588,7 +610,7 @@ These are setup suggestions for sequencing the FM-1 from a controller, a grooveb
 | The installer cannot find the FM-1 | Use a data cable, not a charge-only one. Quit Ableton Live and other MIDI apps |
 | The Mac does not see the USB audio input | MENU > SYSTEM > USB SERIAL OFF (macOS 13–15) |
 | A tool says STOP TO EDIT | A SONG is playing. Stop it first |
-| F5 shows no FORGE | The track is a DRUM track, or the firmware is stock Felucca |
+| F5 shows no FORGE | The firmware is stock Felucca, or older than FORGE 0.5 on a DRUM track |
 | A step sometimes does not play | It has a CHANCE or a condition: check SEQ > DETAIL |
 | Chords play one note | Voice mode is MONO, LEG or UNI: set POLY on EDIT > VOICE |
 | A project does not open on an older firmware | See Appendix B |

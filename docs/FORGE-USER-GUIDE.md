@@ -1,8 +1,9 @@
 # FORGE User Guide
 
-FORGE 0.4 for Felucca-FORGE 1.6.1 · M-VAVE FM-1
+FORGE 0.5 for Felucca-FORGE 1.6.1 · M-VAVE FM-1
 
-FORGE writes a musical idea onto a melodic track in one key press, then lets that idea evolve. It lives in
+FORGE writes a musical idea onto a track in one key press, then lets that idea evolve: a melody on a synth track,
+a beat on a DRUM track (section 6). It lives in
 Felucca's SEQ TOOLS layer on the **F5** key. Every pattern comes from a **seed**: the same seed and settings
 always give the same steps, so you can note a seed you like and get the pattern back later.
 
@@ -10,7 +11,7 @@ All values in this guide are starting points. Judge the result by ear and turn t
 
 ## 1. Quick start
 
-1. Choose a melodic track with **ALGORITHM** (any engine except DRUM).
+1. Choose a track with **ALGORITHM**. This quick start is for a synth track; a DRUM track makes a beat instead (section 6).
 2. Set the track's **ROOT** and **SCALE** on the SCL page, and its length with SEQ TOOLS' **K1 LEN**.
    FORGE reads all three, so set them first.
 3. Press **PLAY** if you want to hear the result as you work.
@@ -140,9 +141,42 @@ These are starting points. Each one lists the track settings to make first, then
 **Working with a pattern you like.** Note its seed, style and the C4 / D4 numbers. After you apply it, the steps are ordinary Felucca steps:
 edit single notes on SEQ > STEP, add parameter locks, or use the other SEQ TOOLS (REVERSE, SHIFT, COOK) on top.
 
-## 6. What FORGE writes, and what it leaves alone
+## 6. FORGE on a drum track
 
-**Writes:** steps 1 to LEN of the selected track. Each step gets notes (1, 3 or 4), NOTE, TIE or REST, accent,
+From 0.5, F5 works on a DRUM track too. The same four knobs and the same eight style names make a **beat** instead
+of a melody. The map shows FORGE as a small **F** cell at the right end of the lanes row.
+
+| Control | On a DRUM track |
+| --- | --- |
+| **K1 SEED** | Picks the beat |
+| **K2 DENSITY** | How many hits. Each style's main hits stay from 50 % up; above 75 % extra 16th hats and rim ghosts come in |
+| **K3 EVOLVE** | 0 is a pure loop. From 1, later bars move a hat or two and add ghost snares and rims with a chance; from 2 the last bar ends in a **snare roll fill on a 4:4 condition** (every 4th loop); from 3 kicks off the beat come and go |
+| **K4 STYLE** | The beat (table below). Sets DENSITY to the beat's default |
+| **C4** (LOW) | New kick, snare, clap and tom; the hats stay |
+| **D4** (HATS) | New hats, rim and bell; the low lanes stay |
+
+The screen shows every step as a column of eight strips, KICK at the bottom and BELL at the top; a brighter strip is an
+accent. The kick on step 1 is always there, and kicks on 1 and 9 are accented; snares and claps on 2 and 4 are
+accented half the time. Velocity follows the beat as on melodic tracks. Lane mutes (EDIT layer) and lane levels
+are not touched.
+
+| Style | Kick | Snare / clap | Hats | Extras | Default DENSITY |
+| --- | --- | --- | --- | --- | --- |
+| BERLIN | Four on the floor | None | Straight 8ths, 16ths at high density | Rim ticks, an open hat | 70 % |
+| DETROIT | Four on the floor, a push on 11 | Clap on 2 and 4 | 8ths, open hat off the beat | Tom, rim | 70 % |
+| DUB | 1 and 9, a push on 11 | Rim on 2 and 4 | 8ths | Open hat | 55 % |
+| MELODIC | Four on the floor | Clap on 2 and 4 | Off-beat 8ths, more at high density | Open hat, a tom on 16 | 70 % |
+| ACID | Four on the floor, a push on 12 | Snare on 2 and 4, clap | Off-beat 16ths | Open hat, rim; the most ratchets | 75 % |
+| TRANCE | Four on the floor | Clap on 2 and 4 | 8ths with open hats off the beat | Rim | 85 % |
+| SYNTH | 1 and 7, a push on 12 | Snare on 2 and 4 | 8ths | Open hat, tom | 70 % |
+| AMBIENT | 1 only | None | Sparse | Open hat, tom, rim, a bell | 45 % |
+
+Pick the kit first (PRESETS, or EDIT > K1 KIT): the same beat sounds very different on 80, DEEP or PERC. The beat is
+ordinary drum-grid steps once applied, so edit it on the grid, mute lanes in the EDIT layer, or run the lane tools over it.
+
+## 7. What FORGE writes, and what it leaves alone
+
+**Writes:** steps 1 to LEN of the selected track. On a synth track each step gets notes (1, 3 or 4), NOTE, TIE or REST, accent,
 slide, ratchet (×2 or ×3), and a chance or condition. Velocity follows the beat: notes on the beat are louder and
 off-beat 16ths softer, with a little variation, between 40 and 124 (BERLIN, TRANCE and ACID the widest, DUB and
 AMBIENT the gentlest). Accented notes play at 127 as always. Every copy of the motif has the same velocities.
@@ -166,11 +200,11 @@ its changelog says so. Patterns you want to keep for certain belong in a project
 Change any of them and the pattern changes. At EVOLVE 0, changing DENSITY keeps the pitch of the notes that stay;
 with EVOLVE 1 and up it can also change how the later copies drift.
 
-## 7. When it does not do what you expect
+## 8. When it does not do what you expect
 
 | What you see | Why, and what to do |
 | --- | --- |
-| F5 does nothing | The track is a DRUM track (FORGE is for melodic tracks only), or a SONG is playing ("STOP TO EDIT") |
+| F5 does nothing | A SONG is playing ("STOP TO EDIT"), or the firmware is older than 0.5 on a DRUM track |
 | The notes are too low or too high | Each style has its own octave. To move a pattern, set **QNT** to **SEQ+T** on the SCL page and turn **TRN** (TRN alone, and the octave buttons, only move the keys). Or try a style in another octave |
 | Chords play as single notes | The voice mode is MONO, LEG or UNI. Set **POLY** on EDIT > VOICE |
 | ACID slides do not glide | Use MONO or LEG voice mode, and some GLIDE on EDIT > VOICE (K2) |
@@ -178,7 +212,7 @@ with EVOLVE 1 and up it can also change how the later copies drift.
 | The knobs edit LEN, not SEED | FORGE is not open (F5 is not lit). Tap F5 while holding SEQ |
 | I applied it and want the old steps back | Hold **SAVE** before using another tool (one undo). Or press **OCT−** before letting go of SEQ: it puts back everything the layer changed since it opened, LEN, DIV, SWING and GATE included |
 
-## 8. Credits
+## 9. Credits
 
 FORGE is part of Felucca-FORGE, a fork of [Felucca](https://github.com/hugelton/Felucca) by Leo Kuroshita, Hügelton
 Instruments, and contributors. GPL-3.0-only. Source: [github.com/kkasemsa/Felucca-FORGE](https://github.com/kkasemsa/Felucca-FORGE),

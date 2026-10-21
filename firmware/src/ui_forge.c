@@ -22,7 +22,7 @@
  *            so one short pattern still changes loop to loop; ACID and TRANCE ratchet a few
  * Separate random streams for pitch, rhythm and evolution: turning DENSITY keeps the melody, EVOLVE keeps the motif.
  * The steps as it opened are kept in EUCLID's copy (eu_from: the two are never open together). */
-#define FORGE_VERSION "0.4"
+#define FORGE_VERSION "0.5"
 
 enum { FC_WALK, FC_ARC, FC_CHORD, FC_ROOT5, FC_PEDAL, FC_WIDE };
 enum { FS_BERLIN, FS_DETROIT, FS_DUB, FS_MELODIC, FS_ACID, FS_TRANCE, FS_SYNTH, FS_AMBIENT, FS_N };
@@ -46,9 +46,35 @@ static const forge_style_t FORGE_STYLE[FS_N] = {
     {"SYNTH",   "SYNTH",   0x5555, 0x0101,  8, 90, 48, FC_ROOT5,  7,  10,  0,   0,  0,   0,  5,  0, 16},
     {"AMBIENT", "AMBI",    0x0441, 0x0000, 16, 50, 60, FC_WIDE,   9,  80,  3,  30,  0,   0, 40,  0, 12},
 };
+/* 0.5: FORGE on a DRUM track, the same eight styles as beats. Each lane (KICK SNARE CLAP HATC HATO TOM RIM BELL) has
+ * its core hits (kept from DENSITY 50 % up, thinned under it) and its optional hits (each kept with DENSITY's chance),
+ * bit i = step i + 1 of a 16-step bar; over 75 % extra closed hats and rim ghosts come in. The low lanes (KICK SNARE
+ * CLAP TOM) draw from the pitch stream (C4 rerolls them: LOW), the high ones (HATC HATO RIM BELL) from the rhythm
+ * stream (D4: HATS). KICK on step 1 always; KICK accented on 1 and 9, SNARE / CLAP on 2 and 4 half the time */
+typedef struct { uint16_t core[NLANE], opt[NLANE]; uint8_t dens, rat; } forge_beat_t;
+static const forge_beat_t FORGE_BEAT[FS_N] = {
+    /*          KICK    SNARE   CLAP    HATC    HATO    TOM     RIM     BELL     (core)  */
+    {{0x1111, 0x0000, 0x0000, 0x5555, 0x0000, 0x0000, 0x0000, 0x0000},   /* BERLIN */
+     {0x0000, 0x0000, 0x0000, 0xAAAA, 0x4040, 0x0000, 0x2222, 0x0000}, 70, 10},
+    {{0x1111, 0x0000, 0x1010, 0x5555, 0x4444, 0x0000, 0x0000, 0x0000},   /* DETROIT */
+     {0x0400, 0x0000, 0x0000, 0xAAAA, 0x0000, 0x0080, 0x0202, 0x0000}, 70, 10},
+    {{0x0101, 0x0000, 0x0000, 0x5555, 0x0000, 0x0000, 0x1010, 0x0000},   /* DUB */
+     {0x0400, 0x0000, 0x0000, 0xAAAA, 0x0040, 0x0000, 0x0202, 0x0000}, 55, 5},
+    {{0x1111, 0x0000, 0x1010, 0x4444, 0x0000, 0x0000, 0x0000, 0x0000},   /* MELODIC */
+     {0x0000, 0x0000, 0x0000, 0xBBBB, 0x0404, 0x8000, 0x0000, 0x0000}, 70, 10},
+    {{0x1111, 0x1010, 0x0000, 0xAAAA, 0x0000, 0x0000, 0x0000, 0x0000},   /* ACID */
+     {0x0800, 0x0000, 0x1010, 0x5555, 0x4444, 0x0000, 0x2002, 0x0000}, 75, 20},
+    {{0x1111, 0x0000, 0x1010, 0x5555, 0x4444, 0x0000, 0x0000, 0x0000},   /* TRANCE */
+     {0x0000, 0x0000, 0x0000, 0xAAAA, 0x0000, 0x0000, 0x8888, 0x0000}, 85, 15},
+    {{0x0041, 0x1010, 0x0000, 0x5555, 0x0000, 0x0000, 0x0000, 0x0000},   /* SYNTH */
+     {0x0800, 0x0000, 0x1010, 0xAAAA, 0x4000, 0x8000, 0x0000, 0x0000}, 70, 5},
+    {{0x0001, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},   /* AMBIENT */
+     {0x0100, 0x0000, 0x0000, 0x5555, 0x0400, 0x2000, 0x0440, 0x0010}, 45, 0},
+};
+#define FG_LOW_LANES (1u << DV_KICK | 1u << DV_SNARE | 1u << DV_CLAP | 1u << DV_TOM)
 static const char H_FORGE[] = "[K1]SEED[K3]EVOLVE[K4]STYLE";   /* (the footer holds three; DENSITY says itself, C4 / D4 the grid) */
 
-static struct { uint8_t on, set, seed, dens, evolve, style, trk, nvar, rvar; } fg;   /* nvar rvar (0.4): C4 / D4 rerolls */
+static struct { uint8_t on, set, seed, dens, evolve, style, trk, nvar, rvar, drum; } fg;   /* nvar rvar (0.4): C4 / D4 rerolls; drum (0.5): the last open was a DRUM track */
 static track_t *fg_track(void) { return &trk[fg.trk % NTRK]; }
 
 /* xorshift32 streams of their own (libc.c rng() stays the panel's): 1 pitch, 2 rhythm, 3 evolution, 4 (0.4)
@@ -233,6 +259,81 @@ static void fg_write(const track_t *t, step_t *s, const fg_step_t *f, int32_t d,
     s->n = (uint8_t)k;
 }
 
+/* 0.5: a DRUM track's steps 1..LEN (forge_render decides): the motif is one 16-step bar (or LEN), hits per lane by
+ * DENSITY, then copies through LEN as the melodic one: with EVOLVE the later copies move a hat or two, add a ghost
+ * snare / rim with a CHANCE, drop or add a kick off the beat (3 and up), ratchet hats (the style's rate); with EVOLVE
+ * 2 and up the last copy ends in a fill: the last two or three steps a snare roll on a 4:4 condition (every 4th loop) */
+static void forge_render_drum(track_t *t, uint32_t len)
+{
+    const forge_beat_t *bt = &FORGE_BEAT[fg.style % FS_N];
+    uint8_t hit[16], acc[16], vel[16];
+    uint32_t ml = len < 16u ? len : 16u, i, l, k, e = fg.evolve, d = fg.dens, copies = (len + ml - 1u) / ml, g;
+    memset(hit, 0, sizeof hit);
+    memset(acc, 0, sizeof acc);
+    for (l = 0; l < NLANE; l++) {                       /* the lanes, each its own state off its group's stream */
+        fg_r = fg_start((FG_LOW_LANES >> l) & 1u ? 1u : 2u) ^ (l + 1u) * 0x9E3779B1u;
+        fg_r = fg_r ? fg_r : 0x1234567u;
+        for (i = 0; i < ml; i++) {
+            uint32_t core = (bt->core[l] >> i) & 1u, opt = (bt->opt[l] >> i) & 1u, on;
+            on = core ? (d >= 50u || fg_pct(d * 2u)) : opt ? fg_pct(d) : 0u;
+            if (!on && d > 75u && (l == DV_HATC || l == DV_RIM) && (i & 1u))
+                on = fg_pct((d - 75u) * 2u);           /* (over 75 %: 16th hats and rim ghosts) */
+            if (l == DV_KICK && !i)
+                on = 1;
+            if (on)
+                hit[i] |= (uint8_t)(1u << l);
+            if (on && ((l == DV_KICK && (i == 0u || i == 8u)) ||
+                       ((l == DV_SNARE || l == DV_CLAP) && (i == 4u || i == 12u) && fg_pct(50))))
+                acc[i] |= (uint8_t)(1u << l);
+        }
+    }
+    fg_vr = fg_start(4);                                /* VEL by place, as the melodic one */
+    for (i = 0; i < ml; i++) {
+        int32_t v = FORGE_STYLE[fg.style % FS_N].vdyn, w = i % 4u == 0u ? 2 : i % 2u == 0u ? 0 : -1;
+        vel[i] = (uint8_t)clamp(96 + w * v / 4 + (int32_t)fg_xs(&fg_vr, (uint32_t)v / 2u + 1u) - v / 4, 40, 124);
+    }
+    fg_seed(3);                                         /* (the evolution's stream) */
+    for (i = 0; i < len; i++) {
+        step_t s;
+        uint32_t h = hit[i % ml], a = acc[i % ml], fill = 0;
+        k = i / ml;
+        if (k && e) {
+            if (fg_pct(e * 6u + (k - 1u) * e * 3u))      /* a closed hat moved on or off */
+                h ^= 1u << DV_HATC;
+            if (e >= 3u && (i % 4u) && fg_pct(e * 2u))  /* a kick off the beat dropped or added */
+                h ^= 1u << DV_KICK;
+        }
+        if (e >= 2u && k + 1u == copies && i % ml >= ml - (ml > 8u ? 3u : 2u) && fg_pct(60)) {
+            h = 1u << DV_SNARE;                         /* the fill: a snare roll, every 4th loop */
+            a = 0;
+            fill = 1;
+        }
+        memset(&s, 0, sizeof s);
+        s.time = ST_REST;
+        if (!h && e && (i % ml) && (i & 1u) && fg_pct(e * 6u)) {   /* an empty off-beat: a ghost snare / rim with */
+            h = 1u << (fg_rnd(2) ? DV_SNARE : DV_RIM);  /* a CHANCE (its own step: nothing else is thinned) */
+            s.time = ST_NOTE;
+            s.hit = (uint8_t)h;
+            s.vel = (uint8_t)(vel[i % ml] - 20u);
+            step_set_chance_v(&s, fg_rnd(2) ? 75u : 50u);
+        } else if (h) {
+            s.time = ST_NOTE;
+            s.hit = (uint8_t)h;
+            s.acc = (uint8_t)(a & h);
+            s.vel = vel[i % ml];
+            if (fill) {
+                step_set_ratchet(&s, 2u + fg_rnd(2));
+                step_set_chance_v(&s, 100u + 9u);       /* 4:4 */
+            } else if (e && (h & (1u << DV_HATC)) && (i & 1u) && fg_pct(bt->rat)) {
+                step_set_ratchet(&s, 2u);               /* (a ratcheted hat: the whole step's hits) */
+            }
+        }
+        g = motion_guard();
+        t->step[i] = s;
+        motion_unguard(g);
+    }
+}
+
 /* the track's steps 1..LEN from fg's values (the steps as it opened: eu_from, for a cancel). 0.3: each step is made
  * whole here and then put in place with the audio ISR held off (motion_guard), one at a time: the sequencer, which
  * reads the steps in the ISR while playing, sees a step as it was or as it is, never half of one (up to 0.2 the steps
@@ -245,6 +346,10 @@ static void forge_render(void)
     fg_step_t m[16];
     uint32_t len = tl_len(t), ml = st->motif < len ? st->motif : len, nd, a0, oct, i, k, e = fg.evolve, g, held = 0;
     int32_t drift = 0;
+    if (drum_track(t)) {                                /* (0.5) */
+        forge_render_drum(t, len);
+        return;
+    }
     nd = fg_degrees(t, st, deg, &a0, &oct);
     if (!nd)
         return;
@@ -313,6 +418,10 @@ static void forge_open(track_t *t)
         fg.evolve = 1;
         fg.dens = FORGE_STYLE[FS_BERLIN].dens;
     }
+    if (drum_track(t) != fg.drum) {                     /* (0.5: a DRUM track's DENSITY is the beat's) */
+        fg.drum = (uint8_t)drum_track(t);
+        fg.dens = fg.drum ? FORGE_BEAT[fg.style % FS_N].dens : FORGE_STYLE[fg.style % FS_N].dens;
+    }
     fg.on = 1;
     forge_render();
     forge_say();
@@ -329,7 +438,7 @@ static void forge_knob(uint32_t k, int32_t s)
         fg.evolve = (uint8_t)clamp((int32_t)fg.evolve + s, 0, 4);
     else {
         fg.style = (uint8_t)clamp((int32_t)fg.style + s, 0, FS_N - 1);
-        fg.dens = FORGE_STYLE[fg.style].dens;            /* (each style's own) */
+        fg.dens = drum_track(fg_track()) ? FORGE_BEAT[fg.style].dens : FORGE_STYLE[fg.style].dens;   /* (each style's own) */
     }
     forge_render();
     forge_say();
@@ -344,7 +453,7 @@ static void forge_reroll(uint32_t rhythm)
     else
         fg.nvar = (uint8_t)((fg.nvar + 1u) % 100u);
     forge_render();
-    str_cpy(b, rhythm ? "NEW RHYTHM " : "NEW NOTES ", sizeof b);
+    str_cpy(b, drum_track(fg_track()) ? (rhythm ? "NEW HATS " : "NEW LOW ") : rhythm ? "NEW RHYTHM " : "NEW NOTES ", sizeof b);
     fmt_int(n, rhythm ? fg.rvar : fg.nvar);
     str_cpy(b + str_len(b), n, sizeof b - str_len(b));
     ui_message(b);
@@ -381,6 +490,7 @@ static void layer_forge(void)
 {
     const track_t *t = fg_track();
     uint32_t len = tl_len(t), i, rows = (len + 15u) / 16u, lo = 127, hi = 0;
+    int drum = drum_track(t);
     int32_t h = rows == 1u ? 60 : rows == 2u ? 40 : rows == 3u ? 28 : 20;
     for (i = 0; i < len; i++)
         if (t->step[i].time == ST_NOTE && t->step[i].n) {
@@ -391,6 +501,15 @@ static void layer_forge(void)
         const step_t *s = &t->step[i];
         int32_t x = 8 + 14 * (int32_t)(i % 16u), y = 6 + (h + 2) * (int32_t)(i / 16u);
         int note = s->time == ST_NOTE && s->n;
+        if (drum) {                                     /* 0.5: a strip a lane, KICK at the foot, an accent brighter */
+            int32_t sh = (h - 2) / NLANE, l;
+            uint32_t m = step_lanes(s), ac = step_accents(s);
+            cv_rrect(x, y, 12, h, 2, T_RAISE, T_SURF);
+            for (l = 0; l < NLANE; l++)
+                if ((m >> l) & 1u)
+                    cv_rect(x + 2, y + h - 1 - sh * (l + 1), 8, sh - (sh > 2), (ac >> l) & 1u ? T_TEXT : T_THEME);
+            continue;
+        }
         cv_rrect(x, y, 12, h, 2, note ? T_THEME : s->time == ST_TIE ? T_MID : T_RAISE, T_SURF);
         if (note) {
             int32_t span = hi > lo ? (int32_t)(hi - lo) : 1, ty = y + h - 5 - (int32_t)(s->note[0] - lo) * (h - 8) / span;
@@ -399,10 +518,10 @@ static void layer_forge(void)
     }
     {   /* 0.4: the rerolls on the keys, under the steps */
         char a[16], b[16], n[4];
-        str_cpy(a, "C4 NOTES ", sizeof a);
+        str_cpy(a, drum ? "C4 LOW " : "C4 NOTES ", sizeof a);
         fmt_int(n, fg.nvar);
         str_cpy(a + str_len(a), n, sizeof a - str_len(a));
-        str_cpy(b, "D4 RHYTHM ", sizeof b);
+        str_cpy(b, drum ? "D4 HATS " : "D4 RHYTHM ", sizeof b);
         fmt_int(n, fg.rvar);
         str_cpy(b + str_len(b), n, sizeof b - str_len(b));
         cv_text_on(10, 100 + CAP_IN(S, 18), &AF_S, a, fg.nvar ? T_THEME : T_MID, T_SURF);

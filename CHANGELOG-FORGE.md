@@ -4,10 +4,24 @@ Newest first. FORGE is the SEQ TOOLS F5 motif generator in Felucca-FORGE (based 
 
 | Version | Date | Theme |
 | --- | --- | --- |
+| 0.5 | 21 Oct 2026 | FORGE on DRUM tracks: beats in the eight styles |
 | 0.4 | 21 Oct 2026 | Velocity by the beat; C4 / D4 reroll notes or rhythm |
 | 0.3 | 21 Oct 2026 | Safe live turns, chords in every scale, pinned seeds |
 | 0.2 | 21 Oct 2026 | The generator: SEED, DENSITY, EVOLVE, 8 styles |
 | 0.1 | 21 Oct 2026 | Scaffold: F5 FORGE cell, CI build |
+
+## 0.5
+
+- **FORGE on a DRUM track.** F5 is offered on DRUM tracks too, as a small F cell at the right end of the lanes row
+  (the lane cells sit 1 px apart, DOUBLE and HALF read Dx2 and E/2 there). The same SEED, DENSITY, EVOLVE and the
+  eight style names make a beat: each style has core hits per lane (kept from DENSITY 50 % up) and optional ones
+  (each with DENSITY's chance); over 75 % extra 16th hats and rim ghosts. The kick on step 1 is always there; kicks on
+  1 and 9 are accented, snare / clap on 2 and 4 half the time. EVOLVE moves hats and adds ghost snares / rims with a
+  chance on empty off-beats (1 up), ends the last bar in a snare-roll fill on a 4:4 condition (2 up), and moves
+  kicks off the beat (3 up); hats ratchet at the style's rate. C4 rerolls the low lanes (LOW), D4 the hats (HATS).
+  The preview shows each step as eight lane strips. DENSITY remembers the beat's default when FORGE opens on a
+  DRUM track after a synth track and back.
+- **Pinned seeds** gain 48 drum patterns (8 styles × 2 settings × 3 seeds). The 96 melodic ones are unchanged.
 
 ## 0.4
 

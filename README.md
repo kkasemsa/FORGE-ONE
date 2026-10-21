@@ -1,13 +1,13 @@
 # Felucca-FORGE — Read Me First
 
 Felucca-FORGE is custom firmware for the **M-VAVE FM-1**. It is Felucca 1.6.1 by Hügelton Instruments, with one
-addition: **FORGE**, a seeded motif generator for melodic tracks on the SEQ TOOLS **F5** key.
+addition: **FORGE**, a seeded generator of melodies and beats on the SEQ TOOLS **F5** key.
 Everything else works exactly as in Felucca 1.6.1.
 
 | | |
 | --- | --- |
 | Based on | [Felucca](https://github.com/hugelton/Felucca) 1.6.1 (GPL-3.0-only) by Leo Kuroshita, Hügelton Instruments |
-| Adds | FORGE 0.4: SEED, DENSITY, EVOLVE and 8 STYLES on SEQ TOOLS F5 ([changelog](CHANGELOG-FORGE.md)) |
+| Adds | FORGE 0.5: SEED, DENSITY, EVOLVE and 8 STYLES on SEQ TOOLS F5, melodies and beats ([changelog](CHANGELOG-FORGE.md)) |
 | Branch | [`forge`](https://github.com/kkasemsa/Felucca-FORGE/tree/forge) (`main` is an untouched copy of upstream) |
 | Status | Firmware builds and host tests pass in CI. **Not yet tested on a real FM-1.** |
 
@@ -43,7 +43,7 @@ The official web installer only installs stock Felucca, so install FORGE with Fe
 4. Run it from that folder: `~/fm1-env/bin/python fm1_install.py felucca.fwsc`
    It asks before writing. Don't unplug the cable or let the Mac sleep until it says the install is done.
    The FM-1 restarts on its own.
-5. Check it worked: hold **SEQ** on a melodic track. The SEQ TOOLS map should show a **FORGE** cell for key F5.
+5. Check it worked: hold **SEQ**. The SEQ TOOLS map should show a **FORGE** cell for key F5.
 
 ## Go back to stock
 

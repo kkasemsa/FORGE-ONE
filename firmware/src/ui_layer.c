@@ -1140,20 +1140,33 @@ static void layer_seq(void)
         }
         lcell(LC_X(p % 4u), 4 + 32 * (int32_t)(p / 4u), 28, n, TL_ICON[p], 0, nm, st, 0);
     }
-    for (p = 0; drum && p < NLANE; p++) {               /* the lanes (black keys 1..8): 8 cells of 18 px, 2 px apart */
-        int32_t x = 6 + 20 * (int32_t)p;
+    for (p = 0; drum && p < NLANE; p++) {               /* the lanes (black keys 1..8): 8 cells of 18 px, 1 px apart */
+        int32_t x = 6 + 19 * (int32_t)p;                /* (0.5: 2 px apart up to 0.4; FORGE's cell takes the room) */
         uint16_t ink, fill = lc_box(x, 100, 18, 18, lc_fill(p == ui.lane % NLANE ? LS_SEL : LS_OFF, &ink));
         GFX_HOOK_ALIGN(x, 100, x + 18, 118, AL_HV, "tools lane cell name centred");
         cv_text_in(x, 100 + CAP_IN(S, 18), 18, &AF_S, drum_lane_abbr(TSEL, p), ink, fill);
     }
-    if (!drum && !eu.on && tl_cell(TSEL, TL_FORGE)) {  /* Felucca-FORGE: F5 in the lanes' row (a melodic track has */
+    if (!drum && !eu.on) {                              /* Felucca-FORGE: F5 in the lanes' row (a melodic track has */
         n[0] = W_NOTE[TL_FORGE];                        /* none), first cell */
         lcell(LC_X(0u), 4 + 32 * 2, 28, n, TL_ICON[TL_FORGE], 0, TL_NAME[TL_FORGE], st, 0);
     }
-    for (p = TL_DOUBLE; !eu.on && p <= TL_HALF; p++) {     /* 1.5.5: D5 DOUBLE (x2), E5 HALF (/2) at the row's end, */
-        int32_t x = 168 + 35 * (int32_t)(p - TL_DOUBLE);   /* 31 px each (the lanes' row: no room for their names) */
-        uint16_t ink, fill = lc_box(x, 100, 31, 18, lc_fill(st, &ink));
+    for (p = TL_DOUBLE; !eu.on && p < TL_N; p++) {         /* 1.5.5: D5 DOUBLE (x2), E5 HALF (/2) at the row's end, */
+        int32_t w = drum ? 24 : 31, x = drum ? 159 + 25 * (int32_t)(p - TL_DOUBLE) : 168 + 35 * (int32_t)(p - TL_DOUBLE);
+        uint16_t ink, fill;                             /* 31 px each (the lanes' row: no room for their names); 0.5: */
+        char m[4];                                      /* on DRUM 24 px each, "Dx2" "E/2" as one word, and F5 FORGE */
+        if (p == TL_FORGE && !drum)                     /* (its letter and icon) after them */
+            break;
+        fill = lc_box(x, 100, w, 18, lc_fill(st, &ink));
         n[0] = W_NOTE[p];
+        if (drum) {
+            m[0] = W_NOTE[p];
+            str_cpy(m + 1, p == TL_DOUBLE ? "x2" : p == TL_HALF ? "/2" : "", 3);
+            GFX_HOOK_ALIGN(0, 100, 0, 118, AL_V, "tools resize cell on its middle");
+            cv_text_on(x + 2, 100 + CAP_IN(S, 18), &AF_S, m, ink, fill);
+            if (p == TL_FORGE)
+                cv_icon_on(x + w - 14, 103, 12, TL_ICON[TL_FORGE], ink, fill);
+            continue;
+        }
         GFX_HOOK_ALIGN(0, 100, 0, 118, AL_V, "tools resize cell on its middle");
         cv_text_on(x + 5, 100 + CAP_IN(S, 18), &AF_S, n, fill == T_RAISE || fill == T_SURF ? T_MID : ink, fill);
         GFX_HOOK_ALIGN(0, 100, 0, 118, AL_V, "tools resize cell on its middle");

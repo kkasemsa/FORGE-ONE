@@ -25,8 +25,8 @@ static uint32_t tl_lane(const step_t *s, uint32_t l) { return (step_lanes(s) >> 
 /* place p's action is there for this track (the lane row and BEAT: DRUM only) */
 static int tl_cell(const track_t *t, uint32_t p)
 {
-    if (p == TL_FORGE)                                  /* (Felucca-FORGE: melodic tracks only, for now) */
-        return !drum_track(t);
+    if (p == TL_FORGE)                                  /* (Felucca-FORGE: every track; 0.5: DRUM too) */
+        return 1;
     return p < TL_N && (p < TL_BEAT || p == TL_EUCLID || p >= TL_DOUBLE || drum_track(t));
 }
 
