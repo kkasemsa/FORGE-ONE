@@ -83,7 +83,13 @@ jobs:
         run: ./build.sh
 
       - name: Host tests
-        run: sh tests/run_tests.sh
+        run: |
+          set -o pipefail
+          sh tests/run_tests.sh 2>&1 | tee build/test.log
+
+      - name: Report test failures
+        if: failure()
+        run: '[ -f build/test.log ] && python3 .github/scripts/test_failures.py build/test.log || true'
 
       - name: Checksums
         if: always()
@@ -101,6 +107,7 @@ jobs:
             build/felucca.bin
             build/loader/ota.bin
             build/SHA256SUMS
+            build/test.log
           if-no-files-found: warn
 
       - name: Upload UI renders
