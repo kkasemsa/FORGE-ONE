@@ -4,6 +4,7 @@ Newest first. FORGE is the SEQ TOOLS F5 motif generator in FORGE ONE (based on F
 
 | Version | Date | Theme |
 | --- | --- | --- |
+| 0.9.1 | 22 Oct 2026 | Fixes from the third code review: PERFORM state, build and release packaging |
 | 0.9 | 22 Oct 2026 | FORGE PACK: 40 sounds for the starters |
 | 0.8 | 22 Oct 2026 | 45 song starters in 13 genres, Jarre included |
 | 0.7 | 22 Oct 2026 | PERFORM: live mutes, solos, scenes, QUANT; throws that flow back; DUCK |
@@ -14,6 +15,35 @@ Newest first. FORGE is the SEQ TOOLS F5 motif generator in FORGE ONE (based on F
 | 0.3 | 21 Oct 2026 | Safe live turns, chords in every scale, pinned seeds |
 | 0.2 | 21 Oct 2026 | The generator: SEED, DENSITY, EVOLVE, 8 styles |
 | 0.1 | 21 Oct 2026 | Scaffold: F5 FORGE cell, CI build |
+
+## 0.9.1
+
+Beam's third review (of 0.8), six findings, all taken:
+
+- **GLO's C4 UNMUTE ALL now clears PERFORM's latched solos and a waiting QUANT change too** (it only cleared the
+  mutes, while PERFORM's notes said it cleared the solos). DUCK is an effect and stays until CLEAR, OCT- or FX LATCH
+  off; the guide says so.
+- **A queued QUANT change no longer survives STOP**: it goes in at once on STOP (as a change made while stopped
+  does) and on QUANT switched to NOW ("AT ONCE" now means it); a project loaded drops it. Before, a mute queued just
+  before STOP went in after the next PLAY. Four regressions in forge_test (STOP, QUANT OFF, UNMUTE ALL, project load).
+- **Build: Pillow's RAQM layout engine is checked** before the font raster runs (`forge_build.sh` stops with the
+  install line, CI fails in the packages step); Pillow 10+ and fontTools 4.40+ are the documented and installed
+  minimum. Without RAQM, Pillow fell back to basic layout and the font metrics differed silently.
+- **BUILDING.md is FORGE ONE's**: it clones the fork's `forge` branch, describes FORGE ONE's artifacts and release
+  assets, and the command-line install (upstream's web installer installs Felucca, not FORGE ONE).
+- **CI uploads installable firmware only from a green run** (build and host tests passed); a failed run uploads its
+  logs as `forge-one-FAILED-<sha>`. The artifact is now the distribution folder `tools/forge_dist.sh` packs:
+  the package, the app, the loader, `SHA256SUMS`, `MANIFEST.txt` (version, commit, run, engines commit, build flags,
+  test result) and the licence texts.
+- **A release carries the licence texts and the whole source**: `forge-one-<tag>-dist.zip` (LICENSE, LICENSING.md,
+  LICENSES/, the sample attribution) and `forge-one-<tag>-source.tar.gz` with the engines submodule's files, which
+  GitHub's own archive leaves out.
+- **The toolchain download is digest-checked**: `tools/get_toolchain.sh` saves the archive, prints its SHA-256 and
+  extracts only when it is the pinned one (`JIELI_TOOLCHAIN_SHA256` overrides; `skip` for an unknown archive). The
+  pin is filled in from the first CI fetch.
+- Not done, by design: a physically armed update mode (the review's USB SysEx point). It is upstream's update path,
+  `fm1_install.py` and the web installer depend on it, and a confirmation on the instrument would change how every
+  install works; left for a decision.
 
 ## 0.9
 

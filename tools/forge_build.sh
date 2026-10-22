@@ -68,9 +68,15 @@ if [ ! -x "$ENV/bin/python" ]; then
 fi
 "$ENV/bin/python" -c 'import PIL, fontTools, mido' 2>/dev/null || {
     "$ENV/bin/pip" install --quiet --upgrade pip
-    "$ENV/bin/pip" install --quiet Pillow fonttools mido
+    "$ENV/bin/pip" install --quiet 'Pillow>=10' 'fonttools>=4.40' mido
 }
 ok "Pillow, fonttools, mido"
+# The font raster (tools/aa_raster.py) shapes with Pillow's RAQM layout engine (OpenType features: tabular digits);
+# without it Pillow falls back to basic layout and the glyph metrics differ. Pillow's wheels carry RAQM but load
+# libfribidi at run time: on macOS `brew install fribidi` (Linux: `apt install libfribidi0`), then run this again.
+"$ENV/bin/python" -c 'import PIL.features as f; raise SystemExit(0 if f.check("raqm") else 1)' 2>/dev/null ||
+    die "Pillow has no RAQM layout engine (the UI font needs it): brew install fribidi  (Linux: apt install libfribidi0), then run this again"
+ok "Pillow RAQM layout engine"
 if [ $FLASH = 1 ]; then                                 # (the installer's MIDI: a wheel on macOS; Linux needs ALSA's headers)
     "$ENV/bin/python" -c 'import rtmidi' 2>/dev/null || "$ENV/bin/pip" install --quiet python-rtmidi ||
         die "python-rtmidi did not install (on Linux: sudo apt install libasound2-dev, then run this again)"

@@ -935,6 +935,63 @@ static int test_perform(void)
     pm_tap_black(2);                                    /* stopped: at once */
     ok &= !trk[2].p[P_MUTE] && !pq_pend;
     bad += check("  QUANT: playing, a mute waits for the bar (the ISR puts it in before the bar's first step); stopped: at once", ok);
+    /* 0.9.1 (Beam's third review): a queued change goes in on STOP and on QUANT OFF, never waits for the next PLAY;
+     * GLO's C4 UNMUTE ALL clears the latched solos and a queued change; a project loaded drops the queue */
+    transport_req = 1;
+    pm_blocks(1);
+    for (i = 0; i < 4000u && !(clk_step == 3u && clk_pos < CTL); i++)
+        pm_blocks(1);
+    pm_tap_black(2);                                    /* T3 mute queued */
+    ok = pq_pend && !trk[2].p[P_MUTE];
+    transport_req = 2;                                  /* STOP: in at once */
+    pm_blocks(1);
+    ok &= !pq_pend && trk[2].p[P_MUTE] == 1 && !song.playing;
+    transport_req = 1;                                  /* PLAY again: nothing else changes */
+    pm_blocks(4);
+    ok &= !pq_pend && trk[2].p[P_MUTE] == 1;
+    transport_req = 2;
+    pm_blocks(1);
+    bad += check("  a queued mute goes in on STOP (not after the next PLAY)", ok);
+    trk[2].p[P_MUTE] = 0;
+    transport_req = 1;
+    pm_blocks(1);
+    for (i = 0; i < 4000u && !(clk_step == 3u && clk_pos < CTL); i++)
+        pm_blocks(1);
+    btn_down(B_OCTUP); frame();
+    pm_tap_black(1);                                    /* T2 solo queued */
+    btn_up(B_OCTUP); frame();
+    ok = pq_pend && pq_solo == 2u && !perf_psolo;
+    pm_tap_black(8);                                    /* QUANT OFF: AT ONCE, so the queued solo too */
+    ok &= !(pm_store[4] & PM_QUANT) && !pq_pend && perf_psolo == 2u && msg_is("QUANT OFF: AT ONCE");
+    bad += check("  a queued solo goes in on QUANT OFF", ok);
+    pm_tap_black(8);                                    /* QUANT on again */
+    pm_tap_black(2);                                    /* T3 mute queued (playing) */
+    ok = pq_pend && perf_psolo == 2u && !trk[2].p[P_MUTE] && !glo_sounding(0);
+    press(B_FX); frames(16);                            /* PERFORM closed; GLO + C4: UNMUTE ALL */
+    btn_down(B_GLO); frames(2);
+    key_down(white(4)); frame(); key_up(white(4)); frame();
+    btn_up(B_GLO); frame();
+    ok &= !pq_pend && !perf_psolo && !trk[2].p[P_MUTE] && glo_sounding(0) && glo_sounding(2);
+    bad += check("  GLO C4 UNMUTE ALL: the PERFORM solos and the queued change cleared too (every track sounds)", ok);
+    transport_req = 2;                                  /* (stopped: saved, slot 1) */
+    pm_blocks(1);
+    ok = !project_save(1);
+    press(B_FX); press(B_FX); frames(100);
+    ok &= pm_on();
+    transport_req = 1;
+    pm_blocks(1);
+    pm_tap_black(2);                                    /* T3 mute queued */
+    ok &= pq_pend;
+    project_load(1);                                    /* the tracks replaced: the queue dropped, nothing goes in */
+    ok &= !pq_pend && !trk[2].p[P_MUTE] && !song.playing;
+    bad += check("  a project loaded drops the queued change", ok);
+    transport_req = 2;
+    pm_blocks(1);
+    press(B_FX); frames(16);
+    press(B_FX); press(B_FX); frames(100);
+    memset(pm_store, 0, 5);
+    ok = pm_on() && !pq_pend && !perf_psolo;
+    bad += check("  (PERFORM open again for the rest)", ok);
     pm_tap_black(9);                                    /* D#5: DUCK */
     ok = (perf_latched & PF_BIT(PF_DUCK)) && msg_is("DUCK ON");
     pm_tap_black(9);

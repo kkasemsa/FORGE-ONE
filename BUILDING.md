@@ -1,4 +1,9 @@
-# Building Felucca
+# Building FORGE ONE
+
+FORGE ONE is Felucca 1.6.1 plus FORGE, STARTER and PERFORM, on the `forge` branch of
+<https://github.com/kkasemsa/FORGE-ONE> (`main` there is upstream Felucca, unchanged). The quickest way is
+`tools/forge_build.sh` (macOS or Linux: it checks the prerequisites, fetches the toolchain and the SDK files,
+builds, runs the tests, and with `--flash` installs); what follows is the same by hand.
 
 The build makes three files in `build/`:
 
@@ -14,17 +19,25 @@ Five engines are in a git submodule (`firmware/engines/`, [Felucca-Engines](http
 MIT), so clone with `--recurse-submodules`:
 
 ```
-git clone --recurse-submodules https://github.com/hugelton/Felucca.git
+git clone --recurse-submodules -b forge https://github.com/kkasemsa/FORGE-ONE.git
+cd FORGE-ONE
 ```
 
 In a clone made without it, run `git submodule update --init` once. GitHub's "Download ZIP" and the source archives
-it adds to a release leave `firmware/engines/` empty; each release also has `felucca-X.Y.Z-source.tar.gz`, the whole
-source with the submodule's files in it. The build stops with "firmware/engines is empty" when they are missing.
+it adds to a release leave `firmware/engines/` empty; a FORGE ONE release (a `v*-forge.*` tag) also carries
+`forge-one-<tag>-source.tar.gz`, the whole source with the submodule's files in it, and `forge-one-<tag>-dist.zip`,
+what `tools/forge_dist.sh` packs (the package, the app, the loader, `SHA256SUMS`, `MANIFEST.txt`, the licence texts).
+The build stops with "firmware/engines is empty" when the submodule's files are missing. Upstream Felucca is
+<https://github.com/hugelton/Felucca>.
 
 ## Prerequisites (macOS)
 
-- Python 3 with Pillow and fontTools: `pip3 install Pillow fonttools` (the UI font and icons are
-  rasterised at build time)
+- Python 3.10 or later with Pillow 10+ and fontTools 4.40+: `pip3 install 'Pillow>=10' 'fonttools>=4.40'` (the UI
+  font and icons are rasterised at build time). The font raster shapes text with Pillow's RAQM layout engine
+  (OpenType features; `tools/aa_raster.py`): Pillow's wheels carry it but load libfribidi at run time, so
+  `brew install fribidi` first (Linux: `apt install libfribidi0`). Check with
+  `python3 -c 'import PIL.features as f; print(f.check("raqm"))'` (must print `True`; `forge_build.sh` stops
+  without it rather than building with the basic layout, whose metrics differ).
 - Docker Desktop. The JieLi toolchain is Linux x86-64 only; the build runs each tool in a
   `linux/amd64` `debian:bookworm-slim` container (Rosetta on Apple silicon). Keep the source
   tree in a folder Docker can share, e.g. under `/Users`.
@@ -33,6 +46,10 @@ source with the submodule's files in it. The build stops with "firmware/engines 
   ```
   tools/get_toolchain.sh            # installs to ~/.jieli/toolchain
   ```
+
+  The script checks the archive's SHA-256 against the one pinned in it (`PIN_DEFAULT`; `JIELI_TOOLCHAIN_SHA256`
+  overrides it, `=skip` extracts an unknown archive and says so). JieLi's server has no versioned URL, so when it
+  serves a new archive the script stops and prints its digest: pin it once it is known to be good.
 
 - The JieLi AC79 SDK (Apache-2.0). The package uses three of its files
   (`cpu/wl82/tools/uboot.boot`, `cfg_tool.bin`, `cfg/eq_cfg_hw.bin`); they are not part of this tree.
@@ -56,11 +73,17 @@ On Linux x86-64 the toolchain runs natively and Docker is not needed.
 `JIELI_TOOLCHAIN` and `AC79_SDK` override the default locations
 (`~/.jieli/toolchain`, `~/fw-AC79_AIoT_SDK`).
 
-`./build.sh --release 1.0` makes a release build: the package identity becomes `FM-1_910`
-and the version string `v1.0`; the package is `build/felucca-1.0.fwsc`, and
-`build/release-1.0/` holds what a release ships: the package, the app
-(`felucca-1.0-app.bin`), `SHA256SUMS`, the sample attribution, `LICENSE`, `LICENSING.md` and
-`LICENSES/` (the package contains Apache-2.0 SDK files, so the licence texts travel with it).
+FORGE ONE's package keeps Felucca's development identity (`FM-1_900`, version string `v1.6.1`, so the editor and
+the installer treat it as 1.6.1) and `FORGE_VERSION` in `firmware/src/core.h` is its own version (the splash and
+ABOUT). `tools/forge_dist.sh DIR` packs what a FORGE ONE release ships: `forge-one.fwsc`, the app, the loader,
+`SHA256SUMS`, `MANIFEST.txt` (version, commit, build flags, test result), the sample attribution, `LICENSE`,
+`LICENSING.md` and `LICENSES/` (the package contains Apache-2.0 SDK files and MIT engines, so the licence texts
+travel with it). CI (`.github/workflows/forge-build.yml`) uploads that folder as the artifact of a green run only
+(a failed run uploads its logs as `forge-one-FAILED-<sha>`), and on a `v*-forge.*` tag makes the release from it
+with the full source tarball.
+
+Upstream's `./build.sh --release 1.0` (identity `FM-1_910`, `build/release-1.0/`) still works but is not what
+FORGE ONE ships.
 
 Build options (environment, `0` or `1`; defaults in `firmware/src/felucca.c`, `core.h` and `icons.c`):
 
@@ -130,13 +153,12 @@ does the same for the cost files.
 
 ## Install
 
-Use the web installer in Chrome or Edge:
-<https://hugelton.github.io/Felucca/webapp/installer/>. It installs the released package.
-
-From the command line (needs `pip3 install mido python-rtmidi`):
+Upstream's web installer (<https://hugelton.github.io/Felucca/webapp/installer/>) installs released Felucca, not
+FORGE ONE. For FORGE ONE use the command line (needs `pip3 install mido python-rtmidi`; `forge_build.sh --flash`
+does the same), with the package from a green CI run's artifact or your own build:
 
 ```
-python3 tools/fm1_install.py build/felucca.fwsc
+python3 tools/fm1_install.py forge-one.fwsc          # (or build/felucca.fwsc: the same file)
 python3 tools/fm1_install.py --info          # identity of the connected FM-1
 ```
 

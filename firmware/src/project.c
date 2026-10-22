@@ -1065,6 +1065,7 @@ static int project_restore_runtime(const project_t *input)
     transport_req = 2;
     panic_req = (1u << NTRK) - 1u;
     fm1_irq_off();                                      /* the audio ISR must not see half a project */
+    pq_pend = 0;                                        /* (PERFORM's queued mutes / solos were for the tracks going) */
     seq_stop();
     transport_req = 0;
     chain_config = p->chain;

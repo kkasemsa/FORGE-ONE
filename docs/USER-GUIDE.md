@@ -1,6 +1,6 @@
 # FORGE ONE User Guide
 
-Felucca 1.6.1 with FORGE 0.9 · M-VAVE FM-1
+Felucca 1.6.1 with FORGE 0.9.1 · M-VAVE FM-1
 
 This guide covers the whole instrument: the Felucca firmware by Hügelton Instruments, and FORGE, the motif generator
 this fork adds. Felucca's own sections follow its official manual, the [Felucca wiki](https://github.com/hugelton/Felucca/wiki),
@@ -485,9 +485,11 @@ colour), the scenes (stored ones bright, the last one recalled selected), QUANT,
 that are on. Hold a white key to see the effect map, and turn PRESETS to reassign it as in the FX layer.
 
 - **QUANT BAR** puts the change in exactly at the bar line, before the bar's first step plays. Stopped, changes are
-  immediate.
-- Mutes are the tracks' MUTE (saved with the project, as GLO's). Solos and DUCK stay after you leave PERFORM, until
-  CLEAR or GLO's C4 UNMUTE ALL. Scenes and QUANT are kept with the settings, not the project.
+  immediate. A change still waiting goes in at once when you STOP or switch QUANT to NOW (nothing waits for the next
+  PLAY); loading a project drops it.
+- Mutes are the tracks' MUTE (saved with the project, as GLO's). Solos stay after you leave PERFORM, until CLEAR or
+  GLO's C4 UNMUTE ALL (which clears every mute, every PERFORM solo and a waiting change). DUCK stays until CLEAR, OCT-
+  or FX LATCH off. Scenes and QUANT are kept with the settings, not the project.
 
 ### GLO layer (hold GLO)
 
@@ -495,7 +497,7 @@ that are on. Hold a white key to see the effect map, and turn PRESETS to reassig
 | --- | --- |
 | Black keys 1–4 | MUTE T1–T4 (latched; lit = sounding) |
 | F3, G3, A3, B3 | SOLO T1–T4 while held |
-| C4 | UNMUTE ALL |
+| C4 | UNMUTE ALL (every mute, PERFORM's solos and a waiting QUANT change too) |
 | D4 | MIDI LEARN on / off (chapter 16) |
 | E4 | FILL while held (FILL / !FILL steps) |
 | F4 | TAP tempo |

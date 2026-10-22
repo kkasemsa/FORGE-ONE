@@ -2,7 +2,8 @@
 # FORGE ONE: build the firmware package and run the host tests on Linux x86-64,
 # where the JieLi toolchain runs natively (no Docker, no Rosetta).
 #   push / PR to forge, or run by hand (Actions > Build > Run workflow)
-# Artifact: forge-one-<sha>: forge-one.fwsc, felucca.bin, loader/ota.bin, SHA256SUMS
+# Artifact (a green run only): forge-one-<sha>: forge-one.fwsc, felucca.bin, loader/ota.bin, SHA256SUMS, MANIFEST.txt,
+# the licence texts (tools/forge_dist.sh); a failed run: forge-one-FAILED-<sha> with its logs
 name: Build
 
 on:
@@ -35,7 +36,10 @@ jobs:
           python-version: '3.12'
 
       - name: Python packages
-        run: pip install Pillow fonttools mido
+        run: |
+          pip install 'Pillow>=10' 'fonttools>=4.40' mido
+          # (the UI font raster needs Pillow's RAQM layout engine: fail here, not in the build)
+          python -c 'import PIL.features as f; raise SystemExit(0 if f.check("raqm") else "Pillow: no RAQM")'
 
       # The JieLi toolchain (clang 4.0.1 for pi32v2) from JieLi's package server: cached after the first good run
       - name: Cache JieLi toolchain
@@ -43,10 +47,12 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ github.workspace }}/../jieli
-          key: jieli-toolchain-linux-v1
+          key: jieli-toolchain-linux-v2    # (v2: fetched through the digest check)
 
       - name: Fetch JieLi toolchain
         if: steps.tc.outputs.cache-hit != 'true'
+        env:
+          JIELI_TOOLCHAIN_SHA256: skip     # (the first run after the cache key changed: prints the digest to pin)
         run: |
           sh tools/get_toolchain.sh "$GITHUB_WORKSPACE/../jieli"
           ls "$JIELI_TOOLCHAIN/pi32v2/bin/clang"
@@ -95,25 +101,29 @@ jobs:
         if: failure()
         run: '[ -f build/test.log ] && python3 .github/scripts/test_failures.py build/test.log || true'
 
-      - name: Checksums
-        if: always()
-        run: |
-          [ -f build/felucca.fwsc ] || exit 0
-          cp build/felucca.fwsc build/forge-one.fwsc        # (FORGE ONE: the package under its own name)
-          cd build && sha256sum forge-one.fwsc felucca.bin loader/ota.bin > SHA256SUMS
+      # The installable firmware is published only after the build AND the host tests passed (a failed run keeps its
+      # logs under another name, below). dist/ is what a release ships: the package, the app, the loader, checksums,
+      # a manifest, the licence texts and the sample attribution (LICENSING.md: the package carries Apache-2.0 SDK
+      # files and MIT engines, so their texts travel with it).
+      - name: Distribution
+        run: sh tools/forge_dist.sh build/dist "${{ github.sha }}" "${{ github.ref_name }}" "${{ github.run_id }}" passed
 
       - name: Upload firmware
-        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: forge-one-${{ github.sha }}
+          path: build/dist/
+          if-no-files-found: error
+
+      - name: Upload logs of a failed run
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: forge-one-FAILED-${{ github.sha }}
           path: |
-            build/forge-one.fwsc
-            build/felucca.bin
-            build/loader/ota.bin
-            build/SHA256SUMS
+            build.log
             build/test.log
-          if-no-files-found: warn
+          if-no-files-found: ignore
 
       - name: Upload UI renders
         if: always()
@@ -123,10 +133,19 @@ jobs:
           path: build/ui_new/
           if-no-files-found: ignore
 
+      # A tag v*-forge.*: the release carries the package, the checksums, the distribution folder (licences, manifest)
+      # and the whole source with the engines submodule's files (GitHub's own source archive leaves it empty)
       - name: Release
         if: startsWith(github.ref, 'refs/tags/v')
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" build/forge-one.fwsc build/SHA256SUMS \
-            --title "FORGE ONE $GITHUB_REF_NAME" --notes "FORGE ONE: Felucca 1.6.1 with the FORGE generator. Install at your own risk."
+          set -e
+          V="$GITHUB_REF_NAME"
+          (cd build/dist && zip -qr "../forge-one-$V-dist.zip" .)
+          tar --exclude=.git --exclude=build --exclude=build.log --transform "s,^\./,forge-one-$V/," \
+              -czf "build/forge-one-$V-source.tar.gz" .
+          gh release create "$V" build/dist/forge-one.fwsc build/dist/SHA256SUMS build/dist/MANIFEST.txt \
+            "build/forge-one-$V-dist.zip" "build/forge-one-$V-source.tar.gz" \
+            --title "FORGE ONE $V" \
+            --notes "FORGE ONE: Felucca 1.6.1 with FORGE, STARTER and PERFORM. GPL-3.0; the licence texts are in the dist zip, the source tarball has the engines submodule. Install at your own risk."

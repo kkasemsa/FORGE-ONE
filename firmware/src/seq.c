@@ -854,10 +854,24 @@ static void seq_release(track_t *t)
     t->slide_glide = 0;                             /* live MONO / LEG keys must not glide after it */
 }
 
+/* FORGE ONE 0.7 PERFORM QUANT: the pending mutes and solos put in (the ISR, at the bar; seq_stop: at once, as a
+ * change made while stopped is, so none waits over the stop for the next PLAY) */
+static void pq_apply(void)
+{
+    uint32_t i;
+    if (!pq_pend)
+        return;
+    for (i = 0; i < NTRK; i++)
+        trk[i].p[P_MUTE] = (int16_t)((pq_mute >> i) & 1u);
+    perf_psolo = pq_solo;
+    pq_pend = 0;
+}
+
 static void seq_stop(void)
 {
     uint32_t i;
     song.playing = 0;
+    pq_apply();                                    /* (0.9.1: a queued PERFORM change does not survive the stop) */
     cin_left = 0;                                  /* (a count-in: cancelled, nothing recorded) */
     cin_flush = 0;
     memset(cin_n, 0, sizeof cin_n);
@@ -1401,12 +1415,8 @@ static void events_block(uint32_t n)
         seq_audition();                               /* (STEP PREVIEW: a step sounds, stopped) */
     chain_tick(seq_n);
     if (pq_pend && song.playing &&                    /* FORGE ONE 0.7 PERFORM QUANT: at the bar, before its first */
-        (clk_pos == CLK_START || (clk_step == 15u && clk_pos + seq_n >= div_samples(2)))) {   /* step plays */
-        for (i = 0; i < NTRK; i++)
-            trk[i].p[P_MUTE] = (int16_t)((pq_mute >> i) & 1u);
-        perf_psolo = pq_solo;
-        pq_pend = 0;
-    }
+        (clk_pos == CLK_START || (clk_step == 15u && clk_pos + seq_n >= div_samples(2))))     /* step plays */
+        pq_apply();
     for (i = 0; i < NTRK; i++)
         seq_tick(&trk[i], seq_n);
     if (cin_flush)

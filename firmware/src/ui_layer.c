@@ -695,7 +695,9 @@ static void layer_key(uint32_t l, uint32_t k)
                 trk[p].p[P_MUTE] = (int16_t)!trk[p].p[P_MUTE];
         } else if (p < NTRK) {
             lys.solo |= 1u << k;                        /* (layer_masks: perf_solo while held) */
-        } else if (p == 4u) {
+        } else if (p == 4u) {                           /* C4 UNMUTE ALL: PERFORM's latched solos and its queued */
+            pq_pend = 0;                                /* change too (0.9.1); DUCK is an effect: OCT- or CLEAR */
+            perf_psolo = 0;
             for (i = 0; i < NTRK; i++)
                 trk[i].p[P_MUTE] = 0;
         } else if (p == 7u) {

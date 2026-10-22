@@ -16,7 +16,9 @@
  *   OCT-         every effect and macro off (as FX LATCH's)
  * The scenes and QUANT are kept with the settings (favorites.factory[11][24..28]: NOISE has 4 presets, so
  * its favourites' bytes from 24 (presets 192..) are free; 0 in every older setting = no scene, QUANT off). A tap of FX
- * ends it; the mutes stay (they are the tracks'), so do the solos and DUCK until CLEAR (or GLO's C4 UNMUTE ALL) */
+ * ends it; the mutes stay (they are the tracks'), so do the solos, until CLEAR or GLO's C4 UNMUTE ALL (both clear a
+ * queued change too); DUCK stays until CLEAR, OCT- or FX LATCH's off. A queued change (QUANT) goes in at the bar, or
+ * at once on STOP or QUANT OFF; a project loaded drops it (project.c) */
 
 #define PM_HOLD_MS 600u
 #define PM_ENG 11u                                       /* NOISE (engines.c ENGINES[11]: 4 presets; tests check) */
@@ -90,6 +92,8 @@ static void pm_key(uint32_t p)
     } else if (p == 8u) {
         pm_store[4] ^= PM_QUANT;
         lys.rp_dirty = 1;
+        if (!(pm_store[4] & PM_QUANT) && pq_pend)       /* QUANT OFF says AT ONCE: the change waiting goes in now */
+            pm_set(pq_mute, pq_solo);
         ui_message(pm_store[4] & PM_QUANT ? "QUANT: NEXT BAR" : "QUANT OFF: AT ONCE");
     } else if (p == 9u) {
         perf_latched ^= PF_BIT(PF_DUCK);
