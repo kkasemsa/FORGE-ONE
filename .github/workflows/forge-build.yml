@@ -51,9 +51,7 @@ jobs:
 
       - name: Fetch JieLi toolchain
         if: steps.tc.outputs.cache-hit != 'true'
-        env:
-          JIELI_TOOLCHAIN_SHA256: skip     # (the first run after the cache key changed: prints the digest to pin)
-        run: |
+        run: |                             # (checked against the digest pinned in the script; a new archive stops here)
           sh tools/get_toolchain.sh "$GITHUB_WORKSPACE/../jieli"
           ls "$JIELI_TOOLCHAIN/pi32v2/bin/clang"
 

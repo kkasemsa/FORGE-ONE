@@ -40,7 +40,7 @@ Beam's third review (of 0.8), six findings, all taken:
   GitHub's own archive leaves out.
 - **The toolchain download is digest-checked**: `tools/get_toolchain.sh` saves the archive, prints its SHA-256 and
   extracts only when it is the pinned one (`JIELI_TOOLCHAIN_SHA256` overrides; `skip` for an unknown archive). The
-  pin is filled in from the first CI fetch.
+  pin is jieli-linux-toolchains-20260730.1 (26027508 B), from CI's fetch of 22 Oct 2026.
 - Not done, by design: a physically armed update mode (the review's USB SysEx point). It is upstream's update path,
   `fm1_install.py` and the web installer depend on it, and a confirmation on the instrument would change how every
   install works; left for a decision.

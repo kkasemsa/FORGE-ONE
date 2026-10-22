@@ -9,7 +9,7 @@
 set -e
 DEST="${1:-$HOME/.jieli}"
 URL=https://pkgman.jieliapp.com/s/linux-toolchain
-PIN_DEFAULT=""                       # the archive CI last fetched (2026-10: filled in from the run's log)
+PIN_DEFAULT=a1545cddbc451a06bac43eb5cd96d831470c42a97c5c0b1f98879a20fc7647bd   # jieli-linux-toolchains-20260730.1, 26027508 B (CI, 2026-10-22)
 PIN="${JIELI_TOOLCHAIN_SHA256:-$PIN_DEFAULT}"
 mkdir -p "$DEST"
 ARC="$DEST/linux-toolchain.tar.xz"
