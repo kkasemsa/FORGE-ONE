@@ -1559,12 +1559,13 @@ static void setup(int s)
     /* FORGE ONE: SEQ TOOLS' FORGE open: BERLIN seed 42 (HELP ON, KNOB 4 just turned), DUB (chords, ties, the
      * longest DENSITY), AMBIENT (the longest STYLE name), MELODIC over 64 steps (four rows, EVOLVE 4) */
     case S_SEQ_STARTER: case S_SEQ_STARTER_AMBIENT:   /* 0.6: STARTER open: BERLIN (HELP ON, KNOB 4 just turned, the
-                                                   * rerolls lit), AMBIENT (LEN 32 / 64 parts, its long names) */
+                                                   * rerolls lit), DEEP HOUSE ORGAN (0.8: a genre of three) */
         roll_scene(S_ROLL_ACID);
         if (s == S_SEQ_STARTER) { ui_prefs2 |= PREF_HELP >> 16; ui.hot_col = 3; ui.hot_t = 30; }
         go_page(GR_ROLL); ui.layer = LAYER_SEQ; lys.trk = song.sel;
         fg.set = 1; fg.seed = 42; fg.evolve = 1; fs.set = 1; fs.dens = 100;
-        fs.style = s == S_SEQ_STARTER ? FS_BERLIN : FS_AMBIENT;
+        fs.genre = s == S_SEQ_STARTER ? 0u : 7u;          /* (0.8: BERLIN SEQ; DEEP HOUSE ORGAN, three variations) */
+        fs.var = s == S_SEQ_STARTER ? 0u : 1u;
         fs_open();
         if (s == S_SEQ_STARTER) { fs_reroll(0); fs_reroll(1); }
         ui.msg_t = 0;

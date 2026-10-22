@@ -726,7 +726,10 @@ static void layer_key(uint32_t l, uint32_t k)
     } else if (l == LAYER_SEQ) {
         if (!key_black(k))
             tools_key(p);
-        else if (p < NLANE && drum_track(TSEL)) {
+        else if (fs.on) {                               /* (0.8 STARTER open: black keys 1..4 the genre's variations) */
+            fs_variation(p);
+            ui.force = 1;
+        } else if (p < NLANE && drum_track(TSEL)) {
             ui.lane = (uint8_t)p;                       /* (black keys 1..8: the lane, as on the grid) */
             eu_lane(TSEL);                              /* (EUCLID open: on that lane now) */
         }
@@ -949,6 +952,9 @@ static uint32_t layer_leds(uint32_t *br)
         } else if (l == LAYER_EDIT && (a = eqa_of(TSEL, p)) != 0) {   /* the quick actions: on lit (DRUM: sounding), */
             on = a->on(TSEL, a->arg) != 0u;             /* a HOLD one off breathes, none dark */
             can = a->kind == LK_HOLD;
+        } else if (l == LAYER_SEQ && b && fs.on) {      /* 0.8 STARTER: the variation lit, the genre's others breathe */
+            on = p == fs.var;
+            can = p < FS_GENRE[fs.genre % FS_NGENRE].n;
         } else if (l == LAYER_SEQ) {                    /* the tools breathe (not while a song plays); DRUM: the lane */
             on = (b && p < NLANE && drum_track(TSEL) && p == ui.lane) || (!b && p == TL_EUCLID && eu.on) ||
                  (!b && p == TL_FORGE && fg.on) || (!b && p == TL_STARTER && fs.on);   /* lit, the */

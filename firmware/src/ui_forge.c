@@ -87,6 +87,8 @@ static uint32_t fg_r, fg_vr;
  * own streams from the one SEED, fg_ovr its part's row (0: FORGE_STYLE). Both 0 outside STARTER: FORGE as before */
 static uint8_t fg_role;
 static const forge_style_t *fg_ovr;
+static const forge_beat_t *fg_bovr;     /* 0.8: STARTER's beat (0: FORGE_BEAT), its VEL range fg_bvd */
+static uint8_t fg_bvd;
 static uint32_t fg_start(uint32_t salt)
 {
     uint32_t r = ((uint32_t)fg.seed + 1u) * 2654435761u ^ ((uint32_t)fg.style + 1u) * 40503u ^ salt * 0x9E3779B9u ^
@@ -273,7 +275,7 @@ static void fg_write(const track_t *t, step_t *s, const fg_step_t *f, int32_t d,
  * 2 and up the last copy ends in a fill: the last two or three steps a snare roll on a 4:4 condition (every 4th loop) */
 static void forge_render_drum(track_t *t, uint32_t len)
 {
-    const forge_beat_t *bt = &FORGE_BEAT[fg.style % FS_N];
+    const forge_beat_t *bt = fg_bovr ? fg_bovr : &FORGE_BEAT[fg.style % FS_N];
     uint8_t hit[16], acc[16], vel[16];
     uint32_t ml = len < 16u ? len : 16u, i, l, k, e = fg.evolve, d = fg.dens, copies = (len + ml - 1u) / ml, g;
     memset(hit, 0, sizeof hit);
@@ -297,7 +299,7 @@ static void forge_render_drum(track_t *t, uint32_t len)
     }
     fg_vr = fg_start(4);                                /* VEL by place, as the melodic one */
     for (i = 0; i < ml; i++) {
-        int32_t v = FORGE_STYLE[fg.style % FS_N].vdyn, w = i % 4u == 0u ? 2 : i % 2u == 0u ? 0 : -1;
+        int32_t v = fg_bovr ? fg_bvd : FORGE_STYLE[fg.style % FS_N].vdyn, w = i % 4u == 0u ? 2 : i % 2u == 0u ? 0 : -1;
         vel[i] = (uint8_t)clamp(96 + w * v / 4 + (int32_t)fg_xs(&fg_vr, (uint32_t)v / 2u + 1u) - v / 4, 40, 124);
     }
     fg_seed(3);                                         /* (the evolution's stream) */
