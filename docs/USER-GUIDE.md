@@ -1,6 +1,6 @@
 # FORGE ONE User Guide
 
-Felucca 1.6.1 with FORGE 0.7 · M-VAVE FM-1
+Felucca 1.6.1 with FORGE 0.8 · M-VAVE FM-1
 
 This guide covers the whole instrument: the Felucca firmware by Hügelton Instruments, and FORGE, the motif generator
 this fork adds. Felucca's own sections follow its official manual, the [Felucca wiki](https://github.com/hugelton/Felucca/wiki),
@@ -370,21 +370,58 @@ seed: **T1 BASS, T2 LEAD, T3 PAD, T4 DRUM** (T4 becomes a DRUM track). All four 
 SCALE is yours if you set one, or the starter's if the track is on CHR. The tempo goes to the starter's BPM, unless
 the FM-1 follows an external clock.
 
-K1 SEED, K2 DENSITY (50–150 % of each part's own), K3 EVOLVE and K4 STARTER (the eight style names; each loads its own
-sounds and tempo). C4 rerolls the notes of all four, D4 the rhythms. **OCT+** (or G5 again) keeps it; **OCT−** puts
+K1 SEED, K2 DENSITY (50–150 % of each part's own), K3 EVOLVE and K4 GENRE (13 genres). Black keys 1–4 pick the
+genre's variation (3 or 4 each, 45 starters in all); each loads its own sounds, tempo, scale and swing. C4 rerolls the notes of all four, D4 the rhythms. **OCT+** (or G5 again) keeps it; **OCT−** puts
 all four tracks back as they were, sounds, steps, automation and tempo included. SAVE-held undo cannot undo
 STARTER, so use OCT− before you let go of SEQ. LEVEL, PAN and MUTE are never changed.
 
-| Starter | T1 BASS | T2 LEAD | T3 PAD | T4 DRUM | BPM | LEN (T1–T4) | SCALE* |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| BERLIN | ANALOG SQR BASS: 16th pedal sequence, octave jumps | TRIO ARP LEAD: a high, sparse line | GRAIN CLOUD PAD: one long chord a bar | DEEP KIT | 120 | 16 16 32 16 | MIN |
-| DETROIT | FM6 FM BASS: off-beat root and fifth | ANALOG PWM STR: 4-note chord stabs | FM6 TINE EP: 4-note chords | TIGHT KIT | 126 | 16 16 32 16 | DOR |
-| DUB | ANALOG SUB BASS: sparse, held | PHASE STRING: dub chord stabs | GRAIN SHIMMER: one chord a bar | DEEP KIT | 118 | 16 16 32 16 | DOR |
-| MELODIC | TRIO FAT BASS: rolling off-beat 16ths | ANALOG SAW LEAD: a rising and falling line | FM6 PAD: long chords | DRUM KIT | 122 | 16 32 32 16 | MIN |
-| ACID | ANALOG ACID: the 303 line, slides | LOFI ARP 8BIT: an arpeggio | ANALOG SOFT PAD: one chord a bar | TIGHT KIT | 128 | 16 16 32 16 | MIN |
-| TRANCE | ANALOG SUB BASS: off-beat | TRIO ARP LEAD: the rolling triad arpeggio | ANALOG STRINGS: long chords | DRUM KIT | 138 | 16 16 32 16 | MIN |
-| SYNTH | TRIO FAT BASS: 8th root and fifth | ANALOG BRASS: root-fifth riff | FM6 PAD: long chords | DRUM KIT | 110 | 16 16 32 16 | MIN |
-| AMBIENT | ANALOG SUB BASS: a drone, one note a bar | PHYS KALIMBA: wide, sparse notes | GRAIN CLOUD PAD: very long chords | PERC KIT | 80 | 32 32 64 16 | LYD |
+| Genre (K4) | Black key, variation | T1 bass | T2 lead | T3 pad | T4 kit · beat | BPM | Scale* | Swing |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Berlin | 1 **SEQ** | ANALOG SQR BASS | TRIO ARP LEAD | GRAIN CLOUD PAD | DEEP KIT · Berlin | 120 | MIN | – |
+|  | 2 **DRIFT** | LOFI WAVE BASS | PHASE RESO | ANALOG STRINGS | PERC KIT · Ambient | 108 | MIN | – |
+|  | 3 **CHOIR** | FM6 FM BASS | TRIO SYNC LEAD | VOICE CHOIR AAH | DEEP KIT · Berlin | 116 | HARM | – |
+|  | 4 **ARP** | TRIO FAT BASS | LOFI STEP LEAD | ANALOG SOFT PAD | DRUM KIT · Berlin | 124 | DOR | – |
+| Detroit | 1 **STABS** | FM6 FM BASS | ANALOG PWM STR | FM6 TINE EP | TIGHT KIT · Detroit | 126 | DOR | – |
+|  | 2 **STRNG** | ANALOG SUB BASS | ANALOG STRINGS | SAMPLE PIANO | DRUM KIT · Detroit | 128 | MIN | – |
+|  | 3 **ELECT** | TRIO FAT BASS | LOFI PULSE LD | PHASE STRING | TIGHT KIT · Electro | 125 | PHRY | – |
+|  | 4 **DEEP** | FM6 FM BASS | TRIO ARP LEAD | ANALOG SOFT PAD | DEEP KIT · Melodic | 124 | MIN | – |
+| Dub Techno | 1 **CHORD** | ANALOG SUB BASS | PHASE STRING | GRAIN SHIMMER | DEEP KIT · Dub | 118 | DOR | – |
+|  | 2 **DEEP** | VOICE WOW BASS | FM6 PAD | GRAIN CLOUD PAD | DEEP KIT · Dub | 120 | MIN | – |
+|  | 3 **MINI** | ANALOG SUB BASS | PHASE RESO | ANALOG SOFT PAD | TIGHT KIT · Dub | 124 | DOR | – |
+|  | 4 **ECHO** | ANALOG SUB BASS | FM6 TINE EP | GRAIN FROZEN | PERC KIT · Dub | 116 | MIN | – |
+| Melodic | 1 **ARC** | TRIO FAT BASS | ANALOG SAW LEAD | FM6 PAD | DRUM KIT · Melodic | 122 | MIN | – |
+|  | 2 **ARP** | ANALOG SQR BASS | TRIO SYNC LEAD | ANALOG STRINGS | TIGHT KIT · Melodic | 124 | MIN | – |
+|  | 3 **PIANO** | FM6 FM BASS | SAMPLE PIANO | GRAIN CLOUD PAD | DEEP KIT · Melodic | 122 | DOR | – |
+|  | 4 **PLUCK** | TRIO FAT BASS | ANALOG PLUCK | VOICE CHOIR AAH | DRUM KIT · Melodic | 123 | MIN | – |
+| Acid House | 1 **CLASS** | ANALOG ACID | SAMPLE PIANO | ANALOG SOFT PAD | DRUM KIT · Deep house | 124 | MIN | 10% |
+|  | 2 **JACK** | ANALOG ACID | ANALOG RAVE | VOICE CHOIR AAH | TIGHT KIT · Deep house | 122 | DOR | 15% |
+|  | 3 **FLOOR** | ANALOG ACID | LOFI ARP 8BIT | PHASE ORGAN | DRUM KIT · Acid | 128 | MIN | – |
+| Acid Techno | 1 **ROLL** | ANALOG ACID | LOFI ARP 8BIT | ANALOG SOFT PAD | TIGHT KIT · Acid | 128 | MIN | – |
+|  | 2 **WARE** | ANALOG ACID | LOFI STEP LEAD | ANALOG PWM STR | DRUM KIT · Acid | 135 | MIN | – |
+|  | 3 **HARD** | ANALOG ACID | FM6 BRASS | PHASE WIRE | TIGHT KIT · Acid | 140 | PHRY | – |
+| Trance | 1 **GATE** | ANALOG SUB BASS | TRIO ARP LEAD | ANALOG STRINGS | DRUM KIT · Trance | 138 | MIN | – |
+|  | 2 **LIFT** | ANALOG SUB BASS | ANALOG SAW LEAD | VOICE CHOIR AAH | DRUM KIT · Trance | 138 | MIN | – |
+|  | 3 **PSY** | ANALOG SQR BASS | TRIO RING BELL | PHASE RESO | TIGHT KIT · Trance | 142 | PHRY | – |
+| Deep House | 1 **KEYS** | TRIO FAT BASS | FM6 TINE EP | ANALOG SOFT PAD | DEEP KIT · Deep house | 122 | DOR | 15% |
+|  | 2 **ORGAN** | VOICE WOW BASS | WHEEL JAZZ PERC | ANALOG STRINGS | DRUM KIT · Deep house | 120 | MIN | 20% |
+|  | 3 **VOCAL** | ANALOG SUB BASS | VOICE VOX LEAD | FM6 PAD | DEEP KIT · Deep house | 121 | MIN | 10% |
+| Synthwave | 1 **DRIVE** | ANALOG SQR BASS | ANALOG SAW LEAD | ANALOG PWM STR | DRUM KIT · Synthwave | 110 | MIN | – |
+|  | 2 **NIGHT** | TRIO FAT BASS | ANALOG BRASS | FM6 PAD | DRUM KIT · Synthwave | 98 | MIN | – |
+|  | 3 **8BIT** | LOFI WAVE BASS | LOFI PULSE LD | TRIO CHIP CHOIR | TIGHT KIT · Synthwave | 118 | MAJ | – |
+| Breakbeat | 1 **AMEN** | ANALOG SUB BASS | FM6 BRASS | ANALOG STRINGS | TIGHT KIT · Breakbeat | 134 | MIN | 10% |
+|  | 2 **NUSK** | ANALOG ACID | LOFI STEP LEAD | PHASE STRING | DRUM KIT · Breakbeat | 135 | PHRY | 5% |
+|  | 3 **ELECT** | TRIO FAT BASS | TRIO SYNC LEAD | FM6 PAD | TIGHT KIT · Electro | 128 | MIN | 5% |
+| Ambient | 1 **CLOUD** | ANALOG SUB BASS | FM6 BELL | GRAIN CLOUD PAD | PERC KIT · Ambient | 80 | LYD | – |
+|  | 2 **DRONE** | PHYS DRONE STRING | SAMPLE FLUTE | ANALOG SOFT PAD | PERC KIT · Ambient | 72 | DOR | – |
+|  | 3 **GLASS** | ANALOG SUB BASS | PHYS MARIMBA | VOICE CHOIR AAH | PERC KIT · Ambient | 84 | LYD | – |
+|  | 4 **RAIN** | FM6 FM BASS | TRIO RING BELL | GRAIN FROZEN | PERC KIT · Ambient | 76 | MIN | – |
+| Lo-Fi | 1 **PIANO** | ANALOG SUB BASS | SAMPLE PIANO | ANALOG SOFT PAD | DEEP KIT · Lo-fi | 84 | DOR | 25% |
+|  | 2 **TAPE** | TRIO FAT BASS | FM6 TINE EP | WHEEL SOFT FLUTE | DRUM KIT · Lo-fi | 88 | MIN | 20% |
+|  | 3 **SAX** | ANALOG SUB BASS | SAMPLE SAX | FM6 PAD | PERC KIT · Lo-fi | 80 | DOR | 22% |
+| Jarre | 1 **OXY** | ANALOG SQR BASS | ANALOG SAW LEAD | ANALOG STRINGS | PERC KIT · Rhythm box | 104 | MIN | – |
+|  | 2 **EQUI** | LOFI WAVE BASS | TRIO ARP LEAD | VOICE CHOIR AAH | TIGHT KIT · Electro | 120 | MIN | – |
+|  | 3 **FIELD** | FM6 FM BASS | PHASE BRASS | ANALOG PWM STR | DRUM KIT · Rhythm box | 112 | DOR | – |
+|  | 4 **ZOO** | VOICE WOW BASS | VOICE VOX LEAD | GRAIN SHIMMER | TIGHT KIT · Electro | 118 | PHRY | – |
 
 \* The starter's SCALE is used only when the selected track's SCALE is CHR (the default). Any other SCALE you set is kept.
 

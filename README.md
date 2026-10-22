@@ -9,7 +9,7 @@ Hügelton Instruments; it was called Felucca-FORGE until 0.5.1.
 | | |
 | --- | --- |
 | Based on | [Felucca](https://github.com/hugelton/Felucca) 1.6.1 (GPL-3.0-only) by Leo Kuroshita, Hügelton Instruments |
-| Adds | FORGE 0.6: SEED, DENSITY, EVOLVE and 8 STYLES on SEQ TOOLS F5, melodies and beats; STARTER on G5, all four tracks with sounds; PERFORM (FX double tap) for live mutes, solos, scenes and throws ([changelog](CHANGELOG-FORGE.md)) |
+| Adds | FORGE 0.6: SEED, DENSITY, EVOLVE and 8 STYLES on SEQ TOOLS F5, melodies and beats; STARTER on G5, 45 song starters in 13 genres (all four tracks with sounds); PERFORM (FX double tap) for live mutes, solos, scenes and throws ([changelog](CHANGELOG-FORGE.md)) |
 | Branch | [`forge`](https://github.com/kkasemsa/FORGE-ONE/tree/forge) (`main` is an untouched copy of upstream) |
 | Status | Firmware builds and host tests pass in CI. **Not yet tested on a real FM-1.** |
 

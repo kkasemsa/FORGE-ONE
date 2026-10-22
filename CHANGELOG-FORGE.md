@@ -1,9 +1,10 @@
 # FORGE changelog
 
-Newest first. FORGE is the SEQ TOOLS F5 motif generator in FORGE ONE (based on Felucca 1.6.1); STARTER (G5, 0.6) is its song starter; PERFORM (FX double tap, 0.7) its live mode.
+Newest first. FORGE is the SEQ TOOLS F5 motif generator in FORGE ONE (based on Felucca 1.6.1); STARTER (G5, 0.6; 45 starters from 0.8) is its song starter; PERFORM (FX double tap, 0.7) its live mode.
 
 | Version | Date | Theme |
 | --- | --- | --- |
+| 0.8 | 22 Oct 2026 | 45 song starters in 13 genres, Jarre included |
 | 0.7 | 22 Oct 2026 | PERFORM: live mutes, solos, scenes, QUANT; throws that flow back; DUCK |
 | 0.6 | 22 Oct 2026 | STARTER: a song start on all four tracks, sounds included |
 | 0.5.1 | 22 Oct 2026 | Fixes from the second code review |
@@ -12,6 +13,18 @@ Newest first. FORGE is the SEQ TOOLS F5 motif generator in FORGE ONE (based on F
 | 0.3 | 21 Oct 2026 | Safe live turns, chords in every scale, pinned seeds |
 | 0.2 | 21 Oct 2026 | The generator: SEED, DENSITY, EVOLVE, 8 styles |
 | 0.1 | 21 Oct 2026 | Scaffold: F5 FORGE cell, CI build |
+
+## 0.8
+
+- **45 starters in 13 genres.** STARTER's K4 is now GENRE: Berlin School, Detroit, Dub Techno, Melodic Techno,
+  Acid House, Acid Techno, Trance, Deep House, Synthwave, Breakbeat, Ambient, Lo-fi and Jarre. While STARTER is open,
+  black keys 1–4 pick the genre's variation (3 or 4 each); the screen shows them as a row of cells and the keys light.
+- Each starter has its own four presets, part patterns, LENs, scale, tempo, drum beat and swing. Six new drum beats:
+  deep house, breakbeat, lo-fi, synthwave, an early rhythm box and electro. Deep House, Lo-fi and Breakbeat swing.
+- At most one heavy engine (GRAIN or PHYS) per starter, for the CPU. 0.6's AMBIENT (now AMBIENT CLOUD) uses FM6 BELL
+  instead of PHYS KALIMBA beside its GRAIN pad.
+- **Patterns changed:** each starter now has its own seed streams, so a seed gives a different song than in 0.6/0.7.
+  The 135 starter seeds are pinned again; FORGE's own 144 are unchanged.
 
 ## 0.7
 

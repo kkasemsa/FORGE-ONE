@@ -32,7 +32,7 @@ DOCS = [   # (source, output, cover kicker, cover subtitle)
     ("docs/FORGE-USER-GUIDE.md", "FORGE-User-Guide.pdf", "User guide",
      "The seeded motif generator on SEQ TOOLS F5"),
     ("docs/USER-GUIDE.md", "FORGE-ONE-User-Guide.pdf", "Complete user guide",
-     "Felucca 1.6.1 and FORGE 0.7 on the M-VAVE FM-1"),
+     "Felucca 1.6.1 and FORGE 0.8 on the M-VAVE FM-1"),
     ("docs/TUTORIAL-TH.md", "FORGE-ONE-Tutorial-TH.pdf", "Tutorial (ภาษาไทย)",
      "แจม 4 แทร็ก: FORGE บนแทร็ก 1–3 และกลองบนแทร็ก 4"),
 ]
@@ -119,7 +119,7 @@ def page(src, kicker, sub):
   <div class="top"><div class="kicker">{html.escape(kicker)}</div>
   <div class="title">{html.escape(title)}</div><div class="sub">{html.escape(sub)}</div></div>
   <div><div class="grid">{steps}</div>
-  <div class="meta"><b>FORGE ONE</b> · Felucca 1.6.1 + FORGE 0.7 · M-VAVE FM-1<br>
+  <div class="meta"><b>FORGE ONE</b> · Felucca 1.6.1 + FORGE 0.8 · M-VAVE FM-1<br>
   github.com/kkasemsa/FORGE-ONE (forge branch) · {today}<br>
   Felucca by Hügelton Instruments and contributors · GPL-3.0-only</div></div></section>"""
     css = CSS.replace("FONTS", FONTS.as_uri())
