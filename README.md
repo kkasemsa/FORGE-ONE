@@ -2,14 +2,14 @@
 
 FORGE ONE is custom firmware for the **M-VAVE FM-1**. It is Felucca 1.6.1 by Hügelton Instruments, with one
 addition: **FORGE**, a seeded generator of melodies and beats on the SEQ TOOLS **F5** key, and its song starter,
-**STARTER**, on **G5**.
+**STARTER**, on **G5**, and a live **PERFORM** mode on the FX layer.
 Everything else works exactly as in Felucca 1.6.1. FORGE ONE is an independent fork, not made or endorsed by
 Hügelton Instruments; it was called Felucca-FORGE until 0.5.1.
 
 | | |
 | --- | --- |
 | Based on | [Felucca](https://github.com/hugelton/Felucca) 1.6.1 (GPL-3.0-only) by Leo Kuroshita, Hügelton Instruments |
-| Adds | FORGE 0.6: SEED, DENSITY, EVOLVE and 8 STYLES on SEQ TOOLS F5, melodies and beats; STARTER on G5, all four tracks with sounds ([changelog](CHANGELOG-FORGE.md)) |
+| Adds | FORGE 0.6: SEED, DENSITY, EVOLVE and 8 STYLES on SEQ TOOLS F5, melodies and beats; STARTER on G5, all four tracks with sounds; PERFORM (FX double tap) for live mutes, solos, scenes and throws ([changelog](CHANGELOG-FORGE.md)) |
 | Branch | [`forge`](https://github.com/kkasemsa/FORGE-ONE/tree/forge) (`main` is an untouched copy of upstream) |
 | Status | Firmware builds and host tests pass in CI. **Not yet tested on a real FM-1.** |
 

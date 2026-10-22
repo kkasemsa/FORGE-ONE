@@ -1,9 +1,10 @@
 # FORGE changelog
 
-Newest first. FORGE is the SEQ TOOLS F5 motif generator in FORGE ONE (based on Felucca 1.6.1); STARTER (G5, 0.6) is its song starter.
+Newest first. FORGE is the SEQ TOOLS F5 motif generator in FORGE ONE (based on Felucca 1.6.1); STARTER (G5, 0.6) is its song starter; PERFORM (FX double tap, 0.7) its live mode.
 
 | Version | Date | Theme |
 | --- | --- | --- |
+| 0.7 | 22 Oct 2026 | PERFORM: live mutes, solos, scenes, QUANT; throws that flow back; DUCK |
 | 0.6 | 22 Oct 2026 | STARTER: a song start on all four tracks, sounds included |
 | 0.5.1 | 22 Oct 2026 | Fixes from the second code review |
 | 0.5 | 21 Oct 2026 | FORGE on DRUM tracks: beats in the eight styles |
@@ -11,6 +12,20 @@ Newest first. FORGE is the SEQ TOOLS F5 motif generator in FORGE ONE (based on F
 | 0.3 | 21 Oct 2026 | Safe live turns, chords in every scale, pinned seeds |
 | 0.2 | 21 Oct 2026 | The generator: SEED, DENSITY, EVOLVE, 8 styles |
 | 0.1 | 21 Oct 2026 | Scaffold: F5 FORGE cell, CI build |
+
+## 0.7
+
+- **PERFORM: double-tap FX.** The FX layer locked becomes a live-performance mode: black keys 1–4 latch MUTE
+  (with OCT+ held, SOLO), black keys 5–8 are four scenes of mutes and solos (tap to recall, hold 0.6 s to store),
+  C#5 QUANT (changes wait for the next bar, put in before the bar's first step plays), D#5 DUCK, F#5 CLEAR.
+  K1–K4 are the track levels; OCT+ tapped alone switches them to the FX macros. The white keys are the FX map as
+  always. Scenes and QUANT are kept with the settings. Holding FX works as before.
+- **Throws that flow back.** REV THROW and ECHO THROW now glide back over about 0.75 s when let go, and two new
+  throws join them on the free keys: **F5 CUTOFF THROW** (the master low-pass closes) and **G5 DIST THROW** (every
+  track's DIST at least 100). 16 effects on the FX map.
+- **DUCK**, a sidechain pump: while on, each kick of a DRUM track dips the other tracks by 12 dB, back over an 8th.
+  On PERFORM's D#5, or assign it to a white key.
+- Felucca's own tests updated where they checked F5 G5 empty, the fast throw release, and the FX lock's knobs.
 
 ## 0.6
 

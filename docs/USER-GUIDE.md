@@ -1,6 +1,6 @@
 # FORGE ONE User Guide
 
-Felucca 1.6.1 with FORGE 0.6 · M-VAVE FM-1
+Felucca 1.6.1 with FORGE 0.7 · M-VAVE FM-1
 
 This guide covers the whole instrument: the Felucca firmware by Hügelton Instruments, and FORGE, the motif generator
 this fork adds. Felucca's own sections follow its official manual, the [Felucca wiki](https://github.com/hugelton/Felucca/wiki),
@@ -408,7 +408,8 @@ K1–K4 are the macros **FILTER**, **CRUSH**, **THROW** (the dry mix into the de
 | A3 | REPEAT 1/32 | C5 | PHASER (in time with the tempo) |
 | B3 | REVERSE | D5 | REV THROW (every track's reverb send full) |
 | C4 | LPF | E5 | ECHO THROW (every track's delay send full) |
-| D4 | HPF | F5, G5 | (none) |
+| D4 | HPF | F5 | CUTOFF THROW (the master low-pass closes; FORGE ONE 0.7) |
+| | | G5 | DIST THROW (every track's DIST at least 100; FORGE ONE 0.7) |
 | E4 | TAPE STOP | | |
 | F4 | FREEZE | | |
 | G4 | OCT UP (harmonizer an octave up; DEPTH is its shimmer) | | |
@@ -416,6 +417,37 @@ K1–K4 are the macros **FILTER**, **CRUSH**, **THROW** (the dry mix into the de
 - **Any white key can hold any effect:** hold the key in the layer and turn PRESETS. EDIT puts its default back.
 - **MENU > CONTROL > FX LATCH** makes the effects toggle on and off, so nothing has to stay held. FX + OCT− turns
   everything off.
+- **The throws flow back (FORGE ONE 0.7).** REV, ECHO, CUTOFF and DIST THROW come in at once, and when you let go
+  they glide back to the tracks' own settings over about 0.75 s instead of stopping.
+- **DUCK (FORGE ONE 0.7)** is a sidechain pump: while it is on, every kick of a DRUM track dips the other tracks by
+  12 dB, and they come back over an 8th note. It is not on a key by default: assign it to a white key with PRESETS,
+  or use PERFORM's D#5.
+
+### PERFORM (double-tap FX) — FORGE ONE 0.7
+
+Double-tap **FX** and the FX layer stays open as **PERFORM**: both hands free, mutes, solos, scenes and effects on
+one screen. The white keys are the FX map's effects, exactly as above. The black keys and knobs change:
+
+| Key | What it does |
+| --- | --- |
+| F#3 G#3 A#3 C#4 (black 1–4) | **MUTE** T1–T4, latched (press again to unmute) |
+| **OCT+** held + black 1–4 | **SOLO** T1–T4, latched; several can be soloed |
+| D#4 F#4 G#4 A#4 (black 5–8) | **Scenes 1–4**: tap to recall the mutes and solos stored there; hold 0.6 s to store the current ones |
+| C#5 (black 9) | **QUANT**: BAR (mutes, solos and scenes wait for the next bar while playing) or NOW |
+| D#5 (black 10) | **DUCK** on / off |
+| F#5 (black 11) | **CLEAR**: every track on, no solo, every effect and macro off, at once |
+| K1–K4 | T1–T4 **LEVEL**. Tap **OCT+** alone to switch them to the FX macros (FILTER CRUSH THROW DEPTH) and back |
+| OCT− | Every effect and macro off (as FX LATCH's ALL OFF) |
+| FX (tap) | Ends PERFORM |
+
+The screen shows each track as ON, MUTE or SOLO (a track that will change at the next bar is lit in the waiting
+colour), the scenes (stored ones bright, the last one recalled selected), QUANT, DUCK, the knobs' mode and the effects
+that are on. Hold a white key to see the effect map, and turn PRESETS to reassign it as in the FX layer.
+
+- **QUANT BAR** puts the change in exactly at the bar line, before the bar's first step plays. Stopped, changes are
+  immediate.
+- Mutes are the tracks' MUTE (saved with the project, as GLO's). Solos and DUCK stay after you leave PERFORM, until
+  CLEAR or GLO's C4 UNMUTE ALL. Scenes and QUANT are kept with the settings, not the project.
 
 ### GLO layer (hold GLO)
 

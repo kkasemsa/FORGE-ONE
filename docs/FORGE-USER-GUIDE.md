@@ -1,6 +1,6 @@
 # FORGE User Guide
 
-FORGE 0.6 in FORGE ONE (Felucca 1.6.1) · M-VAVE FM-1
+FORGE 0.7 in FORGE ONE (Felucca 1.6.1) · M-VAVE FM-1
 
 FORGE writes a musical idea onto a track in one key press, then lets that idea evolve: a melody on a synth track,
 a beat on a DRUM track (section 6). From 0.6, **STARTER** on the G5 key writes all four tracks at once, sounds
