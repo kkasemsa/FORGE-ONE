@@ -647,9 +647,13 @@ static int test_starter(void)
         ok &= nx == FS_NSTART && !(PM_ENG == 0u);
         for (s = 0; s < FS_NSTART; s++) {
             const forge_starter_t *st = &FORGE_STARTER[s];
-            for (heavy = 0, i = 0; i < FP_N; i++)
-                heavy += str_eq(st->snd[i].eng, "GRAIN") || str_eq(st->snd[i].eng, "PHYS");
-            ok &= heavy <= 1u && str_eq(st->snd[FP_DRUM].eng, "DRUM") && text_w(&AF_S, st->name) <= 48 && st->beat < FB_N &&
+            uint32_t ed = 0;
+            for (heavy = 0, i = 0; i < FP_N; i++) {     /* (the engine a sound loads: a pack sound's base's) */
+                ok &= !fs_find(&st->snd[i], &e, &k);
+                heavy += e == ENGI_PHYS || str_eq(ENGINES[e % NENGINES]->name, "GRAIN");
+                ed = i == FP_DRUM ? e : ed;
+            }
+            ok &= heavy <= 1u && ed == ENGI_DRUM && text_w(&AF_S, st->name) <= 48 && st->beat < FB_N &&
                   st->bpm >= 60u && st->bpm <= 160u && st->swing <= 30u && st->scale < 16u;
             for (i = 0; i < FP_N; i++)
                 ok &= st->len[i] == 16u || st->len[i] == 32u || st->len[i] == 64u;
@@ -659,6 +663,27 @@ static int test_starter(void)
             }
         }
         bad += check("STARTER (0.8): 13 genres over 45 starters in order, names fit, one heavy engine (GRAIN / PHYS) each", ok);
+    }
+    {   /* 0.9 FORGE PACK: every sound's base preset exists, its name fits the row, every one is used, the values are
+         * in range; loaded, the track has them */
+        uint32_t used, j, n = 0;
+        ok = FS_NPACK >= 40u;
+        for (i = 0; i < FS_NPACK && ok; i++) {
+            const forge_sound_t *f = &FORGE_PACK[i];
+            ok &= !fs_find_base(f->eng, f->base, &e, &k) && text_w(&AF_S, f->name) <= 92 && fs_pack(f->name) == f &&
+                  f->voice <= 3u && f->lwave <= 4u;
+            for (j = 0; j < 8u; j++)
+                ok &= f->e[j] == FK || (f->e[j] >= ENGINES[e]->edit[j].min && f->e[j] <= ENGINES[e]->edit[j].max);
+            for (used = 0, s = 0; s < FS_NSTART; s++)
+                for (j = 0; j < FP_N; j++)
+                    used += str_eq(FORGE_STARTER[s].snd[j].eng, "FORGE") && str_eq(FORGE_STARTER[s].snd[j].preset, f->name);
+            n += used;
+            if (!ok || !used) {
+                printf("    pack sound %s: %s\n", f->name, used ? "breaks a rule" : "never used");
+                ok = 0;
+            }
+        }
+        bad += check("FORGE PACK (0.9): 40+ sounds, bases exist, names fit, values in range, each used by a starter", ok && n > 40u);
     }
     t->p[P_SCALE] = 0;                                  /* (CHR: the starter's own SCALE) */
     t->p[P_ROOT] = 9;
@@ -717,6 +742,12 @@ static int test_starter(void)
     key_down(black(3)); frame(); key_up(black(3)); frame();
     ok &= !fs.var;
     kt(EN_K4, 1);
+    {   /* (EQUI's T4: the pack's RHYTHM BOX: DRUM, its kit 7 over PERC KIT, REV 30) */
+        const forge_sound_t *f = fs_pack("RHYTHM BOX");
+        (void)fs_find_base(f->eng, f->base, &e, &k);
+        ok &= trk[3].eng_req == e && trk[3].preset == k && trk[3].p[P_E0] == 7 && trk[3].p[P_REV] == 30 &&
+              str_eq(FORGE_STARTER[42].snd[3].preset, "RHYTHM BOX");
+    }
     bad += check("  black keys 1..4: the genre's variations (JARRE EQUI: its sounds, 120 BPM); LO-FI's SWG 25, no 4th", ok);
     oct_back();
     ok = !fs.on && song.g[G_BPM] == bpm && !memcmp(&motion, &mo, sizeof mo) && msg_is("STARTER CANCELLED");
@@ -755,6 +786,43 @@ static int test_starter(void)
     if (why)
         printf("    %s\n", why);
     bad += check("  every starter x seeds x EVOLVE 0/2/4: the rules on all four tracks; OCT- each time", !why);
+    {   /* 0.9: every starter sounds: playing 2 s, each of the four tracks peaks above a floor (no silent or broken
+         * sound), the master output never stuck on full scale */
+        static int32_t o[2 * CTL];
+        uint32_t quiet = 0, clip = 0, blk;
+        for (s = 0; s < FS_NSTART; s++) {
+            int32_t pk[NTRK] = {0, 0, 0, 0};
+            uint32_t full = 0;
+            fs_at(s);
+            fg.seed = 42; fg.evolve = 1; fs.dens = 100;
+            tkey(TL_STARTER);
+            transport_req = 1;
+            for (blk = 0; blk < 2u * 44100u / CTL; blk++) {
+                mix_block(o, CTL);
+                for (i = 0; i < NTRK; i++) {
+                    pk[i] = trk[i].peak > pk[i] ? trk[i].peak : pk[i];
+                    trk[i].peak = 0;
+                }
+                for (i = 0; i < 2u * CTL; i++)
+                    full += o[i] >= 32700 || o[i] <= -32700;
+            }
+            transport_req = 2;
+            mix_block(o, CTL);
+            for (i = 0; i < NTRK; i++)
+                if (pk[i] < 200) {
+                    printf("    %s %s T%u: peak %d\n", FS_GENRE[fs.genre].name, FORGE_STARTER[s].name, (unsigned)i + 1u, (int)pk[i]);
+                    quiet++;
+                }
+            if (getenv("FORGE_PEAKS")) printf("    %u %s pk %d %d %d %d full %u playing %d\n", (unsigned)s, FORGE_STARTER[s].name, (int)pk[0], (int)pk[1], (int)pk[2], (int)pk[3], (unsigned)full, song.playing);
+            if (full > 2u * 44100u / 50u) {             /* (more than 1 % of the samples on full scale) */
+                printf("    %s %s: %u samples at full scale\n", FS_GENRE[fs.genre].name, FORGE_STARTER[s].name, (unsigned)full);
+                clip++;
+            }
+            oct_back();
+        }
+        bad += check("  every starter sounds: 2 s played, all four tracks above the floor, the master not stuck at full scale",
+                     !quiet && !clip);
+    }
     {   /* pinned: every starter x seeds 0 42 99 (A, the starter's SCALE, EVOLVE 1): the four tracks' steps */
         static const uint8_t SEED[3] = {0, 42, 99};
         const char *path = "tests/starter_golden.txt", *upd = getenv("FORGE_GOLDEN_UPDATE");

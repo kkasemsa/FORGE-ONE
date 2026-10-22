@@ -1,9 +1,10 @@
 # FORGE changelog
 
-Newest first. FORGE is the SEQ TOOLS F5 motif generator in FORGE ONE (based on Felucca 1.6.1); STARTER (G5, 0.6; 45 starters from 0.8) is its song starter; PERFORM (FX double tap, 0.7) its live mode.
+Newest first. FORGE is the SEQ TOOLS F5 motif generator in FORGE ONE (based on Felucca 1.6.1); STARTER (G5, 0.6; 45 starters from 0.8, the FORGE PACK from 0.9) is its song starter; PERFORM (FX double tap, 0.7) its live mode.
 
 | Version | Date | Theme |
 | --- | --- | --- |
+| 0.9 | 22 Oct 2026 | FORGE PACK: 40 sounds for the starters |
 | 0.8 | 22 Oct 2026 | 45 song starters in 13 genres, Jarre included |
 | 0.7 | 22 Oct 2026 | PERFORM: live mutes, solos, scenes, QUANT; throws that flow back; DUCK |
 | 0.6 | 22 Oct 2026 | STARTER: a song start on all four tracks, sounds included |
@@ -13,6 +14,18 @@ Newest first. FORGE is the SEQ TOOLS F5 motif generator in FORGE ONE (based on F
 | 0.3 | 21 Oct 2026 | Safe live turns, chords in every scale, pinned seeds |
 | 0.2 | 21 Oct 2026 | The generator: SEED, DENSITY, EVOLVE, 8 styles |
 | 0.1 | 21 Oct 2026 | Scaffold: F5 FORGE cell, CI build |
+
+## 0.9
+
+- **FORGE PACK: 40 sounds for the starters.** 11 basses (BERLIN SEQ, ACID 303, ACID SQUARE, REESE, DUB SUB, …), 15
+  leads, stabs and keys (SUPERSAW, OXY LEAD, DUB CHORD, HOUSE PIANO, HOUSE ORGAN, VOX CHANT, …), 8 pads (STRING MACH,
+  BERLIN PAD, CHOIR PAD, GLASS PAD, …) and 6 drum kits (BOOM, HOUSE, BREAK, RHYTHM BOX, TECHNO, DUB). Each is a factory
+  preset with its own settings on top (oscillator and filter, envelope, voice, glide, unison, sends, LFO), so nothing
+  is added to the factory lists: projects, the Felucca web editor and stock Felucca see ordinary edited sounds.
+- 42 of the 45 starters now use pack sounds (78 of the 180 parts); the rest keep factory presets where they fit.
+- A new test plays every starter for 2 s and checks all four tracks sound and the master never sits at full scale.
+  Patterns are unchanged (the sounds do not touch the seeds).
+- Designed without listening on hardware: levels between tracks vary, and each sound is a starting point.
 
 ## 0.8
 

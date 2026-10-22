@@ -91,107 +91,107 @@ static const forge_beat_t *fs_beat(uint32_t b) { return b < FS_N ? &FORGE_BEAT[b
 #define SND(a, b, c, d, e, f, g, h) {{a, b}, {c, d}, {e, f}, {g, h}}
 static const forge_starter_t FORGE_STARTER[] = {
     /* BERLIN (0.6's BERLIN first) */
-    {"SEQ",   SND("ANALOG", "SQR BASS", "TRIO", "ARP LEAD", "GRAIN", "CLOUD PAD", "DRUM", "DEEP KIT"),
+    {"SEQ",   SND("FORGE", "BERLIN SEQ", "TRIO", "ARP LEAD", "FORGE", "BERLIN PAD", "DRUM", "DEEP KIT"),
      {B_PED16, L_HISEQ, P_HALF}, {16, 16, 32, 16}, 2, 120, FS_BERLIN, 0, 20},
-    {"DRIFT", SND("LOFI", "WAVE BASS", "PHASE", "RESO", "ANALOG", "STRINGS", "DRUM", "PERC KIT"),
+    {"DRIFT", SND("LOFI", "WAVE BASS", "FORGE", "BERLIN RESO", "FORGE", "STRING MACH", "DRUM", "PERC KIT"),
      {B_PED16, L_ARC8, P_BAR}, {16, 32, 32, 16}, 2, 108, FS_AMBIENT, 0, 12},
-    {"CHOIR", SND("FM6", "FM BASS", "TRIO", "SYNC LEAD", "VOICE", "CHOIR AAH", "DRUM", "DEEP KIT"),
+    {"CHOIR", SND("FM6", "FM BASS", "TRIO", "SYNC LEAD", "FORGE", "CHOIR PAD", "DRUM", "DEEP KIT"),
      {B_PED16, L_SLOW, P_BAR}, {16, 32, 64, 16}, 7, 116, FS_BERLIN, 0, 16},
-    {"ARP",   SND("TRIO", "FAT BASS", "LOFI", "STEP LEAD", "ANALOG", "SOFT PAD", "DRUM", "DRUM KIT"),
+    {"ARP",   SND("FORGE", "DEEP BASS", "LOFI", "STEP LEAD", "FORGE", "BERLIN PAD", "FORGE", "RHYTHM BOX"),
      {B_PED16, L_ARP16, P_HALF}, {16, 16, 32, 16}, 3, 124, FS_BERLIN, 0, 20},
     /* DETROIT */
-    {"STABS", SND("FM6", "FM BASS", "ANALOG", "PWM STR", "FM6", "TINE EP", "DRUM", "TIGHT KIT"),
+    {"STABS", SND("FM6", "FM BASS", "FORGE", "WARM STAB", "FM6", "TINE EP", "FORGE", "HOUSE KIT"),
      {B_OFF5, L_STAB4, P_HALF4}, {16, 16, 32, 16}, 3, 126, FS_DETROIT, 0, 16},
-    {"STRNG", SND("ANALOG", "SUB BASS", "ANALOG", "STRINGS", "SAMPLE", "PIANO", "DRUM", "DRUM KIT"),
+    {"STRNG", SND("FORGE", "DEEP BASS", "ANALOG", "STRINGS", "FORGE", "HOUSE PIANO", "FORGE", "HOUSE KIT"),
      {B_OFF, L_HOUSE, P_STAB4}, {16, 16, 16, 16}, 2, 128, FS_DETROIT, 0, 16},
-    {"ELECT", SND("TRIO", "FAT BASS", "LOFI", "PULSE LD", "PHASE", "STRING", "DRUM", "TIGHT KIT"),
+    {"ELECT", SND("FORGE", "ELECTRO BASS", "LOFI", "PULSE LD", "PHASE", "STRING", "FORGE", "BOOM KIT"),
      {B_ELEC, L_WALK, P_BAR}, {16, 16, 32, 16}, 8, 125, FB_ELECTRO, 0, 18},
-    {"DEEP",  SND("FM6", "FM BASS", "TRIO", "ARP LEAD", "ANALOG", "SOFT PAD", "DRUM", "DEEP KIT"),
+    {"DEEP",  SND("FM6", "FM BASS", "FORGE", "GLASS ARP", "ANALOG", "SOFT PAD", "DRUM", "DEEP KIT"),
      {B_ROLL, L_ARP8, P_HALF}, {16, 16, 32, 16}, 2, 124, FS_MELODIC, 0, 14},
     /* DUB TECHNO (0.6's DUB first) */
-    {"CHORD", SND("ANALOG", "SUB BASS", "PHASE", "STRING", "GRAIN", "SHIMMER", "DRUM", "DEEP KIT"),
+    {"CHORD", SND("FORGE", "DUB SUB", "FORGE", "DUB CHORD", "GRAIN", "SHIMMER", "FORGE", "DUB KIT"),
      {B_SUB, L_STAB3, P_BAR}, {16, 16, 32, 16}, 3, 118, FS_DUB, 0, 10},
-    {"DEEP",  SND("VOICE", "WOW BASS", "FM6", "PAD", "GRAIN", "CLOUD PAD", "DRUM", "DEEP KIT"),
+    {"DEEP",  SND("VOICE", "WOW BASS", "FM6", "PAD", "GRAIN", "CLOUD PAD", "FORGE", "DUB KIT"),
      {B_SUB, L_STAB3, P_WIDE}, {16, 16, 64, 16}, 2, 120, FS_DUB, 0, 10},
-    {"MINI",  SND("ANALOG", "SUB BASS", "PHASE", "RESO", "ANALOG", "SOFT PAD", "DRUM", "TIGHT KIT"),
+    {"MINI",  SND("FORGE", "DUB SUB", "PHASE", "RESO", "FORGE", "DUB PAD", "FORGE", "TECHNO KIT"),
      {B_SUB, L_DOTS, P_BAR}, {16, 16, 32, 16}, 3, 124, FS_DUB, 0, 12},
-    {"ECHO",  SND("ANALOG", "SUB BASS", "FM6", "TINE EP", "GRAIN", "FROZEN", "DRUM", "PERC KIT"),
+    {"ECHO",  SND("ANALOG", "SUB BASS", "FM6", "TINE EP", "GRAIN", "FROZEN", "FORGE", "DUB KIT"),
      {B_SUB, L_STAB3, P_WIDE}, {16, 32, 64, 16}, 2, 116, FS_DUB, 0, 8},
     /* MELODIC TECHNO (0.6's MELODIC first) */
     {"ARC",   SND("TRIO", "FAT BASS", "ANALOG", "SAW LEAD", "FM6", "PAD", "DRUM", "DRUM KIT"),
      {B_ROLL, L_ARC8, P_HALF}, {16, 32, 32, 16}, 2, 122, FS_MELODIC, 0, 18},
-    {"ARP",   SND("ANALOG", "SQR BASS", "TRIO", "SYNC LEAD", "ANALOG", "STRINGS", "DRUM", "TIGHT KIT"),
+    {"ARP",   SND("FORGE", "DEEP BASS", "TRIO", "SYNC LEAD", "FORGE", "TRANCE PAD", "DRUM", "TIGHT KIT"),
      {B_ROLL, L_ARP16, P_HALF}, {16, 16, 32, 16}, 2, 124, FS_MELODIC, 0, 18},
     {"PIANO", SND("FM6", "FM BASS", "SAMPLE", "PIANO", "GRAIN", "CLOUD PAD", "DRUM", "DEEP KIT"),
      {B_8TH5, L_ARC8, P_BAR}, {16, 32, 64, 16}, 3, 122, FS_MELODIC, 0, 16},
-    {"PLUCK", SND("TRIO", "FAT BASS", "ANALOG", "PLUCK", "VOICE", "CHOIR AAH", "DRUM", "DRUM KIT"),
+    {"PLUCK", SND("TRIO", "FAT BASS", "FORGE", "TRANCE PLUCK", "FORGE", "CHOIR PAD", "DRUM", "DRUM KIT"),
      {B_ROLL, L_PLUCK, P_HALF}, {16, 16, 32, 16}, 2, 123, FS_MELODIC, 0, 18},
     /* ACID HOUSE */
-    {"CLASS", SND("ANALOG", "ACID", "SAMPLE", "PIANO", "ANALOG", "SOFT PAD", "DRUM", "DRUM KIT"),
+    {"CLASS", SND("FORGE", "ACID 303", "FORGE", "HOUSE PIANO", "ANALOG", "SOFT PAD", "FORGE", "HOUSE KIT"),
      {B_ACID, L_HOUSE, P_BAR}, {16, 16, 32, 16}, 2, 124, FB_DEEPH, 10, 20},
-    {"JACK",  SND("ANALOG", "ACID", "ANALOG", "RAVE", "VOICE", "CHOIR AAH", "DRUM", "TIGHT KIT"),
+    {"JACK",  SND("FORGE", "ACID SQUARE", "ANALOG", "RAVE", "VOICE", "CHOIR AAH", "FORGE", "HOUSE KIT"),
      {B_ACID, L_STAB4, P_BAR}, {16, 16, 32, 16}, 3, 122, FB_DEEPH, 15, 20},
-    {"FLOOR", SND("ANALOG", "ACID", "LOFI", "ARP 8BIT", "PHASE", "ORGAN", "DRUM", "DRUM KIT"),
+    {"FLOOR", SND("FORGE", "ACID 303", "LOFI", "ARP 8BIT", "PHASE", "ORGAN", "DRUM", "DRUM KIT"),
      {B_ACID2, L_ARP8, P_HALF}, {16, 16, 32, 16}, 2, 128, FS_ACID, 0, 24},
     /* ACID TECHNO (0.6's ACID first) */
-    {"ROLL",  SND("ANALOG", "ACID", "LOFI", "ARP 8BIT", "ANALOG", "SOFT PAD", "DRUM", "TIGHT KIT"),
+    {"ROLL",  SND("ANALOG", "ACID", "FORGE", "CHIP ARP", "ANALOG", "SOFT PAD", "FORGE", "TECHNO KIT"),
      {B_ACID, L_ARP8, P_BAR}, {16, 16, 32, 16}, 2, 128, FS_ACID, 0, 24},
-    {"WARE",  SND("ANALOG", "ACID", "LOFI", "STEP LEAD", "ANALOG", "PWM STR", "DRUM", "DRUM KIT"),
+    {"WARE",  SND("FORGE", "ACID SQUARE", "LOFI", "STEP LEAD", "ANALOG", "PWM STR", "FORGE", "TECHNO KIT"),
      {B_ACID2, L_DOTS, P_STAB4}, {16, 16, 16, 16}, 2, 135, FS_ACID, 0, 24},
-    {"HARD",  SND("ANALOG", "ACID", "FM6", "BRASS", "PHASE", "WIRE", "DRUM", "TIGHT KIT"),
+    {"HARD",  SND("FORGE", "ACID 303", "FM6", "BRASS", "PHASE", "WIRE", "FORGE", "TECHNO KIT"),
      {B_ACID2, L_STAB4, P_BAR}, {16, 16, 32, 16}, 8, 140, FS_ACID, 0, 26},
     /* TRANCE (0.6's TRANCE first) */
-    {"GATE",  SND("ANALOG", "SUB BASS", "TRIO", "ARP LEAD", "ANALOG", "STRINGS", "DRUM", "DRUM KIT"),
+    {"GATE",  SND("ANALOG", "SUB BASS", "TRIO", "ARP LEAD", "FORGE", "TRANCE PAD", "FORGE", "HOUSE KIT"),
      {B_OFF, L_ARP16, P_HALF}, {16, 16, 32, 16}, 2, 138, FS_TRANCE, 0, 20},
-    {"LIFT",  SND("ANALOG", "SUB BASS", "ANALOG", "SAW LEAD", "VOICE", "CHOIR AAH", "DRUM", "DRUM KIT"),
+    {"LIFT",  SND("ANALOG", "SUB BASS", "FORGE", "SUPERSAW", "FORGE", "CHOIR PAD", "FORGE", "HOUSE KIT"),
      {B_OFF, L_RIDE, P_HALF}, {16, 32, 32, 16}, 2, 138, FS_TRANCE, 0, 20},
     {"PSY",   SND("ANALOG", "SQR BASS", "TRIO", "RING BELL", "PHASE", "RESO", "DRUM", "TIGHT KIT"),
      {B_ROLL, L_WALK, P_BAR}, {16, 16, 32, 16}, 8, 142, FS_TRANCE, 0, 22},
     /* DEEP HOUSE */
-    {"KEYS",  SND("TRIO", "FAT BASS", "FM6", "TINE EP", "ANALOG", "SOFT PAD", "DRUM", "DEEP KIT"),
+    {"KEYS",  SND("FORGE", "HOUSE BASS", "FM6", "TINE EP", "ANALOG", "SOFT PAD", "DRUM", "DEEP KIT"),
      {B_DEEPH, L_HOUSE, P_BAR}, {16, 16, 32, 16}, 3, 122, FB_DEEPH, 15, 14},
-    {"ORGAN", SND("VOICE", "WOW BASS", "WHEEL", "JAZZ PERC", "ANALOG", "STRINGS", "DRUM", "DRUM KIT"),
+    {"ORGAN", SND("VOICE", "WOW BASS", "FORGE", "HOUSE ORGAN", "ANALOG", "STRINGS", "FORGE", "HOUSE KIT"),
      {B_DEEPH, L_HOUSE, P_HALF}, {16, 16, 32, 16}, 2, 120, FB_DEEPH, 20, 14},
-    {"VOCAL", SND("ANALOG", "SUB BASS", "VOICE", "VOX LEAD", "FM6", "PAD", "DRUM", "DEEP KIT"),
+    {"VOCAL", SND("ANALOG", "SUB BASS", "FORGE", "VOX CHANT", "FM6", "PAD", "DRUM", "DEEP KIT"),
      {B_DEEPH, L_SLOW, P_HALF}, {16, 32, 32, 16}, 2, 121, FB_DEEPH, 10, 14},
     /* SYNTHWAVE (0.6's SYNTH as NIGHT) */
-    {"DRIVE", SND("ANALOG", "SQR BASS", "ANALOG", "SAW LEAD", "ANALOG", "PWM STR", "DRUM", "DRUM KIT"),
+    {"DRIVE", SND("FORGE", "OCTAVE BASS", "ANALOG", "SAW LEAD", "ANALOG", "PWM STR", "FORGE", "BOOM KIT"),
      {B_OCT16, L_ARC8, P_HALF}, {16, 32, 32, 16}, 2, 110, FB_SYNTHW, 0, 16},
-    {"NIGHT", SND("TRIO", "FAT BASS", "ANALOG", "BRASS", "FM6", "PAD", "DRUM", "DRUM KIT"),
+    {"NIGHT", SND("TRIO", "FAT BASS", "FORGE", "BRASS STAB", "FM6", "PAD", "FORGE", "BOOM KIT"),
      {B_8TH5, L_RIFF5, P_HALF}, {16, 16, 32, 16}, 2, 98, FB_SYNTHW, 0, 16},
-    {"8BIT",  SND("LOFI", "WAVE BASS", "LOFI", "PULSE LD", "TRIO", "CHIP CHOIR", "DRUM", "TIGHT KIT"),
+    {"8BIT",  SND("LOFI", "WAVE BASS", "FORGE", "8BIT LEAD", "TRIO", "CHIP CHOIR", "DRUM", "TIGHT KIT"),
      {B_OCT16, L_WALK, P_HALF}, {16, 16, 32, 16}, 1, 118, FB_SYNTHW, 0, 16},
     /* BREAKBEAT */
-    {"AMEN",  SND("ANALOG", "SUB BASS", "FM6", "BRASS", "ANALOG", "STRINGS", "DRUM", "TIGHT KIT"),
+    {"AMEN",  SND("FORGE", "REESE", "FM6", "BRASS", "ANALOG", "STRINGS", "FORGE", "BREAK KIT"),
      {B_BREAK, L_STAB4, P_BAR}, {16, 16, 32, 16}, 2, 134, FB_BREAK, 10, 22},
-    {"NUSK",  SND("ANALOG", "ACID", "LOFI", "STEP LEAD", "PHASE", "STRING", "DRUM", "DRUM KIT"),
+    {"NUSK",  SND("FORGE", "ACID SQUARE", "LOFI", "STEP LEAD", "PHASE", "STRING", "FORGE", "BREAK KIT"),
      {B_ACID, L_DOTS, P_BAR}, {16, 16, 32, 16}, 8, 135, FB_BREAK, 5, 22},
-    {"ELECT", SND("TRIO", "FAT BASS", "TRIO", "SYNC LEAD", "FM6", "PAD", "DRUM", "TIGHT KIT"),
+    {"ELECT", SND("FORGE", "ELECTRO BASS", "FORGE", "SCREAM", "FM6", "PAD", "FORGE", "BOOM KIT"),
      {B_ELEC, L_RIFF5, P_HALF}, {16, 16, 32, 16}, 2, 128, FB_ELECTRO, 5, 20},
     /* AMBIENT (one heavy engine each: 0.6's AMBIENT's KALIMBA is now FM6 BELL beside the CLOUD PAD) */
-    {"CLOUD", SND("ANALOG", "SUB BASS", "FM6", "BELL", "GRAIN", "CLOUD PAD", "DRUM", "PERC KIT"),
+    {"CLOUD", SND("FORGE", "DRONE BASS", "FM6", "BELL", "GRAIN", "CLOUD PAD", "DRUM", "PERC KIT"),
      {B_DRONE, L_SPARS, P_WIDE}, {32, 32, 64, 16}, 9, 80, FS_AMBIENT, 0, 12},
-    {"DRONE", SND("PHYS", "DRONE STRING", "SAMPLE", "FLUTE", "ANALOG", "SOFT PAD", "DRUM", "PERC KIT"),
+    {"DRONE", SND("PHYS", "DRONE STRING", "SAMPLE", "FLUTE", "FORGE", "AIR PAD", "DRUM", "PERC KIT"),
      {B_DRONE, L_SPARS, P_WIDE}, {64, 32, 64, 16}, 3, 72, FS_AMBIENT, 0, 10},
-    {"GLASS", SND("ANALOG", "SUB BASS", "PHYS", "MARIMBA", "VOICE", "CHOIR AAH", "DRUM", "PERC KIT"),
+    {"GLASS", SND("FORGE", "DRONE BASS", "PHYS", "MARIMBA", "FORGE", "CHOIR PAD", "DRUM", "PERC KIT"),
      {B_DRONE, L_ARC8, P_WIDE}, {32, 32, 64, 16}, 9, 84, FS_AMBIENT, 0, 10},
-    {"RAIN",  SND("FM6", "FM BASS", "TRIO", "RING BELL", "GRAIN", "FROZEN", "DRUM", "PERC KIT"),
+    {"RAIN",  SND("FM6", "FM BASS", "TRIO", "RING BELL", "FORGE", "GLASS PAD", "DRUM", "PERC KIT"),
      {B_DRONE, L_DOTS, P_WIDE}, {32, 32, 64, 16}, 2, 76, FS_AMBIENT, 0, 10},
     /* LO-FI */
-    {"PIANO", SND("ANALOG", "SUB BASS", "SAMPLE", "PIANO", "ANALOG", "SOFT PAD", "DRUM", "DEEP KIT"),
+    {"PIANO", SND("FORGE", "LOFI BASS", "SAMPLE", "PIANO", "FORGE", "LOFI PAD", "FORGE", "BOOM KIT"),
      {B_LOFI, L_HOUSE, P_BAR}, {16, 16, 32, 16}, 3, 84, FB_LOFI, 25, 12},
-    {"TAPE",  SND("TRIO", "FAT BASS", "FM6", "TINE EP", "WHEEL", "SOFT FLUTE", "DRUM", "DRUM KIT"),
+    {"TAPE",  SND("TRIO", "FAT BASS", "FORGE", "WARM KEYS", "WHEEL", "SOFT FLUTE", "DRUM", "DRUM KIT"),
      {B_LOFI, L_HOUSE, P_BAR}, {16, 16, 32, 16}, 2, 88, FB_LOFI, 20, 12},
-    {"SAX",   SND("ANALOG", "SUB BASS", "SAMPLE", "SAX", "FM6", "PAD", "DRUM", "PERC KIT"),
+    {"SAX",   SND("FORGE", "LOFI BASS", "SAMPLE", "SAX", "FM6", "PAD", "DRUM", "PERC KIT"),
      {B_LOFI, L_SLOW, P_BAR}, {16, 32, 32, 16}, 3, 80, FB_LOFI, 22, 12},
     /* JARRE */
-    {"OXY",   SND("ANALOG", "SQR BASS", "ANALOG", "SAW LEAD", "ANALOG", "STRINGS", "DRUM", "PERC KIT"),
+    {"OXY",   SND("ANALOG", "SQR BASS", "FORGE", "OXY LEAD", "FORGE", "STRING MACH", "FORGE", "RHYTHM BOX"),
      {B_8TH5, L_SLOW, P_BAR}, {16, 32, 64, 16}, 2, 104, FB_POPS, 0, 10},
-    {"EQUI",  SND("LOFI", "WAVE BASS", "TRIO", "ARP LEAD", "VOICE", "CHOIR AAH", "DRUM", "TIGHT KIT"),
+    {"EQUI",  SND("LOFI", "WAVE BASS", "TRIO", "ARP LEAD", "VOICE", "CHOIR AAH", "FORGE", "RHYTHM BOX"),
      {B_PED16, L_ARP16, P_BAR}, {16, 16, 64, 16}, 2, 120, FB_ELECTRO, 0, 14},
-    {"FIELD", SND("FM6", "FM BASS", "PHASE", "BRASS", "ANALOG", "PWM STR", "DRUM", "DRUM KIT"),
+    {"FIELD", SND("FM6", "FM BASS", "FORGE", "BRASS STAB", "ANALOG", "PWM STR", "FORGE", "RHYTHM BOX"),
      {B_8TH5, L_STAB4, P_HALF}, {16, 16, 32, 16}, 3, 112, FB_POPS, 0, 12},
-    {"ZOO",   SND("VOICE", "WOW BASS", "VOICE", "VOX LEAD", "GRAIN", "SHIMMER", "DRUM", "TIGHT KIT"),
+    {"ZOO",   SND("VOICE", "WOW BASS", "FORGE", "VOX CHANT", "GRAIN", "SHIMMER", "DRUM", "TIGHT KIT"),
      {B_ELEC, L_DOTS, P_WIDE}, {16, 16, 64, 16}, 8, 118, FB_ELECTRO, 0, 16},
 };
 #define FS_NSTART (sizeof FORGE_STARTER / sizeof FORGE_STARTER[0])
@@ -206,6 +206,111 @@ static const fs_genre_t FS_GENRE[] = {
 static const char *const FP_ROLE[FP_N] = {"BASS", "LEAD", "PAD", "DRUM"};
 static const char H_STARTER[] = "[K4]GENRE[KEYS]BLACK 1-4: VARIATION";   /* (the second row: two fit) */
 
+/* 0.9 FORGE PACK: 44 sounds for the starters, each a factory preset (its engine, and what a preset alone sets: an FM6
+ * patch, a SAMPLE set) with its own values over it: E1..E8 (FK: the preset's), ATK DEC SUS REL (env[0] FK: the
+ * preset's), ENV > FILTER, VOICE, GLIDE, DETUNE, SPREAD, the sends DST CHO DLY REV, the LFO (RATE WAVE, to PITCH and
+ * FILTER). A starter names one as {"FORGE", name}. Nothing is added to the factory lists: the track is that preset
+ * with these edits, as if turned by hand, so a project, the editor and stock Felucca see an ordinary sound (PRESETS
+ * shows the base preset's name); SAVE > USER keeps one as a user preset. tests/forge_test.c checks every base exists */
+#define FK (-128)
+typedef struct {
+    const char *name, *eng, *base;
+    int8_t e[8];
+    int16_t env[4];               /* (FK in env[0]: the preset's) */
+    int8_t fenv;
+    uint8_t voice, glide, detune, spread, dst, cho, dly, rev, lrate, lwave;
+    int8_t lpit, lflt;
+} forge_sound_t;
+#define KEEP8 {FK, FK, FK, FK, FK, FK, FK, FK}
+#define KENV {FK, 0, 0, 0}
+static const forge_sound_t FORGE_PACK[] = {
+    /* name           engine    base         E1..E8                                   ATK DEC SUS REL  fenv vce gld det spr dst cho dly rev lrt lwv lpit lflt */
+    /* basses */
+    {"BERLIN SEQ",  "ANALOG", "SQR BASS",  {1, 5, 40, 0, 45, 85, 20, 64},          {0, 45, 10, 20},   50, 1,  0,  0,  0,  0,  0, 20, 10,  0, 0,  0,  0},
+    {"DEEP BASS",   "ANALOG", "SUB BASS",  {0, 4, 90, 0, 38, 40, 30, 40},          {0, 70, 90, 25},   25, 2, 10,  0,  0,  0,  0,  0,  0,  0, 0,  0,  0},
+    {"DUB SUB",     "ANALOG", "SUB BASS",  {3, 0, 0, 0, 30, 0, 10, 0},             {2, 80, 110, 40},   0, 2,  0,  0,  0,  6,  0,  0,  0,  0, 0,  0,  0},
+    {"ACID 303",    "ANALOG", "ACID",      {0, 0, 0, 0, 38, 118, 50, 64},          {0, 45, 15, 25},   58, 2, 20,  0,  0, 30,  0, 30,  0,  0, 0,  0,  0},
+    {"ACID SQUARE", "ANALOG", "ACID",      {1, 0, 0, 0, 42, 110, 40, 64},          {0, 50, 20, 25},   54, 2, 20,  0,  0, 20,  0, 25,  0,  0, 0,  0,  0},
+    {"HOUSE BASS",  "TRIO",   "FAT BASS",  {1, 0, -12, 6, 0, 50, 30, 40},          {0, 50, 40, 20},   35, 1,  0,  0,  0, 10,  0,  0,  0,  0, 0,  0,  0},
+    {"OCTAVE BASS", "ANALOG", "SQR BASS",  {0, 8, 70, 0, 55, 35, 10, 64},          {0, 55, 60, 25},   30, 1,  0,  0,  0,  0, 20,  0, 10,  0, 0,  0,  0},
+    {"REESE",       "TRIO",   "FAT BASS",  {0, 0, 0, 30, 0, 70, 20, 64},           {0, 70, 100, 30},  10, 1,  0,  0,  0, 15, 20,  0,  0, 20, 0,  0, 10},
+    {"DRONE BASS",  "ANALOG", "SUB BASS",  {2, 6, 50, 8, 35, 20, 0, 0},            {60, 90, 120, 90},  0, 1,  0,  0,  0,  0, 20,  0, 40, 10, 0,  0,  6},
+    {"LOFI BASS",   "ANALOG", "SUB BASS",  {2, 0, 0, 0, 45, 10, 25, 0},            {0, 70, 60, 30},    5, 1,  0,  0,  0, 10,  0,  0, 10,  0, 0,  0,  0},
+    {"ELECTRO BASS","LOFI",   "WAVE BASS", {2, 0, 40, 0, 0, 0, 0, 100},            {0, 40, 50, 15},    0, 1,  0,  0,  0, 15,  0, 10,  0,  0, 0,  0,  0},
+    /* leads, stabs, keys */
+    {"SUPERSAW",    "ANALOG", "SAW LEAD",  {0, 30, 64, 0, 95, 15, 0, 64},          {2, 80, 110, 40},  10, 3,  0, 70, 90,  0, 30, 40, 50,  0, 0,  0,  0},
+    {"TRANCE PLUCK","ANALOG", "PLUCK",     {0, 14, 64, 0, 40, 30, 0, 64},          {0, 60, 0, 40},    55, 0,  0,  0, 40,  0, 20, 50, 40,  0, 0,  0,  0},
+    {"OXY LEAD",    "ANALOG", "SAW LEAD",  {4, 10, 40, 0, 75, 35, 0, 64},          {30, 80, 100, 70}, 10, 2, 50,  0,  0,  0, 20, 40, 60, 40, 0,  6,  0},
+    {"SCREAM",      "TRIO",   "SYNC LEAD", {9, 19, 0, 0, 0, 95, 20, 64},           {0, 60, 100, 40},  30, 2, 15,  0,  0, 20,  0, 35, 20,  0, 0,  0,  0},
+    {"BERLIN RESO", "PHASE",  "RESO",      {5, 0, 70, 80, 0, 0, 0, 0},             {0, 50, 10, 40},    0, 0,  0,  0,  0,  0,  0, 40, 30,  0, 0,  0,  0},
+    {"BRASS STAB",  "ANALOG", "BRASS",     {0, 12, 64, 0, 60, 30, 10, 64},         {20, 60, 80, 40},  45, 0,  0,  0,  0,  0, 20,  0, 30,  0, 0,  0,  0},
+    {"DUB CHORD",   "ANALOG", "PLUCK",     {0, 10, 64, 0, 35, 25, 0, 64},          {0, 45, 0, 30},    40, 0,  0,  0,  0,  0, 10, 80, 60,  0, 0,  0,  0},
+    {"WARM STAB",   "ANALOG", "PWM STR",   {4, 8, 40, 0, 55, 15, 0, 48},           {0, 55, 20, 40},   25, 0,  0,  0,  0,  0, 40, 40, 40,  0, 0,  0,  0},
+    {"HOUSE PIANO", "SAMPLE", "PIANO",     {FK, FK, FK, FK, 110, FK, 10, FK},     {0, 127, 127, 60},  0, 0,  0,  0,  0,  0, 10,  0, 25,  0, 0,  0,  0},
+    {"HOUSE ORGAN", "WHEEL",  "JAZZ PERC", {4, 0, 0, 0, 1, 80, 20, 2},             KENV,               0, 0,  0,  0,  0,  0,  0,  0, 25,  0, 0,  0,  0},
+    {"GLASS ARP",   "FM6",    "BELL",      KEEP8,                                  KENV,               0, 0,  0,  0, 30,  0, 10, 50, 50,  0, 0,  0,  0},
+    {"8BIT LEAD",   "LOFI",   "PULSE LD",  {2, 0, 24, 0, 0, 30, 0, 127},           {0, 50, 90, 30},    0, 1,  0,  0,  0,  0,  0, 30, 15,  0, 0,  0,  0},
+    {"CHIP ARP",    "LOFI",   "ARP 8BIT",  {2, 0, 64, 0, 0, 0, 3, 110},            {0, 40, 60, 30},    0, 0,  0,  0,  0,  0,  0, 25, 15,  0, 0,  0,  0},
+    {"VOX CHANT",   "VOICE",  "VOX LEAD",  {64, 0, 40, 0, 80, 20, 80, 30},         {10, 70, 100, 60},  0, 2, 20,  0,  0,  0, 20, 40, 50,  0, 0,  0,  0},
+    {"WARM KEYS",   "FM6",    "TINE EP",   KEEP8,                                  KENV,               0, 0,  0,  0, 40,  8, 50,  0, 30, 30, 0,  3,  0},
+    /* pads */
+    {"STRING MACH", "ANALOG", "STRINGS",   {0, 35, 80, 0, 72, 8, 0, 32},           {60, 90, 118, 90},  0, 0,  0,  0, 60,  0, 110, 0, 60,  0, 0,  0,  0},
+    {"BERLIN PAD",  "ANALOG", "SOFT PAD",  {0, 20, 64, 4, 40, 25, 0, 32},          {90, 100, 115, 100}, 35, 0, 0,  0, 50,  0, 50,  0, 80, 10, 1,  0,  8},
+    {"TRANCE PAD",  "ANALOG", "PWM STR",   {4, 20, 64, 0, 85, 10, 0, 48},          {50, 90, 115, 90},  0, 0,  0,  0, 60,  0, 70,  0, 80,  0, 0,  0,  0},
+    {"DUB PAD",     "ANALOG", "SOFT PAD",  {0, 12, 64, 10, 45, 20, 0, 32},         {70, 90, 110, 95},  0, 0,  0,  0, 40,  0, 40, 50, 80,  0, 0,  0,  0},
+    {"CHOIR PAD",   "VOICE",  "CHOIR AAH", {10, 40, 30, 0, 40, 30, 60, 10},        {90, 90, 115, 100}, 0, 0,  0,  0, 50,  0, 60,  0, 90,  0, 0,  0,  0},
+    {"GLASS PAD",   "GRAIN",  "SHIMMER",   {0, 30, 90, 100, 12, 60, 30, 100},      {90, 100, 120, 110}, 0, 0, 0,  0,  0,  0,  0, 30, 110, 0, 0,  0,  0},
+    {"AIR PAD",     "NOISE",  "WIND",      {0, 50, 60, 90, 100, 0, 90, 0},         {100, 90, 110, 100}, 0, 0, 0,  0, 60,  0, 30,  0, 90,  8, 0,  0, 10},
+    {"LOFI PAD",    "ANALOG", "SOFT PAD",  {2, 10, 64, 20, 50, 10, 15, 32},        {60, 90, 110, 90},  0, 0,  0,  0, 40,  0, 60,  0, 50, 30, 0,  3,  0},
+    /* drums (DRUM: E1 KIT, TUNE, TONE, DECY, SNAP, ACC, KICK PUNCH / ROUND, DRV) */
+    {"BOOM KIT",    "DRUM",   "DEEP KIT",  {4, 58, 60, 96, 50, 100, 1, 0},         KENV,               0, 0,  0,  0,  0,  0,  0,  0, 20,  0, 0,  0,  0},
+    {"HOUSE KIT",   "DRUM",   "DRUM KIT",  {2, 64, 74, 64, 80, 100, 0, 10},        KENV,               0, 0,  0,  0,  0,  0,  0,  0, 15,  0, 0,  0,  0},
+    {"BREAK KIT",   "DRUM",   "TIGHT KIT", {3, 70, 80, 50, 90, 110, 0, 30},        KENV,               0, 0,  0,  0,  0,  0,  0,  0, 10,  0, 0,  0,  0},
+    {"RHYTHM BOX",  "DRUM",   "PERC KIT",  {7, 64, 50, 40, 40, 90, 1, 0},          KENV,               0, 0,  0,  0,  0,  0,  0,  0, 30,  0, 0,  0,  0},
+    {"TECHNO KIT",  "DRUM",   "TIGHT KIT", {10, 60, 70, 52, 80, 110, 0, 40},       KENV,               0, 0,  0,  0,  0,  0,  0,  0, 10,  0, 0,  0,  0},
+    {"DUB KIT",     "DRUM",   "DEEP KIT",  {9, 60, 55, 80, 50, 100, 1, 0},         KENV,               0, 0,  0,  0,  0,  0,  0, 40, 40,  0, 0,  0,  0},
+};
+#define FS_NPACK (sizeof FORGE_PACK / sizeof FORGE_PACK[0])
+static const forge_sound_t *fs_pack(const char *name)
+{
+    uint32_t i;
+    for (i = 0; i < FS_NPACK; i++)
+        if (str_eq(FORGE_PACK[i].name, name))
+            return &FORGE_PACK[i];
+    return 0;
+}
+/* a pack sound's values over the base preset just loaded (the main loop, as a knob would) */
+static void fs_pack_apply(track_t *t, const forge_sound_t *f)
+{
+    uint32_t i;
+    for (i = 0; i < 8u; i++)
+        if (f->e[i] != FK)
+            t->p[P_E0 + i] = (int16_t)clamp(f->e[i], ENGINES[t->eng_req % NENGINES]->edit[i].min,
+                                            ENGINES[t->eng_req % NENGINES]->edit[i].max);
+    if (f->env[0] != FK) {
+        t->p[P_ATK] = f->env[0];
+        t->p[P_DEC] = f->env[1];
+        t->p[P_SUS] = f->env[2];
+        t->p[P_REL] = f->env[3];
+        t->p[P_ED_FLT] = f->fenv;
+    }
+    t->p[P_VOICE] = f->voice;
+    t->p[P_GLIDE] = f->glide;
+    if (f->detune)
+        t->p[P_DETUNE] = f->detune;
+    t->p[P_SPRD] = f->spread;
+    t->p[P_DIST] = f->dst;
+    t->p[P_CHOR] = f->cho;
+    t->p[P_DLY] = f->dly;
+    t->p[P_REV] = f->rev;
+    if (f->lrate) {
+        t->p[P_LRATE] = f->lrate;
+        t->p[P_LWAVE] = f->lwave;
+        t->p[P_LD_PIT] = f->lpit;
+        t->p[P_LD_FLT] = f->lflt;
+    }
+}
+
 /* the four tracks as STARTER opened (OCT-): in the pool, as FORGE's eu_from */
 static struct {
     int16_t p[NTRK][P_COUNT];
@@ -219,14 +324,22 @@ static struct { uint8_t on, set, genre, var, dens, root, scale; } fs;   /* dens:
 static uint32_t fs_idx(void) { return (FS_GENRE[fs.genre % FS_NGENRE].first + fs.var) % FS_NSTART; }
 
 /* engine and factory preset by name (0: found; the test checks every one is) */
-static int fs_find(const fs_sound_t *s, uint32_t *e, uint32_t *k)
+static int fs_find_base(const char *eng, const char *preset, uint32_t *e, uint32_t *k)
 {
     for (*e = 0; *e < NENGINES; (*e)++)
-        if (eng_ok(*e) && str_eq(ENGINES[*e]->name, s->eng))
+        if (eng_ok(*e) && str_eq(ENGINES[*e]->name, eng))
             for (*k = 0; *k < ENGINES[*e]->npresets; (*k)++)
-                if (preset_orig(ENGINES[*e], *k) == *k && str_eq(ENGINES[*e]->presets[*k].name, s->preset))
+                if (preset_orig(ENGINES[*e], *k) == *k && str_eq(ENGINES[*e]->presets[*k].name, preset))
                     return 0;
     return 1;
+}
+/* a starter's sound: a factory preset {engine, name}, or {"FORGE", name} a pack sound (its engine and base preset) */
+static int fs_find(const fs_sound_t *s, uint32_t *e, uint32_t *k)
+{
+    const forge_sound_t *f = str_eq(s->eng, "FORGE") ? fs_pack(s->preset) : 0;
+    if (str_eq(s->eng, "FORGE") && !f)
+        return 1;
+    return f ? fs_find_base(f->eng, f->base, e, k) : fs_find_base(s->eng, s->preset, e, k);
 }
 static void fs_sounds(void)                             /* the starter's four sounds */
 {
@@ -234,9 +347,12 @@ static void fs_sounds(void)                             /* the starter's four so
     for (i = 0; i < FP_N; i++)
         if (!fs_find(&FORGE_STARTER[fs_idx()].snd[i], &e, &k)) {
             track_t *t = &trk[i];
+            const fs_sound_t *sd = &FORGE_STARTER[fs_idx()].snd[i];
             if (t->eng_req % NENGINES != e)
                 set_engine_of(t, e);
             apply_preset_to(t, k);
+            if (str_eq(sd->eng, "FORGE"))
+                fs_pack_apply(t, fs_pack(sd->preset));  /* (0.9: a FORGE PACK sound over its base) */
         }
 }
 /* the patterns: each part's LEN and DIV 1/16, the key, then FORGE's generator with the part's row and stream */

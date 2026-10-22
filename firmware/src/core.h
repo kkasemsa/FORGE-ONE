@@ -10,7 +10,7 @@
 /* FORGE ONE (this fork, GPL-3.0-only): its name and version on the splash and ABOUT; Felucca's own name stays in the
  * protocol (editor.c ED_INFO), the loader and the console, which the editor and the tools read */
 #define FORGE_ONE_NAME "FORGE ONE"
-#define FORGE_VERSION "0.8"
+#define FORGE_VERSION "0.9"
 
 /* ------------------------------------------------------------ sizes --- */
 #define NVOICE 8                 /* voices per part, and the budget shared by all parts */
