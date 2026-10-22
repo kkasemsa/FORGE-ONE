@@ -83,6 +83,8 @@ typedef char ly_init_fits[LY_CLEAN < 16u ? 1 : -1];   /* (a white key: F3 .. G5)
 static const khint_t FX_LATCH_FOOT[3] = {{KC_KEYS, "ON / OFF"}, {KC_K14, "MACROS"}, {KC_OCTDN, "ALL OFF"}};
 static const khint_t FX_KEY_FOOT[3] = {{KC_PRESETS, "ASSIGN"}, {KC_EDIT, "DEFAULT"}, {KC_K14, "MACROS"}};   /* (a key held) */
 static const khint_t GLO_LOCK_FOOT[3] = {{KC_OCTDN, "UNDO"}, {KC_GLO, "DONE"}, {0, 0}};   /* (locked: PLAY plays, #183) */
+static const khint_t PM_FOOT[3] = {{KC_OCTUP, "KNOBS"}, {KC_OCTDN, "FX OFF"}, {KC_FX, "DONE"}};   /* (0.7 PERFORM) */
+static const char H_PERFORM[] = "[OCT+]+MUTE KEY: SOLO";                  /* (HELP ON: the second row) */
 static const khint_t EU_FOOT[3] = {{KC_OCTUP, "APPLY"}, {KC_OCTDN, "CANCEL"}, {0, 0}};   /* (SEQ TOOLS' EUCLID open) */
 /* the FX layer's key map (perform.c perf_map_of / perf_map_put: 16 x 5 bits; all 0, every older setting: the default
  * map) in 10 bytes no engine uses, kept with the settings */
@@ -124,11 +126,16 @@ static uint32_t layer_bits(void)
     return m;
 }
 static uint32_t layer_btn(void) { return LAYERS[ui.layer % LAYER_N].btn; }
-static const char *layer_head(void) { return ui.layer == LAYER_FX && perf_latch_on ? "[FX] LATCH" : LAYERS[ui.layer % LAYER_N].head; }
+static const char *layer_head(void)
+{
+    return ui.layer == LAYER_FX && ui.lock == LAYER_FX ? "[FX] PERFORM" :   /* (FORGE ONE 0.7: locked, ui_perform.c) */
+           ui.layer == LAYER_FX && perf_latch_on ? "[FX] LATCH" : LAYERS[ui.layer % LAYER_N].head;
+}
 static uint32_t layer_open(void) { return ui.ly && (ui.ly_t0 & LY_OPEN) && ly_down(ui.ly) && layer_allowed() ? ui.ly : 0u; }
 static int layer_set_open(void)                 /* (FX LATCH: FX is one too, OCT- turns all off) */
 {
-    return layer_open() && (LAYERS[layer_open()].kind == LK_SET || (layer_open() == LAYER_FX && perf_latch_on));
+    return layer_open() && (LAYERS[layer_open()].kind == LK_SET ||
+                            (layer_open() == LAYER_FX && (perf_latch_on || ui.lock == LAYER_FX)));   /* (0.7: PERFORM) */
 }
 static uint32_t layer_held(void) { return ui.ly && ly_down(ui.ly) && layer_allowed(); }
 
@@ -143,6 +150,7 @@ static void layer_masks(void)
     kb_mask = m;
     perf_mask = m & ly_bit(LAYER_FX);
     kb_lock = (uint8_t)(m && ui.lock ? 1u | (ui.lock == LAYER_FX ? 2u : 0u) : 0u);   /* (no button held: the ISR's) */
+    perf_pmode = (uint8_t)(m && ui.lock == LAYER_FX);   /* (FORGE ONE 0.7: PERFORM, its black keys the UI's) */
 }
 
 /* a layer button pressed (its edge) while none is armed: it is now, a dead one where no layer opens */
@@ -520,9 +528,10 @@ static void rec_key(uint32_t p)
 
 /* FX: the effects' names (the message; NONE: PF_N) and the map's cells' */
 static const char *const PF_NAME[PF_NFX + 1] = {"REPEAT 1/8", "REPEAT 1/16", "REPEAT 1/32", "REVERSE", "LPF", "HPF",
-    "TAPE STOP", "FREEZE", "OCT UP", "OCT DN", "FLANGER", "PHASER", "REV THROW", "ECHO THROW", "NONE"};
+    "TAPE STOP", "FREEZE", "OCT UP", "OCT DN", "FLANGER", "PHASER", "REV THROW", "ECHO THROW", "CUTOFF THROW",
+    "DIST THROW", "DUCK", "NONE"};                     /* (FORGE ONE 0.7: CUTOFF THROW, DIST THROW, DUCK) */
 static const char *const PF_CELL[PF_NFX] = {"1/8", "1/16", "1/32", "REV", "LPF", "HPF", "STOP", "FRZ", "OCT+", "OCT-",
-    "FLNG", "PHSR", "VERB", "ECHO"};
+    "FLNG", "PHSR", "VERB", "ECHO", "CUT", "DIST", "DUCK"};
 static const char W_NOTE[16] = {'F', 'G', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'A', 'B', 'C', 'D', 'E', 'F', 'G'};
 /* each pass: the map from the settings to the ISR (a change: seq.c makes a key held take its new effect) */
 static void fx_map_sync(void)
@@ -671,12 +680,15 @@ static uint32_t eqa_sig(void)
 }
 
 /* a key pressed in layer l (k: 0 = F3 .. 26 = G5) */
+#include "ui_perform.c"                                 /* FORGE ONE 0.7: PERFORM, the FX layer locked */
 static void layer_key(uint32_t l, uint32_t k)
 {
     uint32_t p = key_place(k), i;
     if (l == LAYER_FX) {
         if (!key_black(k) && p < PF_KEYS)
             lys.fxk = (uint8_t)(k + 1u);                /* (PRESETS assigns it while held) */
+        else if (key_black(k) && pm_on())
+            pm_key(p);                                  /* (0.7 PERFORM: mutes, solos, scenes, QUANT, DUCK, CLEAR) */
     } else if (l == LAYER_GLO) {
         if (key_black(k)) {
             if (p < NTRK)
@@ -729,6 +741,8 @@ static void layer_keys(uint32_t keys)
             layer_key(l, k);
     if (lys.eqh)
         eqa_release();
+    if (pm.sdown)
+        pm_poll();                                      /* (0.7 PERFORM: the scene keys' taps and holds) */
     lys.solo &= kb_layer;
     lys.fill &= kb_layer;
     if (seq_fill != (lys.fill != 0u)) {                 /* (1.5.5: the steps' FILL / !FILL from the next step) */
@@ -745,7 +759,13 @@ static void layer_keys(uint32_t keys)
 static void layer_knob(uint32_t k, int32_t s)
 {
     uint32_t l = layer_open();
-    if (l == LAYER_FX) {                                /* perform.c perf_k, not recorded */
+    if (l == LAYER_FX && pm_on() && !pm.knobs) {        /* 0.7 PERFORM: T1..T4 LEVEL, as GLO's */
+        int16_t *vp = &trk[k].p[P_LEVEL];
+        *vp = (int16_t)clamp(*vp + accel(EN_K1 + k, s, TP[P_LEVEL].max - TP[P_LEVEL].min), TP[P_LEVEL].min,
+                             TP[P_LEVEL].max);
+        motion_capture(&trk[k], P_LEVEL, *vp);
+        ml_knob(&trk[k], P_LEVEL);
+    } else if (l == LAYER_FX) {                         /* perform.c perf_k, not recorded */
         if (k == 3u && !perf_harm_on())
             s = -s;                                     /* DEPTH (100 - perf_k[3]) rises to the right (#40: it fell) */
         perf_k[k] = (int8_t)clamp(perf_k[k] + accel(EN_K1 + k, s, k ? 100 : 200), k ? 0 : -100, 100);   /* (#126) */
@@ -834,6 +854,11 @@ static uint32_t layer_oct(uint32_t pressed, uint32_t oct)
         ui.force = 1;
         mine = 0;
     }
+    if ((mine & 2u) && lys.l == LAYER_FX && pm_on()) {  /* 0.7 PERFORM: OCT+ alone switches the knobs */
+        pm_oct_up();
+        ui.force = 1;
+        mine &= ~2u;
+    }
     if (mine & 1u) {                                    /* OCT-: back to when it opened */
         if (lys.l == LAYER_FX) {                        /* (FX LATCH) every effect and macro off */
             perf_latched = 0;
@@ -891,7 +916,11 @@ static uint32_t layer_oct(uint32_t pressed, uint32_t oct)
 /* --------------------------------------------------------- the LEDs --- */
 /* lit = in effect now (held, the value, a track sounding), breathing = can be pressed (*br: dark .. ~60 % and
  * back, ~1.1 s, hal/fm1_input.h fm1_led_breath; was a hard 250 ms blink, #119), dark = nothing there */
-static int glo_sounding(uint32_t t) { return !trk[t].p[P_MUTE] && (!perf_solo || ((perf_solo >> t) & 1u)); }
+static int glo_sounding(uint32_t t)
+{
+    uint32_t so = perf_solo | perf_psolo;               /* (0.7: PERFORM's latched solos too) */
+    return !trk[t].p[P_MUTE] && (!so || ((so >> t) & 1u));
+}
 static int rec_clearable(void) { return !seq_is_empty(TSEL) || motion_count(TSEL) != 0u; }
 static uint32_t layer_leds(uint32_t *br)
 {
@@ -900,7 +929,9 @@ static uint32_t layer_leds(uint32_t *br)
     const eqa_t *a;
     for (k = 0; k < 27u; k++) {
         uint32_t p = key_place(k), b = (uint32_t)key_black(k), on = 0, can = 0, e;
-        if (l == LAYER_FX) {                            /* effects breathe, held lit, a too-long REPEAT dark */
+        if (l == LAYER_FX && b && pm_on()) {            /* 0.7 PERFORM's black keys */
+            pm_led(p, &on, &can);
+        } else if (l == LAYER_FX) {                     /* effects breathe, held lit, a too-long REPEAT dark */
             e = perf_key(k);
             can = e < PF_N && ((ok >> e) & 1u);
             on = can && ((held >> e) & 1u);
@@ -1056,6 +1087,48 @@ static void layer_fx(void)
         bnote(n, e);
         lcell(LC_X(e), LM_Y, LM_H, n, ICON_MUTE, trk_icon(e, 0), 0, (held >> (PF_M1 + e)) & 1u ? LS_MUTE : LS_OFF, 0);
     }
+}
+/* 0.7 PERFORM's screen: the four tracks (ON / MUTE / SOLO; one that changes at the bar: waiting), the scenes, QUANT
+ * DUCK CLEAR and the knobs' mode, the effects on */
+static const char PM_BNOTE[11] = {'F', 'G', 'A', 'C', 'D', 'F', 'G', 'A', 'C', 'D', 'F'};   /* black keys 1..11 */
+static void pm_cell(int32_t x, int32_t y, uint32_t b, const char *name, uint32_t st)   /* "D# S1": a key's small cell */
+{
+    char t[12] = {PM_BNOTE[b], '#', ' ', 0};
+    uint16_t ink, fill = lc_box(x, y, LC_W, 20, lc_fill(st, &ink));
+    str_cpy(t + 3, name, sizeof t - 3);
+    GFX_HOOK_ALIGN(x, y, x + LC_W, y + 20, AL_HV, "perform key cell centred");
+    cv_text_in(x, y + CAP_IN(S, 20), LC_W, &AF_S, t, ink, fill);
+}
+static void layer_perform(void)
+{
+    uint32_t i, e, held = perf_kill ? 0u : perf_held | perf_latched, so = pm_want_solo(), wm = pm_want_mute();
+    char b[40];
+    for (i = 0; i < NTRK; i++) {                        /* T1..T4: black keys 1..4 */
+        uint32_t m = (pm_mutes() >> i) & 1u, s = (perf_psolo >> i) & 1u, wmi = (wm >> i) & 1u, wsi = (so >> i) & 1u;
+        uint32_t st = wmi != m || wsi != s ? LS_WAIT : wsi ? LS_HELD : wmi ? LS_MUTE : LS_OFF;
+        char nm[8] = {PM_BNOTE[i], '#', ' ', 0};      /* ("G# MUTE": the key in the name, the track's icon over it) */
+        str_cpy(nm + 3, wsi ? "SOLO" : wmi ? "MUTE" : "ON", sizeof nm - 3);
+        lcell(LC_X(i), 4, LC_H, 0, trk_icon(i, 0), 0, nm, st, 0);
+    }
+    for (i = 0; i < 4u; i++) {                          /* scenes: black keys 5..8 */
+        char nm[3] = {'S', (char)('1' + i), 0};
+        pm_cell(LC_X(i), 50, NTRK + i, nm, pm.last == i + 1u && PM_STORED(i) ? LS_SEL : PM_STORED(i) ? LS_OFF : LS_DIM);
+    }
+    pm_cell(LC_X(0), 74, 8, pm_store[4] & PM_QUANT ? "BAR" : "NOW", pm_store[4] & PM_QUANT ? LS_SEL : LS_OFF);
+    pm_cell(LC_X(1), 74, 9, "DUCK", held & PF_BIT(PF_DUCK) ? LS_SEL : LS_OFF);
+    pm_cell(LC_X(2), 74, 10, "CLEAR", LS_OFF);
+    GFX_HOOK_ALIGN(LC_X(3), 74, LC_X(3) + LC_W, 94, AL_HV, "perform knobs mode centred");
+    cv_text_in(LC_X(3), 74 + CAP_IN(S, 20), LC_W, &AF_S, pm.knobs ? "K: FX" : "K: LEVEL", T_MID, T_SURF);
+    str_cpy(b, "FX:", sizeof b);                        /* the effects on (white keys, DUCK) */
+    for (e = 0; e < PF_NFX && str_len(b) < 30u; e++)
+        if ((held >> e) & 1u) {
+            str_cpy(b + str_len(b), " ", sizeof b - str_len(b));
+            str_cpy(b + str_len(b), PF_CELL[e], sizeof b - str_len(b));
+        }
+    if (str_len(b) == 3u)
+        str_cpy(b, "WHITE KEYS: EFFECTS", sizeof b);
+    GFX_HOOK_ALIGN(0, 98, 0, 118, AL_V, "perform effects line on its middle");
+    cv_text_on(8, 98 + CAP_IN(S, 20), &AF_S, b, str_len(b) == 19u ? T_MID : T_THEME, T_SURF);
 }
 static void layer_glo(void)
 {
@@ -1258,7 +1331,13 @@ static void layer_cards(uint32_t l)
     char val[12];
     const char *unit;
     uint32_t c;
-    if (l == LAYER_FX) {                                /* FILTER CRUSH THROW DEPTH */
+    if (l == LAYER_FX && pm_on() && !pm.knobs) {        /* 0.7 PERFORM: T1..T4 LEVEL */
+        for (c = 0; c < NTRK; c++) {
+            param_format(&TP[P_LEVEL], trk[c].p[P_LEVEL], val, &unit);
+            draw_column(c, "LEVEL", val, unit, glo_sounding(c) ? VAL(c) : T_DIM, RATIO(&TP[P_LEVEL], trk[c].p[P_LEVEL]),
+                        trk_icon(c, 1));
+        }
+    } else if (l == LAYER_FX) {                         /* FILTER CRUSH THROW DEPTH */
         int32_t m = perf_k[0];
         fmt_int(val, m < 0 ? -m : m);
         draw_column(0, "FILTER", m ? val : "OFF", m < 0 ? "LP" : m > 0 ? "HP" : "", m ? VAL(0u) : T_DIM, (m + 100) * 5,
@@ -1331,7 +1410,7 @@ static void draw_layer(void)
     if (l == LAYER_FX)
     {
         uint32_t p;
-        sig += (perf_kill ? 0u : perf_held | perf_latched) * 31u + perf_latch_on * 11u + perf_act * 131u + perf_avail() * 7u + (uint32_t)perf_harm_on() * 3u +
+        sig += pm_sig() + (perf_kill ? 0u : perf_held | perf_latched) * 31u + perf_latch_on * 11u + perf_act * 131u + perf_avail() * 7u + (uint32_t)perf_harm_on() * 3u +
                fx_key_held() * 4099u;
         for (p = 0; p < PF_KEYS; p++)                   /* (the key map) */
             sig = sig * 33u + perf_map[p];
@@ -1354,7 +1433,9 @@ static void draw_layer(void)
         cv_begin(240, H_GRAPH, T_BG);
         cv_rrect(3, 0, 234, H_GRAPH, 5, T_SURF, T_BG);
         cv_bg = T_SURF;
-        if (l == LAYER_FX)
+        if (l == LAYER_FX && pm_on() && !fx_key_held())
+            layer_perform();                            /* (a white key held: the map, PRESETS assigns it) */                            /* (FORGE ONE 0.7: the FX layer locked) */
+        else if (l == LAYER_FX)
             layer_fx();
         else if (l == LAYER_GLO)
             layer_glo();
@@ -1370,10 +1451,12 @@ static void draw_layer(void)
     }
     if (ui.force) {                                     /* the footer: what the keys, knobs and buttons do */
         cv_begin(240, H_FOOT, T_BG);
-        const khint_t *ft = l == LAYER_FX && fx_key_held() ? FX_KEY_FOOT : l == LAYER_FX && perf_latch_on ? FX_LATCH_FOOT :
+        const khint_t *ft = l == LAYER_FX && fx_key_held() ? FX_KEY_FOOT : l == LAYER_FX && pm_on() ? PM_FOOT :
+                            l == LAYER_FX && perf_latch_on ? FX_LATCH_FOOT :
                             l == LAYER_GLO && ui.lock == LAYER_GLO ? GLO_LOCK_FOOT : l == LAYER_SEQ && (eu.on || fg.on || fs.on) ? EU_FOOT :
                             LAYERS[l].foot;
-        int h = help_on() && help_row(l == LAYER_SEQ && eu.on ? H_EUCLID : l == LAYER_SEQ && fg.on ? H_FORGE : l == LAYER_SEQ && fs.on ? H_STARTER : HELP_LAYER[l], 21);   /* 1.5, HELP ON: a
+        int h = help_on() && help_row(l == LAYER_SEQ && eu.on ? H_EUCLID : l == LAYER_SEQ && fg.on ? H_FORGE : l == LAYER_SEQ && fs.on ? H_STARTER :
+                                l == LAYER_FX && pm_on() ? H_PERFORM : HELP_LAYER[l], 21);   /* 1.5, HELP ON: a
                                                          * second row, what this one does not say */
         cv_key_row(8, 232, h ? 2 : 9, ft, ft[2].act ? 3u : 2u, 7u, T_BG);
         cv_blit(0, Y_FOOT);

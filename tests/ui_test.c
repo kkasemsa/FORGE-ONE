@@ -3224,9 +3224,11 @@ static int test_layer(void)
     key_up(white(10)); key_down(white(12)); frame();
     ok &= perf_held == PF_BIT(PF_RTHR) && (kb_layer >> white(12)) & 1u && !gates();   /* (1.5.1: D5 REV THROW) */
     key_up(white(12)); key_down(white(14)); frame();
-    ok &= !perf_held && (kb_layer >> white(14)) & 1u && !gates();
-    key_up(white(14)); btn_up(B_FX); frame();
-    bad += check("FX + G4 / A4: OCT UP / OCT DN held, silent, no MIDI; KNOB 4 turns; B4 FLANGER, D5 REV THROW, F5 nothing; FX let go: K4 0",
+    ok &= perf_held == PF_BIT(PF_CTHR) && (kb_layer >> white(14)) & 1u && !gates();   /* (FORGE ONE 0.7: F5 CUTOFF THROW) */
+    key_up(white(14)); key_down(white(15)); frame();
+    ok &= perf_held == PF_BIT(PF_DTHR) && !gates();     /* (.. G5 DIST THROW) */
+    key_up(white(15)); btn_up(B_FX); frame();
+    bad += check("FX + G4 / A4: OCT UP / OCT DN held, silent, no MIDI; KNOB 4 turns; B4 FLANGER, D5 REV THROW, F5 G5 CUT / DIST THROW; FX let go: K4 0",
                  ok && !perf_held && !ui.layer && !perf_k[3] && mo_w == mo);
     /* REVERB > TYPE (FX family, global): ROOM / SPRING / HALL on KNOB 1 (HALL at power-on since 1.2), kept by a
      * project */
@@ -3350,10 +3352,8 @@ static int test_layer(void)
         a = leds_at(0); b2 = leds_at(250);
         k = white(1);
         ok = ((a >> k) & 1u) && ((b2 >> k) & 1u);                    /* held: lit */
-        for (i = 0; i < 14u; i++)                                     /* the other effects (F3 .. E5): breathe */
-            ok &= i == 1u || ((a ^ b2) >> white(i)) & 1u;
-        for (i = 14; i < 16u; i++)                                    /* F5 G5: no effect, dark */
-            ok &= !((a | b2) >> white(i) & 1u);
+        for (i = 0; i < 16u; i++)                                     /* the other effects (F3 .. G5): breathe */
+            ok &= i == 1u || ((a ^ b2) >> white(i)) & 1u;             /* (FORGE ONE 0.7: F5 G5 the throws) */
         ok &= ((a ^ b2) >> key_at(1, 0)) & 1u && !((a | b2) >> key_at(1, 4) & 1u);   /* a mute breathes, a spare black dark */
         song.g[G_BPM] = 72;
         a = leds_at(0); b2 = leds_at(250);
@@ -3362,7 +3362,7 @@ static int test_layer(void)
         song.g[G_BPM] = 120;
     }
     key_up(white(1)); btn_up(B_FX); frame();
-    bad += check("map LEDs: held lit, the 14 effects breathe (1.5.1: D5 E5 the throws), F5 G5 and a too-long REPEAT dark", ok);
+    bad += check("map LEDs: held lit, the 16 effects breathe (1.5.1: D5 E5, 0.7: F5 G5 the throws), a too-long REPEAT dark", ok);
     usb.config = 0;
     return bad;
 }
@@ -6481,7 +6481,7 @@ static int lk_same(uint32_t l)                      /* nothing changed but the l
     uint32_t i, j;
     for (i = 0; i < NTRK; i++)
         for (j = 0; j < P_COUNT; j++) {
-            int own = (l == LAYER_GLO && j == P_LEVEL) ||
+            int own = ((l == LAYER_GLO || l == LAYER_FX) && j == P_LEVEL) ||   /* (FX: 0.7 PERFORM's levels) */
                       (l == LAYER_SCL && i == 0u && (j == P_ROOT || j == P_SCALE || j == P_CHRD || j == P_VOIC)) ||
                       (l == LAYER_EDIT && i == 0u && (j < P_AMODE || j > P_AORDER));   /* (a load keeps the ARP) */
             if (lk_p[i][j] != trk[i].p[j] && !own)
@@ -6592,7 +6592,8 @@ static void rc_enc(uint32_t role, int32_t s, int late)
  * the detents come after the reads. a: the state with the layer open, b: after it closed */
 static void rc_run(uint32_t lb, uint32_t mode, uint32_t k, uint32_t pg, int late, rc_state_t *a, rc_state_t *b)
 {
-    int32_t d = (lb == B_GLO || (lb == B_FX && k == 3u)) ? -1 : 1;   /* (GLO LEVEL, FX DEPTH: room to move) */
+    int32_t d = (lb == B_GLO || (lb == B_FX && (k == 3u || mode == 2u))) ? -1 : 1;   /* (GLO LEVEL, FX DEPTH, 0.7
+                                                     * PERFORM's LEVEL: room to move) */
     uint32_t i;
     ui_power_on();
     if (pg < NPAGES) { ui.home = 0; ui.page = (uint8_t)pg; page_entered(); }
@@ -6652,9 +6653,10 @@ static int test_layer_knob_race(void)
                     ok = !memcmp(&a0, &a1, sizeof a0) && !memcmp(&b0, &b1, sizeof b0) &&
                          lk_same(LL[l] == LAYER_EDIT && k == 2u ? 0u : LL[l]) && song.sel == 0u &&
                          !perf_k[0] && !perf_k[1] && !perf_k[2] && !perf_k[3];
-                    if (LL[l] == LAYER_FX)                  /* the layer's own control moved */
+                    if (LL[l] == LAYER_FX && mode != 2u)    /* the layer's own control moved */
                         ok &= a1.k[k] == 3;
-                    else if (LL[l] == LAYER_GLO)
+                    else if (LL[l] == LAYER_GLO || LL[l] == LAYER_FX)   /* (FORGE ONE 0.7: FX locked is PERFORM:
+                                                             * T1..T4 LEVEL, as GLO's) */
                         ok &= a1.p[k][P_LEVEL] == lk_p[k][P_LEVEL] - 3;
                     else if (LL[l] == LAYER_SCL)
                         ok &= a1.p[0][LY_SCL.id[k]] != lk_p[0][LY_SCL.id[k]];
@@ -7103,11 +7105,19 @@ static int test_layer_lock(void)
     ok = (perf_held & PF_BIT(PF_LPF)) && !gates();
     key_up(white(4)); frame();
     ok &= !(perf_held & PF_BIT(PF_LPF));
+    {   /* (FORGE ONE 0.7: locked is PERFORM: KNOB 1..4 the levels; OCT+ tapped: the macros) */
+        int16_t l1 = trk[1].p[P_LEVEL];
+        turn(EN_K2, 3);
+        ok &= trk[1].p[P_LEVEL] == l1 + 3 && !perf_k[1] && str_eq(layer_head(), "[FX] PERFORM");
+        press(B_OCTUP); frames(4);
+        ok &= pm.knobs == 1u && msg_is("KNOBS: FX MACROS");
+    }
     turn(EN_K2, 20);
     ok &= perf_k[1] == 20;
     press(B_FX); frames(16);
     ok &= !ui.lock && !perf_k[1];                      /* (closed: the macros snap back, as FX let go) */
-    bad += check("  FX locked: a key's effect while held, KNOB 2 CRUSH; closed: the macros snap back", ok);
+    pm.knobs = 0;
+    bad += check("  FX locked (PERFORM): a key's effect while held, KNOB 2 T2 LEVEL, OCT+ the macros, KNOB 2 CRUSH; closed: they snap back", ok);
     ui_power_on();
     go_title("ENV"); frame();
     press(B_SCL); press(B_SCL); frames(100);
@@ -7462,14 +7472,21 @@ static int test_fx_map(void)
     ok &= perf_map[10] == PF_RTHR && perf_held == PF_BIT(PF_RTHR) && msg_is("B4 REV THROW");
     turn(EN_PRESET, 1); keyboard_block();
     ok &= perf_map[10] == PF_ETHR && perf_held == PF_BIT(PF_ETHR) && msg_is("B4 ECHO THROW");
+    turn(EN_PRESET, 1); keyboard_block();               /* FORGE ONE 0.7: CUTOFF THROW, DIST THROW, DUCK */
+    ok &= perf_map[10] == PF_CTHR && msg_is("B4 CUTOFF THROW");
+    turn(EN_PRESET, 1); keyboard_block();
+    ok &= perf_map[10] == PF_DTHR && msg_is("B4 DIST THROW");
+    turn(EN_PRESET, 1); keyboard_block();
+    ok &= perf_map[10] == PF_DUCK && perf_held == PF_BIT(PF_DUCK) && msg_is("B4 DUCK");
     turn(EN_PRESET, 1); keyboard_block();               /* past the last: NONE */
     ok &= perf_map[10] == PF_N && !perf_held && msg_is("B4 NONE") && (kb_layer >> b4) & 1u;
     turn(EN_PRESET, 1); keyboard_block();               /* round: the first */
     ok &= perf_map[10] == PF_R8 && perf_held == PF_BIT(PF_R8);
-    turn(EN_PRESET, -1); turn(EN_PRESET, -1); turn(EN_PRESET, -1); turn(EN_PRESET, -1); keyboard_block();
+    turn(EN_PRESET, -1); turn(EN_PRESET, -1); turn(EN_PRESET, -1); turn(EN_PRESET, -1); turn(EN_PRESET, -1);
+    turn(EN_PRESET, -1); turn(EN_PRESET, -1); keyboard_block();
     ok &= perf_map[10] == PF_PHS && perf_held == PF_BIT(PF_PHS) && lys.rp_dirty;
     ok &= (TSEL->preset | (uint32_t)TSEL->eng_req << 8) == snd && !gates();
-    bad += check("  FX + B4 held + PRESETS: PHASER, REV THROW, ECHO THROW, NONE, round to REPEAT 1/8 and back, each held at once; no sound load", ok);
+    bad += check("  FX + B4 held + PRESETS: PHASER, REV THROW, ECHO THROW, CUTOFF / DIST THROW, DUCK, NONE, round to REPEAT 1/8 and back, each held at once; no sound load", ok);
     btn_down(B_EDIT); frame(); btn_up(B_EDIT); frame(); keyboard_block();
     ok = perf_map[10] == PF_FLG && perf_held == PF_BIT(PF_FLG) && msg_is("B4 FLANGER (DEF)") && ui.layer == LAYER_FX;
     bad += check("  EDIT with the key held: its default (FLANGER) back, the layer open", ok);
@@ -7522,8 +7539,8 @@ static int test_fx_map(void)
     bad += check("  locked (FX double tap): G3 held + PRESETS: REPEAT 1/32; EDIT: 1/16, the lock stays; no key: EDIT closes it", ok);
     {   /* the cells name what the keys hold: G3 "1/8" now, B4 FLNG */
         ok = str_eq(PF_CELL[perf_map[1]], "1/8") && str_eq(PF_CELL[perf_map[10]], "FLNG") && str_eq(PF_CELL[perf_map[12]], "VERB") &&
-             str_eq(PF_CELL[perf_map[13]], "ECHO") && perf_map[14] == PF_N;
-        bad += check("  the map's cells: G3 1/8 (remapped), B4 FLNG, D5 VERB, E5 ECHO (1.5.1's throws), F5 empty", ok);
+             str_eq(PF_CELL[perf_map[13]], "ECHO") && str_eq(PF_CELL[perf_map[14]], "CUT") && str_eq(PF_CELL[perf_map[15]], "DIST");
+        bad += check("  the map's cells: G3 1/8 (remapped), B4 FLNG, D5 VERB, E5 ECHO (1.5.1's throws), F5 CUT, G5 DIST (0.7)", ok);
     }
     memset(fx_keys, 0, 10);
     frame();

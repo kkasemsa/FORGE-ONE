@@ -93,9 +93,11 @@ static struct {                          /* HALL's state (in the pool: no .bss) 
  * (a little bias = even harmonics) -> tone low-pass that closes with drive ->
  * make-up gain (straight into tanh over the full band, it would sound like a
  * broken digital fuzz). State per part (track_t dist_*). */
+static volatile int32_t perf_dthr;      /* FORGE ONE 0.7: DIST THROW's drive now (perform.c), 0 = none */
+static int drum_part(const track_t *t) { return ENGINES[t->engine % NENGINES] == &ENG_DRUM; }   /* (DUCK spares it) */
 static void track_dist(track_t *t, int32_t *b, uint32_t n)
 {
-    int32_t d = t->p[P_DIST], i, g, k, mk, bias = 2400, b0;
+    int32_t d = t->p[P_DIST] > perf_dthr ? t->p[P_DIST] : perf_dthr, i, g, k, mk, bias = 2400, b0;
     if (!d)
         return;                                         /* states kept: switching on does not click */
     g = 4096 + d * d * 2;                                /* Q12: 1x .. ~9x, gentle at first */
@@ -841,6 +843,8 @@ static __attribute__((noinline)) void mix_spread(track_t *t, int32_t *b, uint32_
     slicer_track_sd(t, b, d, n);
     if ((pf.mute >> (t - trk)) & 1u)
         perf_mute_sd((uint32_t)(t - trk), b, d, n);
+    if (pf.duck && !drum_part(t))
+        perf_duck(b, d, n);                             /* (FORGE ONE 0.7: DUCK) */
     for (i = 0; i < n; i++) {
         int32_t x = ((b[i] >> 2) * lvl) >> 10, a = x < 0 ? -x : x, y = ((d[i] >> 2) * lvl) >> 10;
         int32_t xs = clamp(x, -xmax, xmax);
@@ -909,6 +913,8 @@ static void mix_part(track_t *t, uint32_t n SM_DECL)
         slicer_track(t, b, n);                          /* slicer.c: before the level, pan and sends */
         if ((pf.mute >> (t - trk)) & 1u)
             perf_mute((uint32_t)(t - trk), b, n);       /* perform.c: a black key in the FX layer */
+        if (pf.duck && !drum_part(t))
+            perf_duck(b, 0, n);                         /* perform.c (FORGE ONE 0.7): DUCK, the kick's pump */
     }
     if (!T_SPREAD(t)) {                                /* (the mix's values read after the calls: none is held over
                                                          * them, no spill in the loop: the ISR's cost as before 1.5) */

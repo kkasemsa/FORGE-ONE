@@ -654,7 +654,8 @@ static void input_off(track_t *t, uint32_t note)
 static uint32_t perf_key(uint32_t k)
 {
     uint32_t p = key_place(k);
-    return !key_black(k) ? (p < PF_KEYS ? perf_map[p] : PF_N) : p < NTRK ? PF_M1 + p : PF_N;
+    return !key_black(k) ? (p < PF_KEYS ? perf_map[p] : PF_N) : p < NTRK && !perf_pmode ? PF_M1 + p : PF_N;   /* (0.7:
+                                                 * PERFORM's black keys are the UI's: ui_perform.c) */
 }
 
 /* a key of the FX layer down (FX held) / up: the effect it holds. kb_fx: the one it took (+ 1, 0 none), so a key
@@ -1399,6 +1400,13 @@ static void events_block(uint32_t n)
     if (aud_req)
         seq_audition();                               /* (STEP PREVIEW: a step sounds, stopped) */
     chain_tick(seq_n);
+    if (pq_pend && song.playing &&                    /* FORGE ONE 0.7 PERFORM QUANT: at the bar, before its first */
+        (clk_pos == CLK_START || (clk_step == 15u && clk_pos + seq_n >= div_samples(2)))) {   /* step plays */
+        for (i = 0; i < NTRK; i++)
+            trk[i].p[P_MUTE] = (int16_t)((pq_mute >> i) & 1u);
+        perf_psolo = pq_solo;
+        pq_pend = 0;
+    }
     for (i = 0; i < NTRK; i++)
         seq_tick(&trk[i], seq_n);
     if (cin_flush)

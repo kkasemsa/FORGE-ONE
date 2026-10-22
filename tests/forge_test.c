@@ -15,6 +15,7 @@
  *   rerolls    (0.4) C4 new notes, D4 a new rhythm while open; K1 starts them again; VEL by place
  *   golden     (0.3) pinned seeds: tests/forge_golden.txt
  *   DRUM       (0.5) F5 opens: hits only, KICK on 1, DENSITY, C4 LOW / D4 HATS, the rules over the styles
+ *   PERFORM    (0.7) FX locked: mutes / solos latched, QUANT, scenes, DUCK, CLEAR, knobs; throws back; DUCK
  *   STARTER    (0.6) G5: four tracks' sounds and patterns, seeded; K1..K4, C4 / D4; OCT- all four back; OCT+
  *   0.5.1      step 1 ROOT in every SCALE / ROOT; no drum fill on step 1 at LEN 2..4; STYLE wraps, resets C4 / D4
  * Built and run by tests/run_tests.sh. */
@@ -757,9 +758,144 @@ static int test_starter(void)
     return bad;
 }
 
+/* 0.7 PERFORM (ui_perform.c, perform.c): FX locked; latched mutes / solos, QUANT at the bar, scenes, DUCK, CLEAR,
+ * the knobs; the throws flow back; DUCK pumps the synth tracks on a DRUM track's kick */
+static void pm_tap_black(uint32_t b) { key_down(black(b)); frame(); key_up(black(b)); frame(); }
+static void pm_blocks(uint32_t n) { int32_t o[2 * CTL]; while (n--) mix_block(o, CTL); }
+static int test_perform(void)
+{
+    int bad = 0, ok;
+    uint32_t i;
+    ui_power_on();
+    memset(pm_store, 0, 5);
+    go_title("ENV"); frame();
+    press(B_FX); press(B_FX); frames(100);
+    ok = ui.lock == LAYER_FX && pm_on() && perf_pmode && str_eq(layer_head(), "[FX] PERFORM");
+    pm_tap_black(0);
+    ok &= trk[0].p[P_MUTE] == 1 && !(perf_held & PF_MUTE);
+    pm_tap_black(0);
+    ok &= trk[0].p[P_MUTE] == 0;
+    bad += check("PERFORM (0.7): FX double tap; black key 1 mutes T1 latched (P_MUTE, not the held mute), again unmutes", ok);
+    btn_down(B_OCTUP); frame();
+    pm_tap_black(1);
+    btn_up(B_OCTUP); frame();
+    ok = perf_psolo == 2u && !pm.knobs && glo_sounding(1) && !glo_sounding(0);
+    press(B_OCTUP); frames(2);
+    ok &= pm.knobs == 1u && msg_is("KNOBS: FX MACROS");
+    press(B_OCTUP); frames(2);
+    ok &= !pm.knobs;
+    bad += check("  OCT+ held + black key 2: T2 solo, latched (no knob switch); OCT+ alone: the knobs LEVELS / MACROS", ok);
+    pm_tap_black(4);                                    /* D#4: scene 1, empty */
+    ok = msg_is("SCENE 1 EMPTY") && !PM_STORED(0);
+    key_down(black(4));
+    for (i = 0; i < 50u; i++)                           /* (800 ms: stored) */
+        frame();
+    ok &= PM_STORED(0) && pm_store[0] == (2u << 4) && msg_is("SCENE 1 STORED");
+    key_up(black(4)); frames(2);
+    pm_tap_black(10);                                   /* F#5: CLEAR */
+    ok &= !perf_psolo && !trk[0].p[P_MUTE] && msg_is("CLEAR: ALL ON");
+    pm_tap_black(4);                                    /* recall scene 1: T2 solo */
+    ok &= perf_psolo == 2u && msg_is("SCENE 1");
+    bad += check("  scenes: a tap of an empty one says how, held 600 ms stores (mutes, solos), CLEAR, a tap recalls", ok);
+    pm_tap_black(10);
+    pm_tap_black(8);                                    /* C#5: QUANT */
+    ok = (pm_store[4] & PM_QUANT) && msg_is("QUANT: NEXT BAR");
+    transport_req = 1;                                  /* PLAY, then on to the 4th 1/16 of the bar */
+    pm_blocks(1);
+    for (i = 0; i < 4000u && !(clk_step == 3u && clk_pos < CTL); i++)
+        pm_blocks(1);
+    pm_tap_black(2);                                    /* T3 mute: waits */
+    ok &= pq_pend && !trk[2].p[P_MUTE];
+    {
+        uint32_t blocks = 0, p = div_samples(2);
+        while (pq_pend && blocks < 8000u) {             /* the ISR's blocks until the bar */
+            int32_t o[2 * CTL];
+            mix_block(o, CTL);
+            blocks++;
+        }
+        if (!(!pq_pend && trk[2].p[P_MUTE] == 1 && blocks * CTL >= 11u * p && blocks * CTL <= 13u * p + CTL))
+            printf("    QUANT: %u samples (1/16 %u), pending %u, T3 MUTE %d\n", blocks * CTL, p, pq_pend, trk[2].p[P_MUTE]);
+        ok &= !pq_pend && trk[2].p[P_MUTE] == 1 && blocks * CTL >= 11u * p && blocks * CTL <= 13u * p + CTL;
+    }
+    transport_req = 2;                                  /* STOP */
+    pm_blocks(1);
+    pm_tap_black(2);                                    /* stopped: at once */
+    ok &= !trk[2].p[P_MUTE] && !pq_pend;
+    bad += check("  QUANT: playing, a mute waits for the bar (the ISR puts it in before the bar's first step); stopped: at once", ok);
+    pm_tap_black(9);                                    /* D#5: DUCK */
+    ok = (perf_latched & PF_BIT(PF_DUCK)) && msg_is("DUCK ON");
+    pm_tap_black(9);
+    ok &= !(perf_latched & PF_BIT(PF_DUCK));
+    press(B_FX); frames(16);
+    ok &= !pm_on() && !perf_pmode && !ui.lock;
+    bad += check("  DUCK on / off; FX tapped: PERFORM closed (FX held: black keys mute while held again)", ok);
+    /* the throws and DUCK in the audio */
+    {
+        int32_t d0, dmax = 0;
+        uint32_t back = 0;
+        perf_latched = perf_held = 0;
+        perf_press(PF_DTHR, 1);
+        for (i = 0; i < 64u; i++)                       /* (CTL samples a block) */
+            perf_begin(CTL);
+        ok = perf_dthr == THR_DRIVE;
+        perf_press(PF_DTHR, 0);
+        perf_begin(CTL);
+        d0 = perf_dthr;
+        for (i = 0; i < 4000u && perf_dthr; i++)
+            perf_begin(CTL);
+        back = i * CTL;
+        ok &= d0 > THR_DRIVE * 9 / 10 && back > 30000u && back < 34000u;
+        bad += check("  DIST THROW: every DIST at least 100 while held; let go, back to the tracks' own over 0.74 s", ok);
+        perf_press(PF_CTHR, 1);
+        for (i = 0; i < 6000u / CTL; i++)
+            perf_begin(CTL);
+        ok = pf.lc < PF_TOP / 3 && pf.ct == 32768;
+        perf_press(PF_CTHR, 0);
+        for (i = 0; i < 4000u / CTL; i++)
+            perf_begin(CTL);
+        ok &= pf.ct > 16384 && pf.lc < PF_TOP;          /* (0.1 s after: still well down) */
+        for (i = 0; i < 40000u / CTL; i++)
+            perf_begin(CTL);
+        ok &= !pf.ct && pf.lc == PF_TOP;
+        bad += check("  CUTOFF THROW: the LPF down while held; let go, it opens again over 0.74 s", ok);
+        perf_latched = PF_BIT(PF_DUCK);
+        trk[3] = trk[3];
+        set_engine_of(&trk[3], ENGI_DRUM);
+        trk_note_on(&trk[3], 36, 100);                  /* a kick */
+        ok = perf_kick == 1u;
+        perf_begin(CTL);
+        for (i = 0; i < 60u; i++) {
+            dmax = pf.dd1 > dmax ? pf.dd1 : dmax;
+            perf_begin(CTL);
+        }
+        ok &= dmax > 20000 && pf.dd1 < dmax && !perf_kick;
+        for (i = 0; i < 40000u / CTL && pf.duck; i++)
+            perf_begin(CTL);
+        ok &= !pf.duck && !pf.dd1;
+        {   /* a synth track's block ducked, the drum track's not (fx.c drum_part) */
+            static int32_t b[CTL];
+            trk_note_on(&trk[3], 36, 100);
+            perf_begin(CTL);
+            perf_begin(CTL);
+            for (i = 0; i < CTL; i++)
+                b[i] = 10000;
+            perf_duck(b, 0, CTL);
+            ok &= b[CTL - 1] < 6000 && drum_part(&trk[3]) && !drum_part(&trk[0]);
+        }
+        perf_latched = 0;
+        trk_note_on(&trk[3], 36, 100);                  /* DUCK off: a kick does nothing */
+        for (i = 0; i < 40000u / CTL; i++)
+            perf_begin(CTL);
+        ok &= !pf.duck;
+        bad += check("  DUCK: a DRUM track's kick dips the synth tracks (to -12 dB, back over an 8th); off: nothing", ok);
+    }
+    memset(pm_store, 0, 5);
+    return bad;
+}
+
 int main(void)
 {
-    int bad = test_open() + test_styles() + test_evolve() + test_names() + test_chords() + test_reroll() + test_golden() + test_drum() + test_051() + test_starter();
+    int bad = test_open() + test_styles() + test_evolve() + test_names() + test_chords() + test_reroll() + test_golden() + test_drum() + test_051() + test_starter() + test_perform();
     printf("%s\n", bad ? "FORGE TEST FAILED" : "forge tests passed");
     return bad != 0;
 }

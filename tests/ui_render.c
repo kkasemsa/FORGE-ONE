@@ -664,6 +664,8 @@ static void state(void)                          /* a playing song with steps on
     seq_fill = 0;                                /* (1.5.5: GLO's FILL, held in layer_glo_fill only; */
     eu.on = 0;                                   /* SEQ TOOLS' EUCLID, open in layer_seq_euclid*) */
     fg.on = 0; fs.on = 0;                        /* (FORGE ONE, open in layer_seq_forge*, layer_seq_starter*) */
+    pm.knobs = 0; pm.last = 0; perf_psolo = 0; pq_pend = 0;   /* (0.7 PERFORM, in layer_perform*) */
+    memset(pm_store, 0, 5);
     if (large_on) ui_prefs |= PREF_LARGE;
     song.playing = 1;
     song.g[G_BPM] = 124;
@@ -774,7 +776,7 @@ enum { S_HOME, S_HOME_IDLE, S_MESSAGE, S_MESSAGE_KEY, S_MESSAGE_NOFILE, S_PRESET
        S_DETAIL_COND, S_DETAIL_FILL, S_AUTO_COND, S_GLO_FILL, S_SEQ_EUCLID, S_SEQ_EUCLID_DRUM, S_SEQ_EUCLID_64,
        S_MENU_SELECT, S_PROJECT_ERASE, S_CONFIRM_ERASE_PROJ, S_TOOLS_CLEAN, S_CONFIRM_CLEAN,
        S_MENU_MIDI_TRACK, S_MENU_MIDI_TCH_UNUSED, S_MENU_MIDI_AUTO, S_HOME_TRACKS_MIDI, S_MIXER_MIDI, S_EDIT_PHASE_FOLD,
-       S_SEQ_FORGE, S_SEQ_FORGE_DUB, S_SEQ_FORGE_AMBIENT, S_SEQ_FORGE_64, S_SEQ_FORGE_DRUM, S_SEQ_FORGE_DRUM_64, S_SEQ_STARTER, S_SEQ_STARTER_AMBIENT, S_COUNT };
+       S_SEQ_FORGE, S_SEQ_FORGE_DUB, S_SEQ_FORGE_AMBIENT, S_SEQ_FORGE_64, S_SEQ_FORGE_DRUM, S_SEQ_FORGE_DRUM_64, S_SEQ_STARTER, S_SEQ_STARTER_AMBIENT, S_PERFORM, S_PERFORM_FX, S_COUNT };
 static const char *const S_NAME[S_COUNT] = {"home", "home_idle", "message", "message_key", "message_nofile", "presets", "presets_nofav", "user",
     "phrases", "project", "tools", "song_empty", "song", "step", "auto_steps", "auto_add_chance", "automation", "drum",
     "drum_hand", "drum_cym", "mixer", "mixer_from_home", "mixer_pan", "env", "env_dest", "lfo", "mod", "fx", "slicer", "dly", "scl", "chord", "chord_wide", "chord_off", "chord_kit", "arp",
@@ -807,7 +809,7 @@ static const char *const S_NAME[S_COUNT] = {"home", "home_idle", "message", "mes
     "menu_select", "project_erase", "confirm_erase_project", "tools_clean", "confirm_clean",
     "menu_midi_track", "menu_midi_channels_unused", "menu_midi_auto_select", "home_tracks_midi", "mixer_midi", "edit_phase_fold",
     "layer_seq_forge", "layer_seq_forge_dub", "layer_seq_forge_ambient", "layer_seq_forge_64", "layer_seq_forge_drum",
-    "layer_seq_forge_drum_64", "layer_seq_starter", "layer_seq_starter_ambient"};
+    "layer_seq_forge_drum_64", "layer_seq_starter", "layer_seq_starter_ambient", "layer_perform", "layer_perform_fx"};
 
 /* the STEP page's piano roll (ui_graph.c graph_roll) on track 1, stopped unless said: an empty pattern; ACID in
  * A minor; POLY chords (Am7 F C G, tied); a line with ties, slides and accents in C major; LEN 32 on its second
@@ -1374,6 +1376,22 @@ static void setup(int s)
     /* #83: locked open by a double tap (the lock after the header's name): EDIT and FX */
     case S_LAYER_LOCK: go_title("ENV"); ui.layer = ui.lock = LAYER_EDIT; break;
     case S_LAYER_LOCK_FX: go_title("ENV"); ui.layer = ui.lock = LAYER_FX; break;
+    /* FORGE ONE 0.7: PERFORM (FX locked): T2 muted, T3 soloed, T1's mute waiting for the bar, scenes 1 and 3 stored
+     * (1 the last), DUCK on, VERB held, HELP ON; then the knobs on the macros, QUANT on, CUT and DIST held */
+    case S_PERFORM: case S_PERFORM_FX:
+        go_title("ENV"); ui.layer = ui.ly = ui.lock = LAYER_FX; ui.ly_t0 |= 2u; song.playing = 1;
+        memset(pm_store, 0, 5);
+        if (s == S_PERFORM) {
+            ui_prefs2 |= PREF_HELP >> 16;
+            trk[1].p[P_MUTE] = 1; perf_psolo = 4u;
+            pq_mute = 3u; pq_solo = 4u; pq_pend = 1;
+            pm_store[0] = 2u; pm_store[2] = 0x10u; pm_store[4] = 5u; pm.last = 1;
+            perf_latched = PF_BIT(PF_DUCK); perf_held = perf_act = PF_BIT(PF_RTHR);
+        } else {
+            pm.knobs = 1; pm_store[4] = PM_QUANT; perf_k[0] = -40; perf_k[2] = 60;
+            perf_held = perf_act = PF_BIT(PF_CTHR) | PF_BIT(PF_DTHR);
+        }
+        break;
     /* 1.2 SEQ TOOLS (SEQ held on STEP): a melodic track (the sequence's tools), the DRUM grid (+ BEAT, the lane's tools,
      * the lanes; CLAP selected), a song playing (every tool dimmed: STOP TO EDIT) */
     case S_SEQ_TOOLS: go_page(GR_ROLL); ui.layer = LAYER_SEQ; break;

@@ -47,6 +47,7 @@
  * PF_M1), then the mutes of the black keys */
 enum { PF_R8, PF_R16, PF_R32, PF_REV, PF_LPF, PF_HPF, PF_TAPE, PF_FRZ, PF_OUP, PF_ODN, PF_FLG, PF_PHS,
        PF_RTHR, PF_ETHR,                      /* 1.5.1: REV THROW, ECHO THROW */
+       PF_CTHR, PF_DTHR, PF_DUCK,             /* FORGE ONE 0.7: CUTOFF THROW, DIST THROW, DUCK (the sidechain) */
        PF_M1, PF_N = PF_M1 + NTRK };
 #define PF_NFX PF_M1                          /* the effects a white key can hold */
 #define PF_KEYS 16u                           /* the white keys F3 .. G5 */
@@ -76,13 +77,23 @@ enum { BM_NONE, BM_LOOP, BM_TAPE, BM_FRZ, BM_HARM };
 #define PH_FB 13107                           /* .. the feedback, Q15: 0.4 */
 #define THR_SLOPE 64                          /* REV / ECHO THROW: the sends' glide a sample, Q15 (11.6 ms end to end) */
 #define THR_FB 22938                          /* ECHO THROW: the delay's feedback while held at least this, Q15 (0.7) */
+/* FORGE ONE 0.7: the throws (REV ECHO CUTOFF DIST) come in at THR_SLOPE and, let go, flow back to where they were at
+ * THR_REL a sample (Q15: 0.74 s end to end), so a throw tails off instead of stopping. CUTOFF THROW: the master LPF
+ * down to PF_CUT; DIST THROW: every track's DIST at least THR_DRIVE (fx.c track_dist, perf_dthr). DUCK: the tracks
+ * that are not DRUM down to DUCK_FLOOR at every kick of a DRUM track (voice.c perf_kick: KICK's note, sequenced or
+ * played) in DUCK_ATK samples, back over an 8th note: the sidechain pump, no detector (the kick's own trigger) */
+#define THR_REL 1
+#define PF_CUT (8 << 8)                       /* CUTOFF THROW: the LPF's index while held (about 66 Hz) */
+#define THR_DRIVE 100                         /* DIST THROW: DIST at least this (of 127) while held */
+#define DUCK_FLOOR 8192                       /* DUCK: the gain at the bottom, Q15 (0.25: -12 dB) */
+#define DUCK_ATK 96u                          /* .. down in 2.2 ms */
 
 /* the white keys' effects by default (1.1.5's ten, then FLANGER and PHASER, 1.5.1's REV THROW and ECHO THROW on D5
  * and E5; PF_N: none) */
 static const uint8_t PF_DEF[PF_KEYS] = {PF_R8, PF_R16, PF_R32, PF_REV, PF_LPF, PF_HPF, PF_TAPE, PF_FRZ, PF_OUP, PF_ODN,
-                                        PF_FLG, PF_PHS, PF_RTHR, PF_ETHR, PF_N, PF_N};
+                                        PF_FLG, PF_PHS, PF_RTHR, PF_ETHR, PF_CTHR, PF_DTHR};   /* (0.7: F5 G5) */
 static volatile uint8_t perf_map[PF_KEYS] = {PF_R8, PF_R16, PF_R32, PF_REV, PF_LPF, PF_HPF, PF_TAPE, PF_FRZ, PF_OUP,
-                                             PF_ODN, PF_FLG, PF_PHS, PF_RTHR, PF_ETHR, PF_N, PF_N};
+                                             PF_ODN, PF_FLG, PF_PHS, PF_RTHR, PF_ETHR, PF_CTHR, PF_DTHR};
                                       /* main: white key p's effect (PF_N none), from the settings (ui_layer.c) */
 static volatile uint8_t perf_remap;   /* main: perf_map changed (seq.c: a key held takes its new effect) */
 
@@ -90,6 +101,10 @@ static volatile uint32_t perf_mask;   /* main: the FX button's bit while its lay
 static volatile uint32_t kb_mask;     /* main: the button bits whose hold makes keys a layer's (ui_layer.c), 0 = none */
 static volatile uint8_t kb_lock;      /* main: a layer locked open (#83, no button held): 1 keys are the layer's, 2 FX's */
 static volatile uint8_t perf_solo;    /* main: tracks soloed in the GLO layer (the others muted as by a black key) */
+static volatile uint8_t perf_psolo;   /* main (0.7): tracks soloed in PERFORM, latched (as perf_solo) */
+static volatile uint8_t perf_pmode;   /* main (0.7): PERFORM (the FX layer locked): black keys are the UI's, not mutes */
+static volatile uint8_t pq_pend, pq_mute, pq_solo;   /* main (0.7): PERFORM's QUANT: mutes and solos the ISR puts in at
+                                       * the next bar (seq.c events_block, before the bar's first step) */
 static volatile uint8_t perf_kill;    /* main: every effect off (the menu, a dialog, UBOOT) */
 static volatile int8_t perf_k[4];     /* main: the knob macros, 0 = untouched: FILTER -100..100 (- LPF, + HPF),
                                        * CRUSH 0..100, THROW 0..100, DEPTH cut 0..100 (the buffer effects' level) */
@@ -141,6 +156,10 @@ static struct {
     int32_t td;                        /* THROW: the share of the dry mix sent, Q15 */
     int32_t rw, ew, rw1, ew1;          /* REV / ECHO THROW: their shares (Q15) at this block's start and end */
     uint8_t thr;                       /* .. either at work this block (mix_part: perf_throw) */
+    int32_t ct, dw;                    /* 0.7: CUTOFF / DIST THROW shares, Q15 */
+    uint32_t dk, dtot;                 /* .. DUCK: samples of the dip left (0: none), its whole length */
+    int32_t dd0, dd1;                  /* .. how far down at this block's start and end, Q15 (0: not at all) */
+    uint8_t duck;                      /* .. ducking this block (mix_part: perf_duck) */
     int32_t mg[NTRK];                  /* mute gains, Q15 (32768 = open) */
     /* FLANGER, PHASER */
     int32_t fw, pw;                    /* their shares, Q15 */
@@ -298,13 +317,15 @@ static void perf_buf_select(uint32_t e)
  * Returns 1 when a stage has something to do */
 static __attribute__((noinline)) int perf_begin(uint32_t n)
 {
-    uint32_t held = perf_kill ? 0u : (perf_held | perf_latched | (perf_solo ? (~(uint32_t)perf_solo & 15u) << PF_M1 : 0u)) & perf_avail();
+    uint32_t so = perf_solo | perf_psolo;
+    uint32_t held = perf_kill ? 0u : (perf_held | perf_latched | (so ? (~so & 15u) << PF_M1 : 0u)) & perf_avail();
     uint32_t q, k, ph0, bnd;
     int32_t m;
     if (!held && !pf.busy && !(perf_k[0] | perf_k[1] | perf_k[2])) {   /* idle: the clock only */
         pf.ph += n;
         pf.sync = 0;
         perf_act = 0;
+        perf_kick = 0;
         return 0;
     }
     pf.P = beat_samples() >> 2;
@@ -338,6 +359,9 @@ static __attribute__((noinline)) int perf_begin(uint32_t n)
         }
         if (m < 0 && PF_TOP + m * (PF_TOP - PF_LOW) / 100 < lt)
             lt = PF_TOP + m * (PF_TOP - PF_LOW) / 100;
+        pf.ct += clamp((pf.act & PF_BIT(PF_CTHR) ? 32768 : 0) - pf.ct, -THR_REL * (int32_t)n, THR_SLOPE * (int32_t)n);
+        if (pf.ct && PF_TOP - (((PF_TOP - PF_CUT) * pf.ct) >> 15) < lt)   /* 0.7: CUTOFF THROW */
+            lt = PF_TOP - (((PF_TOP - PF_CUT) * pf.ct) >> 15);
         if (pf.ht) {
             t = pf.ht < bar ? pf.ht : bar;
             ht = (int32_t)((uint32_t)(PF_TOP - PF_LOW) / 64u * (t * 64u / bar));
@@ -352,13 +376,30 @@ static __attribute__((noinline)) int perf_begin(uint32_t n)
             pf.hk[k] = (int16_t)(PF_SVF[j][k] + (((PF_SVF[j < 63 ? j + 1 : 63][k] - PF_SVF[j][k]) * g) >> 8));
         }
     }
-    {   /* REV / ECHO THROW: their shares glide (THR_SLOPE a sample) to full while held, back to 0 when let go */
-        int32_t s = THR_SLOPE * (int32_t)n;
+    {   /* REV / ECHO THROW: their shares glide (THR_SLOPE a sample) to full while held; 0.7: back to 0 at THR_REL */
+        int32_t s = THR_SLOPE * (int32_t)n, r = THR_REL * (int32_t)n;
         pf.rw = pf.rw1;
         pf.ew = pf.ew1;
-        pf.rw1 += clamp((pf.act & PF_BIT(PF_RTHR) ? 32768 : 0) - pf.rw1, -s, s);
-        pf.ew1 += clamp((pf.act & PF_BIT(PF_ETHR) ? 32768 : 0) - pf.ew1, -s, s);
+        pf.rw1 += clamp((pf.act & PF_BIT(PF_RTHR) ? 32768 : 0) - pf.rw1, -r, s);
+        pf.ew1 += clamp((pf.act & PF_BIT(PF_ETHR) ? 32768 : 0) - pf.ew1, -r, s);
         pf.thr = (pf.rw | pf.rw1 | pf.ew | pf.ew1) != 0;
+        pf.dw += clamp((pf.act & PF_BIT(PF_DTHR) ? 32768 : 0) - pf.dw, -r, s);   /* 0.7: DIST THROW (fx.c track_dist) */
+        perf_dthr = (pf.dw * THR_DRIVE) >> 15;
+    }
+    {   /* 0.7 DUCK: a kick (re)starts the dip, down in DUCK_ATK, back over an 8th; how far down at the block's start
+         * and end (perf_duck between them) */
+        uint32_t el;
+        if (perf_kick && (pf.act & PF_BIT(PF_DUCK))) {
+            pf.dtot = DUCK_ATK + (beat_samples() >> 1);
+            pf.dk = pf.dtot;
+        }
+        perf_kick = 0;
+        pf.dd0 = pf.dd1;
+        pf.dk = pf.dk > n ? pf.dk - n : 0u;
+        el = pf.dtot - pf.dk;
+        pf.dd1 = !pf.dk ? 0 : el < DUCK_ATK ? (int32_t)((32768u - DUCK_FLOOR) * el / DUCK_ATK)
+               : (int32_t)((32768u - DUCK_FLOOR) - (32768u - DUCK_FLOOR) * (el - DUCK_ATK) / (pf.dtot - DUCK_ATK));
+        pf.duck = (pf.dd0 | pf.dd1) != 0;               /* (fits: an 8th <= 33075 samples at 40 BPM) */
     }
     pf.mute = 0;
     for (k = 0; k < NTRK; k++)
@@ -366,6 +407,19 @@ static __attribute__((noinline)) int perf_begin(uint32_t n)
             pf.mute |= (uint8_t)(1u << k);
     pf.busy = 1;
     return 1;
+}
+
+/* 0.7 DUCK: a track that is not DRUM, down from dd0 to dd1 over the block (fx.c mix_part, after the mute) */
+static __attribute__((noinline)) void perf_duck(int32_t *b, int32_t *sd, uint32_t n)
+{
+    uint32_t i;
+    int32_t d0 = pf.dd0, dd = pf.dd1 - pf.dd0;
+    for (i = 0; i < n; i++) {
+        uint32_t g = (uint32_t)(32768 - (d0 + dd * (int32_t)i / (int32_t)n)) << 1;
+        b[i] = mulq16(b[i], g);
+        if (sd)
+            sd[i] = mulq16(sd[i], g);
+    }
 }
 
 /* a track muted by its black key: its signal ramps to 0 and back (fx.c mix_part, after the SLICER) */
@@ -799,5 +853,6 @@ static __attribute__((noinline)) void perf_block(int32_t *bl, int32_t *br, uint3
     if ((pf.act & PF_BIT(PF_PHS)) || pf.pw)
         perf_phaser(bl, br, n);
     pf.busy = pf.act || pf.mode != BM_NONE || pf.w || pf.la || pf.ha || pf.cw || pf.td || pf.mute || pf.fw || pf.pw || pf.thr ||
+              pf.ct || pf.dw || pf.duck ||
               pf.fn || perf_k[0] || perf_k[1] || perf_k[2];
 }
