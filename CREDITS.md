@@ -1,5 +1,9 @@
 # Credits
 
+**FORGE ONE** (FORGE, STARTER, PERFORM and the rest of this fork's additions) is by Khantipol
+([@kkasemsa](https://github.com/kkasemsa)): [github.com/kkasemsa/FORGE-ONE](https://github.com/kkasemsa/FORGE-ONE), GPL-3.0-only.
+Everything below is Felucca's, as upstream credits it.
+
 Felucca is Leo Kuroshita's ([@kurogedelic](https://github.com/kurogedelic), [Hügelton Instruments](https://hugelton.com)). It uses and
 thanks the work below; each keeps its own licence (see [LICENSE](LICENSE), [LICENSING.md](LICENSING.md) and [LICENSES/](LICENSES/)).
 

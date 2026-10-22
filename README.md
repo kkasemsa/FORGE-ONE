@@ -89,6 +89,9 @@ later runs only build. `--test` also runs the host tests (about 10 minutes). See
 
 ## Credits and licence
 
+FORGE ONE is by Khantipol ([@kkasemsa](https://github.com/kkasemsa)): FORGE, STARTER, PERFORM and this fork's
+documents. It is built on Felucca:
+
 Felucca is by Leo Kuroshita ([@kurogedelic](https://github.com/kurogedelic)), Hügelton Instruments, and its contributors:
 see [CREDITS.md](CREDITS.md). Its full manual is the [Felucca wiki](https://github.com/hugelton/Felucca/wiki).
 On 16 October 2026 the maintainer stepped back from active development; Felucca stays available with occasional maintenance.

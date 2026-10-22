@@ -112,9 +112,9 @@ static int32_t menu_document(int32_t y, int draw)
 {
     uint32_t i;
     if (draw) {
-        cv_text(6, y + 2, &AF_L, FORGE_ONE_NAME, T_THEME);   /* (FORGE ONE: its name; the rest Felucca's credit) */
-        cv_text(6, y + 38, &AF_S, "FORGE " FORGE_VERSION " on Felucca", T_TEXT);
-        cv_text(6, y + 58, &AF_M, FELUCCA_VERSION, T_THEME);
+        cv_text(6, y + 2, &AF_L, FORGE_ONE_NAME, T_THEME);   /* (FORGE ONE: its name, version and author; then */
+        cv_text(6, y + 38, &AF_S, "FORGE " FORGE_VERSION " by Khantipol", T_TEXT);   /* Felucca's, as it was: the QR */
+        cv_text(6, y + 58, &AF_M, "Felucca " FELUCCA_VERSION, T_THEME);   /* in its place; FORGE ONE's link under it) */
         cv_text_r(232, y + 61, &AF_S, __DATE__, T_MID, T_BG);
         cv_text(6, y + 82, &AF_S, "(C) 2026 Leo Kuroshita", T_TEXT);
         cv_text(6, y + 100, &AF_S, "H\xFCgelton Instruments", T_TEXT);
@@ -123,8 +123,10 @@ static int32_t menu_document(int32_t y, int draw)
         cv_text(6, y + 156, &AF_S, "/Felucca", T_MID);
         cv_text(6, y + 180, &AF_S, "hugelton.com", T_MID);
         draw_about_qr(158, y + 122);
+        cv_text(6, y + 208, &AF_S, "FORGE ONE: github.com", T_MID);
+        cv_text(6, y + 226, &AF_S, "/kkasemsa/FORGE-ONE", T_MID);
     }
-    y = menu_text("CREDITS", y + 216, T_THEME, draw) + 8;
+    y = menu_text("CREDITS", y + 260, T_THEME, draw) + 8;
     for (i = 0; i < NELEM(MENU_CREDITS); i++) {
         const menu_credit_t *c = &MENU_CREDITS[i];
         const char *text = c->text;
@@ -140,6 +142,7 @@ static int32_t menu_document(int32_t y, int draw)
     y = menu_text("NO WARRANTY", y, T_TEXT, draw);
     y = menu_text("Full notices in source:", y + 8, T_TEXT, draw);
     y = menu_text("github.com/hugelton/Felucca", y, T_MID, draw);
+    y = menu_text("github.com/kkasemsa/FORGE-ONE", y, T_MID, draw);   /* (FORGE ONE's) */
     return y + 4;
 }
 static int32_t menu_scroll_max(void)
