@@ -684,6 +684,9 @@ static int test_starter(void)
             }
         }
         bad += check("FORGE PACK (0.9): 40+ sounds, bases exist, names fit, values in range, each used by a starter", ok && n > 40u);
+        for (i = 0; i < FS_NPACK; i++)
+            ok &= FORGE_PACK[i].lvl >= 0 && FORGE_PACK[i].lvl <= 127;
+        bad += check("  (0.9.1) a pack LEVEL is 0 (left) or 1..127", ok);
     }
     t->p[P_SCALE] = 0;                                  /* (CHR: the starter's own SCALE) */
     t->p[P_ROOT] = 9;
@@ -737,6 +740,11 @@ static int test_starter(void)
     (void)fs_find(&FORGE_STARTER[42].snd[0], &e, &k);
     ok = fs.var == 1u && song.g[G_BPM] == 120 && trk[0].eng_req == e && trk[0].preset == k && msg_is("JARRE EQUI 42") &&
          !rules(&trk[1], tl_len(&trk[1])) && !drum_rules(&trk[3], 16);
+    {   /* (0.9.1: EQUI's T3 is the pack's CHOIR AAH, the factory sound at LEVEL 88 (-12 dB); T1's LEVEL untouched) */
+        const forge_sound_t *f = fs_pack("CHOIR AAH");
+        ok &= f && f->lvl == 88 && trk[2].p[P_LEVEL] == 88 && trk[0].p[P_LEVEL] == before[0].p[P_LEVEL] &&
+              str_eq(FORGE_STARTER[42].snd[2].preset, "CHOIR AAH");
+    }
     kt(EN_K4, -1);                                      /* LO-FI: three variations, black key 4 nothing */
     ok &= fs.genre == 11u && !fs.var && trk[0].p[P_SSWING] == 25;
     key_down(black(3)); frame(); key_up(black(3)); frame();

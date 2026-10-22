@@ -14,7 +14,7 @@
  * SEED, 2 DENSITY (50..150 % of each part's own), 3 EVOLVE, 4 GENRE (wraps; loads its sounds); C4 / D4 reroll the
  * notes / rhythms of all four. OCT+ (or G5 again, another tool, the layer let go) applies it, OCT- puts all four
  * tracks back as they were. The one SAVE-held undo copy can hold one track only, so after STARTER it holds nothing:
- * OCT- is its undo. The mix (LEVEL PAN MUTE) stays as it was: a sound load never changes it */
+ * OCT- is its undo. The mix (PAN MUTE) stays as it was; LEVEL too, unless the pack sound sets its own (lvl) */
 
 enum { FP_BASS, FP_LEAD, FP_PAD, FP_DRUM, FP_N };
 typedef struct { const char *eng, *preset; } fs_sound_t;
@@ -129,7 +129,7 @@ static const forge_starter_t FORGE_STARTER[] = {
     /* ACID HOUSE */
     {"CLASS", SND("FORGE", "ACID 303", "FORGE", "HOUSE PIANO", "ANALOG", "SOFT PAD", "FORGE", "HOUSE KIT"),
      {B_ACID, L_HOUSE, P_BAR}, {16, 16, 32, 16}, 2, 124, FB_DEEPH, 10, 20},
-    {"JACK",  SND("FORGE", "ACID SQUARE", "ANALOG", "RAVE", "VOICE", "CHOIR AAH", "FORGE", "HOUSE KIT"),
+    {"JACK",  SND("FORGE", "ACID SQUARE", "ANALOG", "RAVE", "FORGE", "CHOIR AAH", "FORGE", "HOUSE KIT"),
      {B_ACID, L_STAB4, P_BAR}, {16, 16, 32, 16}, 3, 122, FB_DEEPH, 15, 20},
     {"FLOOR", SND("FORGE", "ACID 303", "LOFI", "ARP 8BIT", "PHASE", "ORGAN", "DRUM", "DRUM KIT"),
      {B_ACID2, L_ARP8, P_HALF}, {16, 16, 32, 16}, 2, 128, FS_ACID, 0, 24},
@@ -187,7 +187,7 @@ static const forge_starter_t FORGE_STARTER[] = {
     /* JARRE */
     {"OXY",   SND("ANALOG", "SQR BASS", "FORGE", "OXY LEAD", "FORGE", "STRING MACH", "FORGE", "RHYTHM BOX"),
      {B_8TH5, L_SLOW, P_BAR}, {16, 32, 64, 16}, 2, 104, FB_POPS, 0, 10},
-    {"EQUI",  SND("LOFI", "WAVE BASS", "TRIO", "ARP LEAD", "VOICE", "CHOIR AAH", "FORGE", "RHYTHM BOX"),
+    {"EQUI",  SND("LOFI", "WAVE BASS", "TRIO", "ARP LEAD", "FORGE", "CHOIR AAH", "FORGE", "RHYTHM BOX"),
      {B_PED16, L_ARP16, P_BAR}, {16, 16, 64, 16}, 2, 120, FB_ELECTRO, 0, 14},
     {"FIELD", SND("FM6", "FM BASS", "FORGE", "BRASS STAB", "ANALOG", "PWM STR", "FORGE", "RHYTHM BOX"),
      {B_8TH5, L_STAB4, P_HALF}, {16, 16, 32, 16}, 3, 112, FB_POPS, 0, 12},
@@ -206,12 +206,14 @@ static const fs_genre_t FS_GENRE[] = {
 static const char *const FP_ROLE[FP_N] = {"BASS", "LEAD", "PAD", "DRUM"};
 static const char H_STARTER[] = "[K4]GENRE[KEYS]BLACK 1-4: VARIATION";   /* (the second row: two fit) */
 
-/* 0.9 FORGE PACK: 44 sounds for the starters, each a factory preset (its engine, and what a preset alone sets: an FM6
+/* 0.9 FORGE PACK: 41 sounds for the starters, each a factory preset (its engine, and what a preset alone sets: an FM6
  * patch, a SAMPLE set) with its own values over it: E1..E8 (FK: the preset's), ATK DEC SUS REL (env[0] FK: the
  * preset's), ENV > FILTER, VOICE, GLIDE, DETUNE, SPREAD, the sends DST CHO DLY REV, the LFO (RATE WAVE, to PITCH and
  * FILTER). A starter names one as {"FORGE", name}. Nothing is added to the factory lists: the track is that preset
  * with these edits, as if turned by hand, so a project, the editor and stock Felucca see an ordinary sound (PRESETS
- * shows the base preset's name); SAVE > USER keeps one as a user preset. tests/forge_test.c checks every base exists */
+ * shows the base preset's name); SAVE > USER keeps one as a user preset. tests/forge_test.c checks every base exists.
+ * 0.9.1: a sound may set the track's LEVEL (lvl; the pads: a sustained chord peaks far above a bass line, CHOIR AAH
+ * was heard too loud on the instrument); OCT- puts the level back with the rest */
 #define FK (-128)
 typedef struct {
     const char *name, *eng, *base;
@@ -220,11 +222,12 @@ typedef struct {
     int8_t fenv;
     uint8_t voice, glide, detune, spread, dst, cho, dly, rev, lrate, lwave;
     int8_t lpit, lflt;
+    int8_t lvl;                   /* 0.9.1: the track's LEVEL (P_LEVEL, F_DB; 104 = -4 dB), 0 = left as it is */
 } forge_sound_t;
 #define KEEP8 {FK, FK, FK, FK, FK, FK, FK, FK}
 #define KENV {FK, 0, 0, 0}
 static const forge_sound_t FORGE_PACK[] = {
-    /* name           engine    base         E1..E8                                   ATK DEC SUS REL  fenv vce gld det spr dst cho dly rev lrt lwv lpit lflt */
+    /* name           engine    base         E1..E8                                   ATK DEC SUS REL  fenv vce gld det spr dst cho dly rev lrt lwv lpit lflt [lvl] */
     /* basses */
     {"BERLIN SEQ",  "ANALOG", "SQR BASS",  {1, 5, 40, 0, 45, 85, 20, 64},          {0, 45, 10, 20},   50, 1,  0,  0,  0,  0,  0, 20, 10,  0, 0,  0,  0},
     {"DEEP BASS",   "ANALOG", "SUB BASS",  {0, 4, 90, 0, 38, 40, 30, 40},          {0, 70, 90, 25},   25, 2, 10,  0,  0,  0,  0,  0,  0,  0, 0,  0,  0},
@@ -254,14 +257,15 @@ static const forge_sound_t FORGE_PACK[] = {
     {"VOX CHANT",   "VOICE",  "VOX LEAD",  {64, 0, 40, 0, 80, 20, 80, 30},         {10, 70, 100, 60},  0, 2, 20,  0,  0,  0, 20, 40, 50,  0, 0,  0,  0},
     {"WARM KEYS",   "FM6",    "TINE EP",   KEEP8,                                  KENV,               0, 0,  0,  0, 40,  8, 50,  0, 30, 30, 0,  3,  0},
     /* pads */
-    {"STRING MACH", "ANALOG", "STRINGS",   {0, 35, 80, 0, 72, 8, 0, 32},           {60, 90, 118, 90},  0, 0,  0,  0, 60,  0, 110, 0, 60,  0, 0,  0,  0},
-    {"BERLIN PAD",  "ANALOG", "SOFT PAD",  {0, 20, 64, 4, 40, 25, 0, 32},          {90, 100, 115, 100}, 35, 0, 0,  0, 50,  0, 50,  0, 80, 10, 1,  0,  8},
-    {"TRANCE PAD",  "ANALOG", "PWM STR",   {4, 20, 64, 0, 85, 10, 0, 48},          {50, 90, 115, 90},  0, 0,  0,  0, 60,  0, 70,  0, 80,  0, 0,  0,  0},
-    {"DUB PAD",     "ANALOG", "SOFT PAD",  {0, 12, 64, 10, 45, 20, 0, 32},         {70, 90, 110, 95},  0, 0,  0,  0, 40,  0, 40, 50, 80,  0, 0,  0,  0},
-    {"CHOIR PAD",   "VOICE",  "CHOIR AAH", {10, 40, 30, 0, 40, 30, 60, 10},        {90, 90, 115, 100}, 0, 0,  0,  0, 50,  0, 60,  0, 90,  0, 0,  0,  0},
-    {"GLASS PAD",   "GRAIN",  "SHIMMER",   {0, 30, 90, 100, 12, 60, 30, 100},      {90, 100, 120, 110}, 0, 0, 0,  0,  0,  0,  0, 30, 110, 0, 0,  0,  0},
-    {"AIR PAD",     "NOISE",  "WIND",      {0, 50, 60, 90, 100, 0, 90, 0},         {100, 90, 110, 100}, 0, 0, 0,  0, 60,  0, 30,  0, 90,  8, 0,  0, 10},
-    {"LOFI PAD",    "ANALOG", "SOFT PAD",  {2, 10, 64, 20, 50, 10, 15, 32},        {60, 90, 110, 90},  0, 0,  0,  0, 40,  0, 60,  0, 50, 30, 0,  3,  0},
+    {"STRING MACH", "ANALOG", "STRINGS",   {0, 35, 80, 0, 72, 8, 0, 32},           {60, 90, 118, 90},  0, 0,  0,  0, 60,  0, 110, 0, 60,  0, 0,  0,  0, 96},
+    {"BERLIN PAD",  "ANALOG", "SOFT PAD",  {0, 20, 64, 4, 40, 25, 0, 32},          {90, 100, 115, 100}, 35, 0, 0,  0, 50,  0, 50,  0, 80, 10, 1,  0,  8, 98},
+    {"TRANCE PAD",  "ANALOG", "PWM STR",   {4, 20, 64, 0, 85, 10, 0, 48},          {50, 90, 115, 90},  0, 0,  0,  0, 60,  0, 70,  0, 80,  0, 0,  0,  0, 98},
+    {"DUB PAD",     "ANALOG", "SOFT PAD",  {0, 12, 64, 10, 45, 20, 0, 32},         {70, 90, 110, 95},  0, 0,  0,  0, 40,  0, 40, 50, 80,  0, 0,  0,  0, 98},
+    {"CHOIR PAD",   "VOICE",  "CHOIR AAH", {10, 40, 30, 0, 40, 30, 60, 10},        {90, 90, 115, 100}, 0, 0,  0,  0, 50,  0, 60,  0, 90,  0, 0,  0,  0, 88},
+    {"CHOIR AAH",   "VOICE",  "CHOIR AAH", KEEP8,                                  KENV,               0, 0,  0,  0,  0,  0, 70, 15, 90,  0, 0,  0,  0, 88},   /* the factory sound, -12 dB */
+    {"GLASS PAD",   "GRAIN",  "SHIMMER",   {0, 30, 90, 100, 12, 60, 30, 100},      {90, 100, 120, 110}, 0, 0, 0,  0,  0,  0,  0, 30, 110, 0, 0,  0,  0, 98},
+    {"AIR PAD",     "NOISE",  "WIND",      {0, 50, 60, 90, 100, 0, 90, 0},         {100, 90, 110, 100}, 0, 0, 0,  0, 60,  0, 30,  0, 90,  8, 0,  0, 10, 98},
+    {"LOFI PAD",    "ANALOG", "SOFT PAD",  {2, 10, 64, 20, 50, 10, 15, 32},        {60, 90, 110, 90},  0, 0,  0,  0, 40,  0, 60,  0, 50, 30, 0,  3,  0, 98},
     /* drums (DRUM: E1 KIT, TUNE, TONE, DECY, SNAP, ACC, KICK PUNCH / ROUND, DRV) */
     {"BOOM KIT",    "DRUM",   "DEEP KIT",  {4, 58, 60, 96, 50, 100, 1, 0},         KENV,               0, 0,  0,  0,  0,  0,  0,  0, 20,  0, 0,  0,  0},
     {"HOUSE KIT",   "DRUM",   "DRUM KIT",  {2, 64, 74, 64, 80, 100, 0, 10},        KENV,               0, 0,  0,  0,  0,  0,  0,  0, 15,  0, 0,  0,  0},
@@ -309,6 +313,8 @@ static void fs_pack_apply(track_t *t, const forge_sound_t *f)
         t->p[P_LD_PIT] = f->lpit;
         t->p[P_LD_FLT] = f->lflt;
     }
+    if (f->lvl > 0)
+        t->p[P_LEVEL] = f->lvl;                         /* (0.9.1: the pads sit lower; OCT- puts it back) */
 }
 
 /* the four tracks as STARTER opened (OCT-): in the pool, as FORGE's eu_from */

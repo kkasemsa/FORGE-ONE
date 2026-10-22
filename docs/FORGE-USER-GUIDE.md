@@ -1,6 +1,6 @@
 # FORGE User Guide
 
-FORGE 0.9.1 in FORGE ONE (Felucca 1.6.1) · M-VAVE FM-1
+FORGE 0.9.2 in FORGE ONE (Felucca 1.6.1) · M-VAVE FM-1
 
 FORGE writes a musical idea onto a track in one key press, then lets that idea evolve: a melody on a synth track,
 a beat on a DRUM track (section 6). From 0.6, **STARTER** on the G5 key writes all four tracks at once, sounds
@@ -220,7 +220,7 @@ The screen shows a row a track: its preset and its first 16 steps. Under them, t
 |  | 3 **PIANO** | FM6 FM BASS | SAMPLE PIANO | GRAIN CLOUD PAD | DRUM DEEP KIT · Melodic | 122 | DOR | – |
 |  | 4 **PLUCK** | TRIO FAT BASS | *TRANCE PLUCK* | *CHOIR PAD* | DRUM DRUM KIT · Melodic | 123 | MIN | – |
 | Acid House | 1 **CLASS** | *ACID 303* | *HOUSE PIANO* | ANALOG SOFT PAD | *HOUSE KIT* · Deep house | 124 | MIN | 10% |
-|  | 2 **JACK** | *ACID SQUARE* | ANALOG RAVE | VOICE CHOIR AAH | *HOUSE KIT* · Deep house | 122 | DOR | 15% |
+|  | 2 **JACK** | *ACID SQUARE* | ANALOG RAVE | *CHOIR AAH* | *HOUSE KIT* · Deep house | 122 | DOR | 15% |
 |  | 3 **FLOOR** | *ACID 303* | LOFI ARP 8BIT | PHASE ORGAN | DRUM DRUM KIT · Acid | 128 | MIN | – |
 | Acid Techno | 1 **ROLL** | ANALOG ACID | *CHIP ARP* | ANALOG SOFT PAD | *TECHNO KIT* · Acid | 128 | MIN | – |
 |  | 2 **WARE** | *ACID SQUARE* | LOFI STEP LEAD | ANALOG PWM STR | *TECHNO KIT* · Acid | 135 | MIN | – |
@@ -245,13 +245,13 @@ The screen shows a row a track: its preset and its first 16 steps. Under them, t
 |  | 2 **TAPE** | TRIO FAT BASS | *WARM KEYS* | WHEEL SOFT FLUTE | DRUM DRUM KIT · Lo-fi | 88 | MIN | 20% |
 |  | 3 **SAX** | *LOFI BASS* | SAMPLE SAX | FM6 PAD | DRUM PERC KIT · Lo-fi | 80 | DOR | 22% |
 | Jarre | 1 **OXY** | ANALOG SQR BASS | *OXY LEAD* | *STRING MACH* | *RHYTHM BOX* · Rhythm box | 104 | MIN | – |
-|  | 2 **EQUI** | LOFI WAVE BASS | TRIO ARP LEAD | VOICE CHOIR AAH | *RHYTHM BOX* · Electro | 120 | MIN | – |
+|  | 2 **EQUI** | LOFI WAVE BASS | TRIO ARP LEAD | *CHOIR AAH* | *RHYTHM BOX* · Electro | 120 | MIN | – |
 |  | 3 **FIELD** | FM6 FM BASS | *BRASS STAB* | ANALOG PWM STR | *RHYTHM BOX* · Rhythm box | 112 | DOR | – |
 |  | 4 **ZOO** | VOICE WOW BASS | *VOX CHANT* | GRAIN SHIMMER | DRUM TIGHT KIT · Electro | 118 | PHRY | – |
 
 \* The starter's SCALE is used only when the selected track's SCALE is CHR (the default). Any other SCALE you set is kept.
 
-**FORGE PACK (0.9).** Sounds in *italics* in the table are from the FORGE PACK: 40 sounds made for the starters.
+**FORGE PACK (0.9).** Sounds in *italics* in the table are from the FORGE PACK: 41 sounds made for the starters.
 Each is a factory preset with its own settings on top (oscillator and filter, envelope, voice mode and glide, unison,
 the effect sends, the LFO), exactly as if you had turned the knobs yourself. So PRESETS shows the factory preset's
 name, a project saves them like any edited sound, and they open on stock Felucca and in the Felucca web editor. To
@@ -285,14 +285,15 @@ keep one for other songs, save it with **SAVE > USER** while the track has it.
 | **CHIP ARP** | LOFI ARP 8BIT | 8-bit minor arpeggio |
 | **VOX CHANT** | VOICE VOX LEAD | Formant voice lead with glide |
 | **WARM KEYS** | FM6 TINE EP | FM electric piano with chorus and tape wobble |
-| **STRING MACH** | ANALOG STRINGS | Ensemble strings: detuned saws, heavy chorus |
-| **BERLIN PAD** | ANALOG SOFT PAD | Slow pad whose filter opens with the envelope |
-| **TRANCE PAD** | ANALOG PWM STR | Wide PWM pad |
-| **DUB PAD** | ANALOG SOFT PAD | Soft pad with delay |
-| **CHOIR PAD** | VOICE CHOIR AAH | Formant choir, slow |
-| **GLASS PAD** | GRAIN SHIMMER | Granular shimmer, long |
-| **AIR PAD** | NOISE WIND | Filtered noise, slowly drifting |
-| **LOFI PAD** | ANALOG SOFT PAD | Soft pad with hiss and tape wobble |
+| **STRING MACH** | ANALOG STRINGS | Ensemble strings: detuned saws, heavy chorus · LEVEL −8 dB |
+| **BERLIN PAD** | ANALOG SOFT PAD | Slow pad whose filter opens with the envelope · LEVEL −7 dB |
+| **TRANCE PAD** | ANALOG PWM STR | Wide PWM pad · LEVEL −7 dB |
+| **DUB PAD** | ANALOG SOFT PAD | Soft pad with delay · LEVEL −7 dB |
+| **CHOIR PAD** | VOICE CHOIR AAH | Formant choir, slow · LEVEL −12 dB |
+| **CHOIR AAH** | VOICE CHOIR AAH | The factory choir as it is, at LEVEL −12 dB (0.9.2) |
+| **GLASS PAD** | GRAIN SHIMMER | Granular shimmer, long · LEVEL −7 dB |
+| **AIR PAD** | NOISE WIND | Filtered noise, slowly drifting · LEVEL −7 dB |
+| **LOFI PAD** | ANALOG SOFT PAD | Soft pad with hiss and tape wobble · LEVEL −7 dB |
 | **BOOM KIT** | DRUM DEEP KIT | Long, round kick; deep and boomy |
 | **HOUSE KIT** | DRUM DRUM KIT | Punchy kit, snappy |
 | **BREAK KIT** | DRUM TIGHT KIT | Bright, snappy, driven |
@@ -305,8 +306,9 @@ clipping, but the balance between tracks (some leads are louder than their bass)
 sounds to change.
 
 **What STARTER changes:** each track's sound (engine and factory preset, with its effect sends), its pattern, LEN,
-DIV (1/16), ROOT and SCALE, and the tempo. **It leaves alone:** each track's LEVEL, PAN and MUTE, the master and
-the effects' own settings. Steps that held something before and are now empty lose their parameter locks when you
+DIV (1/16), ROOT and SCALE, and the tempo. Since 0.9.2 a pack pad also sets its track's LEVEL (the pads above; a
+sustained chord peaks far above a bass line, and CHOIR AAH was too loud on the instrument). **It leaves alone:** PAN
+and MUTE, LEVEL on every other sound, the master and the effects' own settings. Steps that held something before and are now empty lose their parameter locks when you
 apply, as with FORGE; a sound load also drops automation of the old engine's own controls.
 
 **Undo:** STARTER changes four tracks, and SAVE-held undo holds only one, so after STARTER it has nothing to undo.

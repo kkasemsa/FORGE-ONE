@@ -4,6 +4,7 @@ Newest first. FORGE is the SEQ TOOLS F5 motif generator in FORGE ONE (based on F
 
 | Version | Date | Theme |
 | --- | --- | --- |
+| 0.9.2 | 22 Oct 2026 | First hardware feedback: the pads lower, CHOIR AAH −12 dB |
 | 0.9.1 | 22 Oct 2026 | Fixes from the third code review: PERFORM state, build and release packaging |
 | 0.9 | 22 Oct 2026 | FORGE PACK: 40 sounds for the starters |
 | 0.8 | 22 Oct 2026 | 45 song starters in 13 genres, Jarre included |
@@ -15,6 +16,18 @@ Newest first. FORGE is the SEQ TOOLS F5 motif generator in FORGE ONE (based on F
 | 0.3 | 21 Oct 2026 | Safe live turns, chords in every scale, pinned seeds |
 | 0.2 | 21 Oct 2026 | The generator: SEED, DENSITY, EVOLVE, 8 styles |
 | 0.1 | 21 Oct 2026 | Scaffold: F5 FORGE cell, CI build |
+
+## 0.9.2
+
+First feedback from the instrument: "Choir Ahh: too loud".
+
+- **A pack sound can set its track's LEVEL** (`lvl` in `forge_sound_t`, 0 = left alone; OCT− restores it with the
+  rest). The eight pads use it: CHOIR PAD at 88 (−12 dB), the others at 96–98 (−7 to −8 dB). Measured on the host
+  (2 s of each starter), CHOIR's pad peak fell from 61 k to 24 k, EQUI's from 57 k to 23 k, in line with the basses.
+- **CHOIR AAH is a pack sound now**: the factory VOICE preset as it is, at −12 dB; ACID HOUSE JACK and JARRE EQUI use
+  it (41 pack sounds). Starters that use other factory pads untouched (ROLL, STRNG, ELECT, FLOOR): say so if they are
+  loud too.
+- The guides say which sounds set LEVEL and that PAN / MUTE still never change.
 
 ## 0.9.1
 

@@ -1,6 +1,6 @@
 # FORGE ONE User Guide
 
-Felucca 1.6.1 with FORGE 0.9.1 · M-VAVE FM-1
+Felucca 1.6.1 with FORGE 0.9.2 · M-VAVE FM-1
 
 This guide covers the whole instrument: the Felucca firmware by Hügelton Instruments, and FORGE, the motif generator
 this fork adds. Felucca's own sections follow its official manual, the [Felucca wiki](https://github.com/hugelton/Felucca/wiki),
@@ -373,10 +373,11 @@ the FM-1 follows an external clock.
 
 K1 SEED, K2 DENSITY (50–150 % of each part's own), K3 EVOLVE and K4 GENRE (13 genres). Black keys 1–4 pick the
 genre's variation (3 or 4 each, 45 starters in all); each loads its own sounds, tempo, scale and swing. Sounds in
-*italics* are from the **FORGE PACK** (0.9): 40 sounds built on factory presets with their own settings (the full
+*italics* are from the **FORGE PACK** (0.9): 41 sounds built on factory presets with their own settings (the full
 list is in the FORGE User Guide); they save and load as ordinary edited sounds, and SAVE > USER keeps one. C4 rerolls the notes of all four, D4 the rhythms. **OCT+** (or G5 again) keeps it; **OCT−** puts
 all four tracks back as they were, sounds, steps, automation and tempo included. SAVE-held undo cannot undo
-STARTER, so use OCT− before you let go of SEQ. LEVEL, PAN and MUTE are never changed.
+STARTER, so use OCT− before you let go of SEQ. PAN and MUTE are never changed; LEVEL only by the pack's pads (0.9.2:
+they sit 7 to 12 dB lower, so a chord does not bury the bass), and OCT− puts it back.
 
 | Genre (K4) | Black key, variation | T1 bass | T2 lead | T3 pad | T4 kit · beat | BPM | Scale* | Swing |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -397,7 +398,7 @@ STARTER, so use OCT− before you let go of SEQ. LEVEL, PAN and MUTE are never c
 |  | 3 **PIANO** | FM6 FM BASS | SAMPLE PIANO | GRAIN CLOUD PAD | DRUM DEEP KIT · Melodic | 122 | DOR | – |
 |  | 4 **PLUCK** | TRIO FAT BASS | *TRANCE PLUCK* | *CHOIR PAD* | DRUM DRUM KIT · Melodic | 123 | MIN | – |
 | Acid House | 1 **CLASS** | *ACID 303* | *HOUSE PIANO* | ANALOG SOFT PAD | *HOUSE KIT* · Deep house | 124 | MIN | 10% |
-|  | 2 **JACK** | *ACID SQUARE* | ANALOG RAVE | VOICE CHOIR AAH | *HOUSE KIT* · Deep house | 122 | DOR | 15% |
+|  | 2 **JACK** | *ACID SQUARE* | ANALOG RAVE | *CHOIR AAH* | *HOUSE KIT* · Deep house | 122 | DOR | 15% |
 |  | 3 **FLOOR** | *ACID 303* | LOFI ARP 8BIT | PHASE ORGAN | DRUM DRUM KIT · Acid | 128 | MIN | – |
 | Acid Techno | 1 **ROLL** | ANALOG ACID | *CHIP ARP* | ANALOG SOFT PAD | *TECHNO KIT* · Acid | 128 | MIN | – |
 |  | 2 **WARE** | *ACID SQUARE* | LOFI STEP LEAD | ANALOG PWM STR | *TECHNO KIT* · Acid | 135 | MIN | – |
@@ -422,7 +423,7 @@ STARTER, so use OCT− before you let go of SEQ. LEVEL, PAN and MUTE are never c
 |  | 2 **TAPE** | TRIO FAT BASS | *WARM KEYS* | WHEEL SOFT FLUTE | DRUM DRUM KIT · Lo-fi | 88 | MIN | 20% |
 |  | 3 **SAX** | *LOFI BASS* | SAMPLE SAX | FM6 PAD | DRUM PERC KIT · Lo-fi | 80 | DOR | 22% |
 | Jarre | 1 **OXY** | ANALOG SQR BASS | *OXY LEAD* | *STRING MACH* | *RHYTHM BOX* · Rhythm box | 104 | MIN | – |
-|  | 2 **EQUI** | LOFI WAVE BASS | TRIO ARP LEAD | VOICE CHOIR AAH | *RHYTHM BOX* · Electro | 120 | MIN | – |
+|  | 2 **EQUI** | LOFI WAVE BASS | TRIO ARP LEAD | *CHOIR AAH* | *RHYTHM BOX* · Electro | 120 | MIN | – |
 |  | 3 **FIELD** | FM6 FM BASS | *BRASS STAB* | ANALOG PWM STR | *RHYTHM BOX* · Rhythm box | 112 | DOR | – |
 |  | 4 **ZOO** | VOICE WOW BASS | *VOX CHANT* | GRAIN SHIMMER | DRUM TIGHT KIT · Electro | 118 | PHRY | – |
 
