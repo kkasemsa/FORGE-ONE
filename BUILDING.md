@@ -6,7 +6,7 @@ The build makes three files in `build/`:
 | --- | --- |
 | `felucca.bin` | the firmware app |
 | `loader/ota.bin` | the update loader |
-| `felucca.fwsc` | the installable package (app + loader) |
+| `felucca.fwsc` | the installable package (app + loader); FORGE ONE's CI and `tools/forge_build.sh` also copy it to `forge-one.fwsc` |
 
 ## Get the source
 

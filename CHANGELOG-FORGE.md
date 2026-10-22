@@ -23,6 +23,8 @@ Newest first. FORGE is the SEQ TOOLS F5 motif generator in FORGE ONE (based on F
   deep house, breakbeat, lo-fi, synthwave, an early rhythm box and electro. Deep House, Lo-fi and Breakbeat swing.
 - At most one heavy engine (GRAIN or PHYS) per starter, for the CPU. 0.6's AMBIENT (now AMBIENT CLOUD) uses FM6 BELL
   instead of PHYS KALIMBA beside its GRAIN pad.
+- **ABOUT** (MENU > SYSTEM) now reads "FORGE 0.8 by Khantipol", then Felucca's version and credit, then FORGE ONE's
+  repository; README and CREDITS.md credit FORGE ONE to Khantipol (@kkasemsa).
 - **Patterns changed:** each starter now has its own seed streams, so a seed gives a different song than in 0.6/0.7.
   The 135 starter seeds are pinned again; FORGE's own 144 are unchanged.
 

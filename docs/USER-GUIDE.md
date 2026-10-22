@@ -43,7 +43,8 @@ installs stock Felucca. The steps are in the [Read Me First](../README.md#instal
 1. Download `forge-one.fwsc` from the fork's Releases page (or from the newest green Actions build).
 2. Quit every app that uses MIDI. Connect the FM-1 with a USB data cable.
 3. Install `mido` and `python-rtmidi` in a Python environment, then run the installer (exact commands in the Read Me First).
-4. Wait for the FM-1 to restart. Hold SEQ: the SEQ TOOLS map shows FORGE on F5.
+4. Wait for the FM-1 to restart. The start-up screen says **FORGE ONE** and its version; MENU > SYSTEM > ABOUT
+   shows FORGE ONE (by Khantipol) above Felucca's credit. Hold SEQ: the SEQ TOOLS map shows FORGE on F5, STARTER on G5.
 
 **Stock Felucca** is installed from the [web installer](https://hugelton.github.io/Felucca/) in Chrome or Edge: connect
 the FM-1, open the page, press **Install**. No extra hardware is needed. You can also
