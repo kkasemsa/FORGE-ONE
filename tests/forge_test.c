@@ -20,6 +20,9 @@
  *   0.5.1      step 1 ROOT in every SCALE / ROOT; no drum fill on step 1 at LEN 2..4; STYLE wraps, resets C4 / D4
  * Built and run by tests/run_tests.sh. */
 #define UI_TEST_NO_MAIN 1
+#include <stdint.h>
+static int sg_test_save(uint32_t slot, const char *name);   /* (0.13.1: SONG's saves, one made to fail) */
+#define SG_SAVE sg_test_save
 #include "ui_test.c"
 
 static void tkey(uint32_t w) { key_down(white(w)); frame(); key_up(white(w)); frame(); }
@@ -1482,9 +1485,115 @@ static int test_song(void)
     return bad;
 }
 
+/* 0.13.1, review of PR #1: the writes refused up front or halfway, DENSITY / EVOLVE keep the song written, SAVE X?
+ * refused keeps its prompt, BREAK's PAD sweep in the section's last loop only (and a pattern of a bar or less) */
+static int sg_fail_slot = -1;
+static int sg_test_save(uint32_t slot, const char *name)
+{
+    if ((int)slot == sg_fail_slot)
+        return 2;
+    return project_save_as(slot, name);
+}
+static int test_song_fix(void)
+{
+    static project_store_t slots[4];
+    int bad = 0, ok;
+    chain_config_t ch;
+    uint32_t i, n;
+    /* 1. playing: nothing written, the chain as it was; a slot refused halfway: the chain back, SAVE FAILED C */
+    sg_open((uint32_t)sg_genre("TRANCE"), 42);
+    memset(proj_slot, 0, sizeof proj_slot);
+    chain_defaults(&chain_config);
+    chain_config.count = 1;
+    chain_config.row[0] = (chain_row_t){{0, 1, 2, 3}, 3};
+    ch = chain_config;
+    memcpy(slots, proj_slot, sizeof slots);
+    transport_req = 1;
+    pm_blocks(2);
+    ok = song.playing && song_write() == 1 && msg_is("STOP TO SAVE") && !memcmp(&ch, &chain_config, sizeof ch) &&
+         !memcmp(slots, proj_slot, sizeof slots) && sg.stage == SG_EDIT;
+    transport_req = 2;
+    pm_blocks(2);
+    sg_fail_slot = SG_C;
+    oct_fwd(); oct_fwd();                               /* GENERATE, OVERWRITE: D written, C refused */
+    ok &= msg_is("SAVE FAILED C") && !memcmp(&ch, &chain_config, sizeof ch) && sg.stage == SG_EDIT && sg.on;
+    sg_fail_slot = -1;
+    bad += check("SONG 0.13.1 fix 1: playing, nothing written; a slot refused halfway: SAVE FAILED C, the chain as it was", ok);
+    /* 2. written; DENSITY / EVOLVE: still written (a reroll asks SAVE X?); SEED: another song, EDIT */
+    oct_fwd(); oct_fwd();
+    ok = sg.stage == SG_WRITTEN;
+    kt(EN_K2, 1);
+    kt(EN_K3, 1);
+    ok &= sg.stage == SG_WRITTEN;
+    tkey(TL_RANDOM);
+    ok &= sg.pend == SG_A + 1u;
+    oct_back();
+    kt(EN_K1, 1);
+    ok &= sg.stage == SG_EDIT && !sg.pend;
+    tkey(TL_RANDOM);
+    ok &= !sg.pend;
+    bad += check("  fix 2: DENSITY / EVOLVE keep the song written (a reroll asks SAVE A?); SEED: EDIT, no prompt", ok);
+    /* 3. SAVE X? while playing: STOP TO SAVE, the prompt stays, nothing written; stopped: saved */
+    kt(EN_K1, -1);
+    oct_fwd(); oct_fwd();
+    sg_tap(2);                                          /* C */
+    tkey(TL_COOK);
+    memcpy(slots, proj_slot, sizeof slots);
+    transport_req = 1;
+    pm_blocks(2);
+    oct_fwd();
+    ok = msg_is("STOP TO SAVE") && sg.pend == SG_C + 1u && !memcmp(slots, proj_slot, sizeof slots);
+    sg_fail_slot = SG_C;
+    transport_req = 2;
+    pm_blocks(2);
+    oct_fwd();
+    ok &= msg_is("SAVE FAILED C") && sg.pend == SG_C + 1u;
+    sg_fail_slot = -1;
+    oct_fwd();
+    ok &= !sg.pend && msg_is("C SAVED") && memcmp(&slots[2], &proj_slot[2], sizeof slots[2]) &&
+          !memcmp(&slots[0], &proj_slot[0], sizeof slots[0]);
+    bad += check("  fix 3: SAVE C? playing or refused: STOP TO SAVE / SAVE FAILED C, the prompt stays; then C SAVED", ok);
+    sg_close();
+    /* 4. BREAK's PAD: one loop the whole section (128 steps: 64 at 1/8); the sweep only in its last bar, never over
+     * the top; a bar or less: its second half; under 4 steps: none. AMBIENT named */
+    {
+        int16_t dv = 0;
+        uint32_t l1 = song_break_pad_len(128, &dv), l2;
+        int16_t d2 = 0;
+        track_t *t = &trk[2];
+        l2 = song_break_pad_len(32, &d2);
+        ok = l1 == 64u && dv == 1 && l2 == 32u && d2 == 2 && str_eq(FS_GENRE[FS_G_AMBIENT].name, "AMBIENT");
+        {
+            static const struct { uint8_t len, div, from; } C[4] = {{64, 1, 56}, {32, 2, 16}, {16, 2, 8}, {8, 2, 4}};
+            for (n = 0; n < 4u; n++) {
+                motion_clear(t);
+                t->p[P_SDIV] = C[n].div;
+                song_sweep(t, C[n].len, P_E4, 20, 100);
+                for (i = 1; i < NSTEP; i++) {
+                    int32_t e = motion_find(t, i, P_E4);
+                    if (e >= 0 && (i < C[n].from || i >= C[n].len || motion.event[e].value > 100))
+                        ok = 0;
+                }
+                ok &= motion_find(t, 0, P_E4) >= 0 && motion.event[motion_find(t, 0, P_E4)].value == 20;
+                ok &= motion_find(t, C[n].len - (C[n].div == 1 ? 1u : 2u), P_E4) >= 0 &&
+                      motion.event[motion_find(t, C[n].len - (C[n].div == 1 ? 1u : 2u), P_E4)].value == 100;
+            }
+            motion_clear(t);
+            song_sweep(t, 3, P_E4, 20, 100);
+            ok &= motion_count(t) == 0u;
+            motion_clear(t);
+            t->p[P_SDIV] = 2;
+        }
+        bad += check("  fix 4: BREAK's PAD one loop per section (64 at 1/8 past 64 steps); sweep in the last bar only; short patterns", ok);
+    }
+    memset(proj_slot, 0, sizeof proj_slot);
+    chain_defaults(&chain_config);
+    return bad;
+}
+
 int main(void)
 {
-    int bad = test_open() + test_styles() + test_evolve() + test_names() + test_chords() + test_reroll() + test_golden() + test_drum() + test_051() + test_starter() + test_perform() + test_roles() + test_song();
+    int bad = test_open() + test_styles() + test_evolve() + test_names() + test_chords() + test_reroll() + test_golden() + test_drum() + test_051() + test_starter() + test_perform() + test_roles() + test_song() + test_song_fix();
     printf("%s\n", bad ? "FORGE TEST FAILED" : "forge tests passed");
     return bad != 0;
 }

@@ -33,6 +33,10 @@
  * Saving needs the transport stopped (project.c: a flash erase stalls the audio): playing, GENERATE says STOP TO SAVE. */
 
 enum { SG_A, SG_B, SG_C, SG_D, SG_N };
+#ifndef SG_SAVE
+#define SG_SAVE project_save_as                 /* (tests/forge_test.c: one that fails on a chosen slot) */
+#endif
+#define FS_G_AMBIENT 10u                        /* FS_GENRE's AMBIENT (its LIFT is the gentle one; tests check the name) */
 #define SG_NAME_LEN 12u                         /* project.c PROJ_NAME_LEN (included after this; tests check they match) */
 enum { SG_EDIT, SG_CONFIRM, SG_WRITTEN };
 static const char *const SG_ROLE[SG_N + 1] = {"VERSE", "CHORUS", "BRIDGE", "LIFT", "BREAK"};
@@ -114,12 +118,35 @@ static int32_t song_param_min(const track_t *t, uint32_t id)
     return id >= P_E0 ? ENGINES[t->eng_req % NENGINES]->edit[id - P_E0].min : TP[id].min;
 }
 
+/* BREAK's PAD: one loop that is the whole section, so its filter opens in the section's last bar only (a loop that
+ * repeated would open it every time): at 1/16 up to 64 steps, past that (a T1 of 64: 128 steps) at 1/8 for half the
+ * steps. *div: P_SDIV (2 1/16, 1 1/8); returns the LEN */
+static uint32_t song_break_pad_len(uint32_t sec, int16_t *div)
+{
+    *div = sec > NSTEP ? 1 : 2;
+    return sec > NSTEP ? sec / 2u : sec;
+}
+/* the sweep: the filter (id) down to lo from step 1, opening to top over the pattern's last bar (8 steps at 1/8, 16
+ * at 1/16; a pattern of a bar or less: its second half; under 4 steps none), never over top */
+static void song_sweep(track_t *t, uint32_t len, uint32_t id, int32_t lo, int32_t top)
+{
+    uint32_t bar = t->p[P_SDIV] == 1 ? 8u : 16u, last = len > bar ? len - bar : len / 2u, st = bar == 8u ? 1u : 2u, j;
+    if (len < 4u)
+        return;
+    motion_set_enabled(t, 1);
+    motion_set_event(t, 0, id, (int16_t)lo);
+    for (j = last; j < len; j += st) {
+        int32_t v = lo + (top - lo) * (int32_t)(j - last + st) / (int32_t)(len - last);
+        motion_set_event(t, j ? j : 1u, id, (int16_t)(v < top ? v : top));
+    }
+}
+
 /* part x of the song into the four tracks (their steps, LEN, DIV, SWING, ROOT, SCALE and automation; the sounds stay) */
 static void song_render(uint32_t x)
 {
     const forge_starter_t *s = &FORGE_STARTER[fs_idx()];
     uint8_t trk0 = fg.trk, style0 = fg.style, dens0 = fg.dens, ev0 = fg.evolve, n0 = fg.nvar, r0 = fg.rvar;
-    uint32_t i, j, d = song_dtype(), amb = fs.genre % FS_NGENRE == 10u, sec = song_d_steps();
+    uint32_t i, j, d = song_dtype(), amb = fs.genre % FS_NGENRE == FS_G_AMBIENT, sec = song_d_steps();
     static const uint8_t MULT[SG_N][FP_N] = {{85, 70, 85, 85}, {115, 115, 115, 115}, {90, 90, 90, 90}, {125, 125, 125, 125}};
     fg_bovr = fs_beat(s->beat);
     fg_bvd = s->dvel;
@@ -131,11 +158,13 @@ static void song_render(uint32_t x)
             m = 110;
         if (x == SG_D && d == SD_BREAK)
             m = i == FP_DRUM ? 40u : i == FP_LEAD ? 50u : 100u;
-        if (x == SG_D && (i == FP_DRUM || (d == SD_BREAK && i == FP_PAD)))
-            len = sec < NSTEP ? sec : NSTEP;            /* (the section's last bar is in the pattern) */
+        t->p[P_SDIV] = 2;
+        if (x == SG_D && i == FP_DRUM)
+            len = sec < NSTEP ? sec : NSTEP;            /* (the section's last bar is in the pattern, else b:b) */
+        if (x == SG_D && d == SD_BREAK && i == FP_PAD)
+            len = song_break_pad_len(sec, &t->p[P_SDIV]);   /* (one loop: the whole section) */
         ev += x == SG_B ? 1u : x == SG_D && d == SD_LIFT ? 2u : 0u;
         t->p[P_SLEN] = (int16_t)len;
-        t->p[P_SDIV] = 2;
         t->p[P_SSWING] = s->swing;
         t->p[P_ROOT] = fs.root;
         t->p[P_SCALE] = fs.scale ? fs.scale : s->scale;
@@ -217,13 +246,10 @@ static void song_render(uint32_t x)
                 }
             }
         }
-        if (i == FP_PAD && x == SG_D && d == SD_BREAK) {   /* the filter down, opening over the last bar */
-            uint32_t id = song_filter_id(t), last = len > 16u ? len - 16u : 0u;
+        if (i == FP_PAD && x == SG_D && d == SD_BREAK) {   /* the filter down, opening over the section's last bar */
+            uint32_t id = song_filter_id(t);
             int32_t top = t->p[id], lo = song_param_min(t, id) + (top - song_param_min(t, id)) * 3 / 10;
-            motion_set_enabled(t, 1);
-            motion_set_event(t, 0, id, (int16_t)lo);
-            for (j = last ? last : 1u; j < len; j += 2u)
-                motion_set_event(t, j, id, (int16_t)(lo + (top - lo) * (int32_t)(j - last + 2u) / (int32_t)(len - last)));
+            song_sweep(t, len, id, lo, top);
         }
     }
     fg_xsalt[1] = fg_xsalt[2] = fg_xsalt[3] = 0;
@@ -346,17 +372,23 @@ static void song_reroll(uint32_t rhythm)                /* C4 / D4: the part sho
 static int song_write(void)
 {
     char b[SG_NAME_LEN + 1u];
+    chain_config_t was = chain_config;
     uint32_t x;
-    if (transport_busy()) {
-        ui_message("STOP TO SAVE");
+    if (transport_busy()) {                             /* (checked before anything is written: project_save_as's own */
+        ui_message("STOP TO SAVE");                     /* refusal, said up front) */
         return 1;
     }
     song_chain(&chain_config);
     for (x = SG_N; x-- > 0;) {
         song_render(x);
         song_name(x, b);
-        if (project_save_as(x, b))
+        if (SG_SAVE(x, b)) {                    /* (a slot refused: the chain as it was; the slots after it */
+            char m[16] = "SAVE FAILED X";              /* in D..A written already, said by the letter) */
+            m[12] = (char)('A' + x);
+            chain_config = was;
+            ui_message(m);
             return 2;
+        }
     }
     sg.part = SG_A;
     sg.stage = SG_WRITTEN;
@@ -370,13 +402,24 @@ static int song_oct(uint32_t up)
     char b[SG_NAME_LEN + 1u];
     if (sg.pend) {                                      /* SAVE X?: that slot only, or nothing */
         uint32_t x = sg.pend - 1u;
-        sg.pend = 0;
         if (!up) {
+            sg.pend = 0;
             ui_message("NOT SAVED");
             return 0;
         }
+        if (transport_busy()) {                         /* (playing: the prompt stays up, nothing written) */
+            ui_message("STOP TO SAVE");
+            return 0;
+        }
         song_name(x, b);
-        if (!project_save_as(x, b)) {
+        if (SG_SAVE(x, b)) {
+            char m[16] = "SAVE FAILED X";
+            m[12] = (char)('A' + x);
+            ui_message(m);                              /* (the prompt stays up) */
+            return 0;
+        }
+        sg.pend = 0;
+        {
             char m[12] = {(char)('A' + x), ' ', 'S', 'A', 'V', 'E', 'D', 0};
             ui_message(m);
         }
@@ -508,9 +551,7 @@ static void song_knob(uint32_t k, int32_t s)
     uint8_t seed = fg.seed, genre = fs.genre;
     fs_knob(k, s);
     if (fg.seed != seed || fs.genre != genre)
-        song_reset();
-    sg.stage = SG_EDIT;
-    sg.pend = 0;
-    song_render(sg.part);
+        song_reset();                                   /* (another song: EDIT, not written; DENSITY / EVOLVE: the */
+    song_render(sg.part);                               /* same song, still written, a reroll still asks SAVE X?) */
     song_say();
 }

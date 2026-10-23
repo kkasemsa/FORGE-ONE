@@ -48,6 +48,11 @@ SONG, built to the Song Mode spec v0.3 (MVP, §9).
   ≥ 12 semitones over A's, denser than B, a fill; BREAK's empty T1, no kick / clap, the roll, the pad filter down
   then open; the chain played on stock code row by row; confirm OCT- leaves all slots and tracks byte-identical;
   SAVE X? writes only that slot; a locked track survives a reroll; labels fit 12 characters. UI lint: 3 new screens.
+- Review of PR #1, before merge: GENERATE checks the save can happen before writing anything, and if a slot is
+  refused halfway it puts the chain back and says `SAVE FAILED X`; turning DENSITY or EVOLVE keeps the song written
+  (only SEED or GENRE make a new one), so a reroll still asks `SAVE X?`; a refused `SAVE X?` (playing: `STOP TO
+  SAVE`) keeps the prompt up; BREAK's pad is one loop per section (past 64 steps: 1/8 at half the steps), so its
+  filter opens only in the section's last bar, with patterns of a bar or less opening over their second half.
 
 ## 0.12
 
