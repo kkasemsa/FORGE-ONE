@@ -220,7 +220,7 @@ static int kits(void)
     track_t *t;
     int32_t s;
     static int32_t kbuf[2 * CTL];
-    ok = DK_DEEP == 9 && DK_TIGHT == 10 && DK_PERC == 11 && DK_COUNT == 12 && DV_NKIT == 8 && d->max == DK_PERC &&
+    ok = DK_DEEP == 9 && DK_TIGHT == 10 && DK_PERC == 11 && DK_COUNT == 15 && DV_NKIT == 11 && d->max == DK_SD &&   /* (FORGE ONE 0.14: 90 MP SD after PERC) */
          str_eq(d->names[DK_DEEP], "DEEP") && str_eq(d->names[DK_TIGHT], "TIGHT") && str_eq(d->names[DK_PERC], "PERC");
     for (k = 0; k < 3u; k++)
         for (l = 0; l < DV_NLANE; l++) {

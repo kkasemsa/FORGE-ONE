@@ -890,7 +890,7 @@ static void cost(void)
 }
 
 /* --------------------------------------------------------- the model kits --- */
-static const char *const KITN[DV_NKIT] = {"80", "10", "66", "55", "77", "DEEP", "TIGHT", "PERC", "90"};
+static const char *const KITN[DV_NKIT] = {"80", "10", "66", "55", "77", "DEEP", "TIGHT", "PERC", "90", "MP", "SD"};
 static const char *const LANEN[DV_NLANE] = {"KICK", "SNARE", "CLAP", "HATCL", "HATOP", "TOM", "RIM", "BELL"};
 #define KLEN (FS * 6u)
 
@@ -920,6 +920,13 @@ static const float KTGT[DV_NKIT][DV_NLANE][2] = {
      * bright hats, the open one 0.7 s; 80's rim, 10's cymbal) */
     {{0.400, 1144}, {0.120, 7702}, {0.230, 4350}, {0.110, 13324},   /* 90 */
      {0.730, 13038}, {0.210, 540}, {0.020, 4241}, {2.830, 5233}},
+    /* MP: measured (a soft 0.2 s thump, a short noise snare, maracas, a long noise cymbal, a bongo, claves) */
+    {{0.200, 991}, {0.070, 8142}, {0.160, 8175}, {0.140, 9490},   /* MP */
+     {0.940, 9626}, {0.080, 1057}, {0.090, 3599}, {1.350, 7347}},
+    /* SD: measured (a swept 0.45 s kick, a 0.2 s gliding snare, 90's clap and hats, a 0.5 s bent tom, 80's rim,
+     * 10's crash) */
+    {{0.450, 1020}, {0.210, 6268}, {0.230, 4350}, {0.110, 13324},   /* SD */
+     {0.730, 13038}, {0.490, 914}, {0.020, 4241}, {2.830, 5233}},
 };
 static const float KLVL[DV_NLANE] = {-14.5f, -18.2f, -24.2f, -27.4f, -23.8f, -13.6f, -22.5f, -21.0f};
 
@@ -1085,6 +1092,12 @@ static void kit_keys(void)
     bad += strcmp(ENG_DRUM.edit[0].names[DK_DEEP], "DEEP") != 0 || strcmp(ENG_DRUM.edit[0].names[DK_PERC], "PERC") != 0;
     trk[0].p[P_E0] = DK_90;                           /* (FORGE ONE 0.14: its cymbal on BELL) */
     bad += strcmp(ENG_DRUM.edit[0].names[DK_90], "90") != 0 || strcmp(drum_lane_name(&trk[0], DV_BELL), "CYM") != 0 ||
+           strcmp(drum_lane_name(&trk[0], DV_TOM), "TOM") != 0;
+    trk[0].p[P_E0] = DK_MP;                           /* (bongo, claves, cymbal) */
+    bad += strcmp(ENG_DRUM.edit[0].names[DK_MP], "MP") != 0 || strcmp(drum_lane_name(&trk[0], DV_TOM), "CONGA") != 0 ||
+           strcmp(drum_lane_name(&trk[0], DV_RIM), "CLAVE") != 0 || strcmp(drum_lane_name(&trk[0], DV_BELL), "CYM") != 0;
+    trk[0].p[P_E0] = DK_SD;                           /* (a crash on BELL) */
+    bad += strcmp(ENG_DRUM.edit[0].names[DK_SD], "SD") != 0 || strcmp(drum_lane_name(&trk[0], DV_BELL), "CYM") != 0 ||
            strcmp(drum_lane_name(&trk[0], DV_TOM), "TOM") != 0;
     printf("drum_test: kits 80 10 66 55 77 DEEP TIGHT PERC: every GM note on its lane's piece, the 8 lanes alone and together through the "
            "engine, the lanes' names: %s\n", bad ? "FAIL" : "ok");
@@ -1270,7 +1283,7 @@ static uint64_t seq_hash(const uint8_t (*ev)[3], uint32_t nev, uint32_t frames, 
 static void retired(void)
 {
     static const uint8_t MAP[4] = {DK_STD, DK_66, DK_10, DK_77};
-    static const uint8_t ORDER[10] = {DK_STD, DK_80, DK_10, DK_66, DK_55, DK_77, DK_DEEP, DK_TIGHT, DK_PERC, DK_90};
+    static const uint8_t ORDER[12] = {DK_STD, DK_80, DK_10, DK_66, DK_55, DK_77, DK_DEEP, DK_TIGHT, DK_PERC, DK_90, DK_MP, DK_SD};
     const param_desc_t *d = &ENG_DRUM.edit[0];
     uint32_t r, n, k, bad = 0, same = 0;
     int16_t kick;
@@ -1311,16 +1324,16 @@ static void retired(void)
     }
     {
         int32_t v = DK_STD, i;
-        for (i = 0; i < 10; i++) {                      /* STD 80 10 66 55 77 DEEP TIGHT PERC 90, then held at the end */
+        for (i = 0; i < 12; i++) {                      /* STD 80 10 66 55 77 DEEP TIGHT PERC 90 MP SD, then held at the end */
             bad += v != ORDER[i];
             v = param_turn(d, v, 1);
         }
-        bad += v != DK_90 || param_turn(d, DK_80, -1) != DK_STD || param_turn(d, DK_STD, -1) != DK_STD;
+        bad += v != DK_SD || param_turn(d, DK_80, -1) != DK_STD || param_turn(d, DK_STD, -1) != DK_STD;
     }
     for (r = 1; r < 4u; r++)
         bad += strcmp(d->names[r], d->names[MAP[r]]) != 0 || enum_orig(d, (int32_t)r) != MAP[r] ||
                param_fit(d, (int32_t)r) != MAP[r];
-    bad += param_fit(d, 99) != DK_90 || param_fit(d, -5) != DK_STD || enum_orig(d, DK_55) != DK_55;
+    bad += param_fit(d, 99) != DK_SD || param_fit(d, -5) != DK_STD || enum_orig(d, DK_55) != DK_55;
     bad += param_fit(&TP[P_LEVEL], 77) != 77;
     {   /* a motion event of KIT 2 (CYM): stored and played as 10 */
         host_tracks_init();
