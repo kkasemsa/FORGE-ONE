@@ -4,6 +4,7 @@ Newest first. FORGE is the SEQ TOOLS F5 motif generator in FORGE ONE (based on F
 
 | Version | Date | Theme |
 | --- | --- | --- |
+| 0.11 | 23 Oct 2026 | A logo on the splash: one flame on an anvil |
 | 0.10 | 23 Oct 2026 | The FORGE palette: FORGE ONE's own look, the default |
 | 0.9.3 | 23 Oct 2026 | The splash names its maker |
 | 0.9.2 | 22 Oct 2026 | First hardware feedback: the pads lower, CHOIR AAH −12 dB |
@@ -18,6 +19,17 @@ Newest first. FORGE is the SEQ TOOLS F5 motif generator in FORGE ONE (based on F
 | 0.3 | 21 Oct 2026 | Safe live turns, chords in every scale, pinned seeds |
 | 0.2 | 21 Oct 2026 | The generator: SEED, DENSITY, EVOLVE, 8 styles |
 | 0.1 | 21 Oct 2026 | Scaffold: F5 FORGE cell, CI build |
+
+## 0.11
+
+- **The FORGE ONE logo on the boot splash**: one flame (red, ember, gold) on an anvil inside the UI's 270-degree dial,
+  four steps cut in the anvil's face (the four tracks, the first lit), a cyan spark flying off; the wordmark
+  "forge one" under it ("one" in ember), then "0.11 by Khantipol" and "on Felucca v1.6.1 by Hügelton". The same
+  family as Forge Five's (the dial, the monoline lettering, after Clipper's tools/gen_logo.py) with FORGE ONE's
+  own mark. It is always drawn in the FORGE palette's colours, whatever palette is chosen.
+- `tools/gen_fo_logo.py` makes it at build time (`build/gen/fo_logo.h`, a 4.4 KB RLE of 16 colours) and the PNGs in
+  `assets/forge-one/` (logo, icon, the splash as the device shows it).
+- Decided, not done: the review's physically armed update mode (0.9.1). FORGE ONE keeps upstream's update path.
 
 ## 0.10
 
@@ -72,7 +84,7 @@ Beam's third review (of 0.8), six findings, all taken:
   pin is jieli-linux-toolchains-20260730.1 (26027508 B), from CI's fetch of 22 Oct 2026.
 - Not done, by design: a physically armed update mode (the review's USB SysEx point). It is upstream's update path,
   `fm1_install.py` and the web installer depend on it, and a confirmation on the instrument would change how every
-  install works; left for a decision.
+  install works. Decided (23 Oct 2026): not for FORGE ONE.
 
 ## 0.9
 

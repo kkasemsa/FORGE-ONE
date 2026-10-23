@@ -622,6 +622,7 @@ static void mono_check(void)
 {
     uint32_t i, bw = settings.palette == UI_BW_INDEX;
     if (settings.palette != UI_GREY_INDEX && !bw) return;
+    if (strlen(cur_name) >= 6u && !strcmp(cur_name + strlen(cur_name) - 6u, "splash")) return;   /* (FORGE ONE 0.11: its splash keeps its own colours) */
     for (i = 0; i < 240u * 240u; i++) {
         uint16_t c = swap16(host_screen[i]);
         int32_t d = (int32_t)((c >> 5) & 63u) - (int32_t)(c >> 11) * 2;
@@ -1698,33 +1699,25 @@ static void draw(int s)
     }
     if (s == S_SPLASH) {                          /* the power-on splash (main.c, before the UI): its lines, the version
                                                    * shown FELUCCA_VERSION (run_tests.sh: src/felucca.c's) */
-        static const char WANT[] = FORGE_ONE_NAME "|" FORGE_VERSION " by Khantipol|on Felucca " FELUCCA_VERSION "|by H\xFCgelton";   /* (FORGE ONE) */
+        static const char WANT[] = FORGE_VERSION " by Khantipol|on Felucca " FELUCCA_VERSION " by H\xFCgelton";   /* (FORGE ONE) */
         splash_seen[0] = 0;
         in_splash = 1;
         draw_splash();
         in_splash = 0;
-        {   /* the square whole on the screen (176 x 176 at 32,32, more than the canvas): its edges and square corners
-             * RAISE, BG just outside; its text's ink 16 px in from the left and the top (the bottom: AL_B, the hook) */
-            const int32_t q0 = 32, q1 = 32 + 176 - 1;
-            uint16_t bg = host_screen[0], ra = host_screen[(uint32_t)(q0 + 1) * 240u + (uint32_t)q0 + 1];
-            int32_t i, x, y, ix = 999, iy = 999, bad = ra == bg;
-            for (i = q0 - 1; i <= q1 + 1; i++) {
-                int32_t in = i >= q0 && i <= q1;
-                bad |= host_screen[(uint32_t)(q0 - 1) * 240u + (uint32_t)i] != bg || host_screen[(uint32_t)(q1 + 1) * 240u + (uint32_t)i] != bg
-                    || host_screen[(uint32_t)i * 240u + (uint32_t)(q0 - 1)] != bg || host_screen[(uint32_t)i * 240u + (uint32_t)(q1 + 1)] != bg;
-                if (in)
-                    bad |= host_screen[(uint32_t)q0 * 240u + (uint32_t)i] != ra || host_screen[(uint32_t)q1 * 240u + (uint32_t)i] != ra
-                        || host_screen[(uint32_t)i * 240u + (uint32_t)q0] != ra || host_screen[(uint32_t)i * 240u + (uint32_t)q1] != ra;
-            }
-            for (y = q0; y <= q1; y++)
-                for (x = q0; x <= q1; x++)
-                    if (host_screen[(uint32_t)y * 240u + (uint32_t)x] != ra) {
-                        if (x - q0 < ix) ix = x - q0;
-                        if (y - q0 < iy) iy = y - q0;
+        {   /* FORGE ONE 0.11: the logo over the top FO_LOGO_H rows (the FORGE BG in the corners, the flame's ember in the
+             * dial, the paper wordmark under it), the two lines under it centred and inside the screen */
+            uint16_t bg = swap16(host_screen[0]), fl = swap16(host_screen[60u * 240u + 120u]);
+            int32_t x, y, l = 240, r = -1, bad = bg != RGB(10, 12, 26) || swap16(host_screen[239u * 240u + 239u]) != bg;
+            bad |= !((fl >> 11) > 24u && ((fl >> 5) & 63u) > 24u && (fl & 31u) < 16u);        /* (warm: the flame) */
+            for (y = FO_LOGO_H; y < 240; y++)
+                for (x = 0; x < 240; x++)
+                    if (swap16(host_screen[(uint32_t)y * 240u + (uint32_t)x]) != bg) {
+                        if (x < l) l = x;
+                        if (x > r) r = x;
                     }
-            if (bad || ix != 16 || (iy != 16 && iy != 15)) {   /* (FORGE ONE: its round O / G overshoot the capitals 1 px) */
-                if (rep) fprintf(rep, "FIND %-26s the splash square not whole (edges %s) or its text not 16 px in (left %d, top %d)\n",
-                                 cur_name, bad ? "off" : "ok", (int)ix, (int)iy);
+            if (bad || l < 4 || r > 235 || ((l + r) - 239 > 24 || 239 - (l + r) > 24)) {
+                if (rep) fprintf(rep, "FIND %-26s the splash's logo or lines off (corner %04x, flame %04x, lines %d..%d)\n",
+                                 cur_name, bg, fl, (int)l, (int)r);
                 nfind++;
             }
         }

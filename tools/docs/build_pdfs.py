@@ -32,7 +32,7 @@ DOCS = [   # (source, output, cover kicker, cover subtitle)
     ("docs/FORGE-USER-GUIDE.md", "FORGE-User-Guide.pdf", "User guide",
      "The seeded motif generator on SEQ TOOLS F5"),
     ("docs/USER-GUIDE.md", "FORGE-ONE-User-Guide.pdf", "Complete user guide",
-     "Felucca 1.6.1 and FORGE 0.10 on the M-VAVE FM-1"),
+     "Felucca 1.6.1 and FORGE 0.11 on the M-VAVE FM-1"),
     ("docs/TUTORIAL-TH.md", "FORGE-ONE-Tutorial-TH.pdf", "Tutorial (ภาษาไทย)",
      "แจม 4 แทร็ก: FORGE บนแทร็ก 1–3 และกลองบนแทร็ก 4"),
 ]
@@ -113,13 +113,14 @@ def page(src, kicker, sub):
     text = (ROOT / src).read_text()
     title = re.search(r"^# (.+)$", text, re.M).group(1).split(" — ")[0]
     body = markdown.markdown(absolute_links(text, src), extensions=["tables", "fenced_code", "attr_list", "sane_lists"])
+    body = re.sub(r'<img src="(?!https?:|file:)([^"]+)"', lambda m: f'<img src="{((ROOT / src).parent / m.group(1)).resolve().as_uri()}"', body)
     steps = "".join(f'<span class="{ {"1": "on", "2": "tie"}.get(s, "") }"></span>' for s in COVER_STEPS)
     today = datetime.date.today().strftime("%d %B %Y").lstrip("0")
     cover = f"""<section class="cover">
   <div class="top"><div class="kicker">{html.escape(kicker)}</div>
   <div class="title">{html.escape(title)}</div><div class="sub">{html.escape(sub)}</div></div>
   <div><div class="grid">{steps}</div>
-  <div class="meta"><b>FORGE ONE</b> · Felucca 1.6.1 + FORGE 0.10 · M-VAVE FM-1<br>
+  <div class="meta"><b>FORGE ONE</b> · Felucca 1.6.1 + FORGE 0.11 · M-VAVE FM-1<br>
   github.com/kkasemsa/FORGE-ONE (forge branch) · {today}<br>
   Felucca by Hügelton Instruments and contributors · GPL-3.0-only</div></div></section>"""
     css = CSS.replace("FONTS", FONTS.as_uri())

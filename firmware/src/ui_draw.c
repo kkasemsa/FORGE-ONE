@@ -1325,41 +1325,40 @@ static void draw_columns(void)
 }
 
 
-/* The power-on splash (main.c fm1_main, web/emu felucca_web.c; 1.1.5): a RAISE square centred on the screen, square
- * corners (in every style; LINE too: RAISE from the palette's SURF), in it in AF_M, the ink SPL_PAD in from the left:
- * at the top the name and the version, the first line's capitals' top SPL_PAD down; at the bottom the maker and
- * "with community", the last line's capitals' bottom (its baseline) SPL_PAD up from the square's bottom. Both
- * margins are measured to the capitals (the descender of "community" hangs into the bottom one, as off a baseline).
- * The square (176 x 176) is more than the canvas (CV_MAX, 240 x 124): it is filled straight on the screen and its
- * two text bands drawn on it as canvases, the top one from the square's top edge, the bottom one to its bottom edge.
- * In the saved palette (settings_init before it) */
-#define SPL_SQ 176                                  /* the square (even: centred exactly) */
-#define SPL_X0 ((240u - SPL_SQ) / 2u)               /* its top-left on the screen (x and y) */
-#define SPL_PAD 16                                  /* the text's inset: left (its ink), top and bottom (the capitals) */
-#define SPL_PITCH 20                                /* line to line */
-static const char *const SPLASH_LINES[] = {FORGE_ONE_NAME, FORGE_VERSION " by Khantipol", "on Felucca " FELUCCA_VERSION,
-                                           "by H\xFCgelton"};   /* (FORGE ONE: its name and maker; Felucca's credit) */
-/* a band of two lines, h tall, at y on the screen: the first line's top at ly; the two lines' capitals declared
- * against al0..al1 (mode: AL_V the band centred there, AL_B the last baseline on al1) */
-static void splash_band(uint32_t y, uint32_t h, int32_t ly, const char *const *l, uint32_t mode, int32_t al0,
-                        int32_t al1, const char *tag)
+/* The power-on splash (main.c fm1_main, web/emu felucca_web.c). FORGE ONE 0.11: its logo (tools/gen_fo_logo.py ->
+ * build/gen/fo_logo.h: one flame on an anvil in the UI's dial, the wordmark "forge one"; 16 colours, RLE runs of
+ * (run - 1) << 4 | colour) over the top FO_LOGO_H rows, then FORGE ONE's version and maker (AF_M, paper) and Felucca's
+ * credit (AF_S, dim) centred under it. Always in the FORGE palette's colours, whatever the saved palette: it is the
+ * firmware's own mark (Felucca's splash was a RAISE square in the saved palette) */
+#include "fo_logo.h"
+#define SPL_BG RGB(10, 12, 26)                      /* the FORGE palette's BG, TEXT and a dim of it (gen_ui_palettes.py) */
+#define SPL_INK RGB(240, 232, 214)
+#define SPL_DIM RGB(140, 138, 150)
+static const char *const SPLASH_LINES[] = {FORGE_VERSION " by Khantipol", "on Felucca " FELUCCA_VERSION " by H\xFCgelton"};
+static void fo_logo_draw(void)
 {
-    cv_begin(SPL_SQ, h, T_RAISE);
-    GFX_HOOK_ALIGN(0, al0, 0, al1, mode | AL_N(2), tag);
-    cv_text_on(SPL_PAD, ly, &AF_M, l[0], T_TEXT, T_RAISE);
-    cv_text_on(SPL_PAD, ly + SPL_PITCH, &AF_M, l[1], T_TEXT, T_RAISE);
-    cv_blit(SPL_X0, y);
+    uint32_t r0;
+    for (r0 = 0; r0 < FO_LOGO_H; r0 += 120u) {          /* (bands of at most 120 rows: the canvas is 240 x 124) */
+        uint32_t rows = FO_LOGO_H - r0 > 120u ? 120u : FO_LOGO_H - r0;
+        uint32_t lo = r0 * FO_LOGO_W, hi = (r0 + rows) * FO_LOGO_W, pos = 0, i;
+        cv_begin(FO_LOGO_W, rows, SPL_BG);
+        for (i = 0; i < sizeof FO_LOGO_RLE && pos < hi; i++) {
+            uint32_t run = (FO_LOGO_RLE[i] >> 4) + 1u, c = FO_LOGO_RLE[i] & 15u, q;
+            if (c && pos + run > lo)
+                for (q = pos < lo ? lo : pos; q < pos + run && q < hi; q++)
+                    cv_px[q - lo] = swap16(FO_LOGO_PAL[c]);
+            pos += run;
+        }
+        cv_blit((240u - FO_LOGO_W) / 2u, r0);
+    }
 }
 static void draw_splash(void)
 {
-    int32_t h = SPL_PAD - AF_M_CAP_Y + SPL_PITCH + AF_M.h;     /* a band: its two lines, the descenders in */
-    int32_t lb = h - SPL_PAD - AF_M_CAP_H - AF_M_CAP_Y;         /* the bottom band's last line: its top */
-    lcd_fill(0, 0, 240, 240, T_BG);
-    lcd_fill(SPL_X0, SPL_X0, SPL_SQ, SPL_SQ, T_RAISE);
-    splash_band(SPL_X0, (uint32_t)h, SPL_PAD - AF_M_CAP_Y, SPLASH_LINES, AL_V, SPL_PAD,
-                SPL_PAD + SPL_PITCH + AF_M_CAP_H, "splash name + version SPL_PAD from the top");
-    splash_band(SPL_X0 + SPL_SQ - (uint32_t)h, (uint32_t)h, lb - SPL_PITCH, SPLASH_LINES + 2, AL_B, 0, h - SPL_PAD,
-                "splash maker's baseline SPL_PAD from the bottom");
+    fo_logo_draw();
+    cv_begin(240, 240u - FO_LOGO_H, SPL_BG);
+    cv_text_in(0, 8, 240, &AF_M, SPLASH_LINES[0], SPL_INK, SPL_BG);
+    cv_text_in(0, 36, 240, &AF_S, SPLASH_LINES[1], SPL_DIM, SPL_BG);
+    cv_blit(0, FO_LOGO_H);
     lcd_sync();
 }
 
