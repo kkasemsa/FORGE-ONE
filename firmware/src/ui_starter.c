@@ -203,6 +203,15 @@ static const fs_genre_t FS_GENRE[] = {
     {"BREAKBEAT", "BREAKS", 31, 3}, {"AMBIENT", "AMBI", 34, 4}, {"LO-FI", "LO-FI", 38, 3}, {"JARRE", "JARRE", 41, 4},
 };
 #define FS_NGENRE (sizeof FS_GENRE / sizeof FS_GENRE[0])
+/* 0.13 SONG (ui_song.c): part D of a generated song by genre (Song Mode spec v0.3 §3a): LIFT, a bigger last chorus, or
+ * BREAK, a breakdown before it. 5 LIFT, 8 BREAK; tests/forge_test.c checks the table against the spec */
+enum { SD_LIFT, SD_BREAK };
+static const uint8_t FS_GENRE_D[] = {
+    SD_LIFT,  SD_BREAK, SD_BREAK, SD_BREAK,             /* BERLIN DETROIT DUB-TECHNO MELODIC */
+    SD_BREAK, SD_BREAK, SD_BREAK, SD_LIFT,              /* ACID-HOUSE ACID-TECHNO TRANCE DEEP-HOUSE */
+    SD_LIFT,  SD_BREAK, SD_LIFT,  SD_BREAK, SD_LIFT,    /* SYNTHWAVE BREAKBEAT AMBIENT LO-FI JARRE */
+};
+typedef char fs_genre_d_n[sizeof FS_GENRE_D == FS_NGENRE ? 1 : -1];
 static const char *const FP_ROLE[FP_N] = {"BASS", "LEAD", "PAD", "DRUM"};
 static const char H_STARTER[] = "[K4]GENRE[KEYS]BLACK 1-4: VARIATION";   /* (the second row: two fit) */
 

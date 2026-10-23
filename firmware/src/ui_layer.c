@@ -52,6 +52,7 @@
 #include "ui_tools.c"                                   /* SEQ TOOLS' actions */
 #include "ui_forge.c"                                   /* FORGE ONE: SEQ TOOLS F5 */
 #include "ui_starter.c"                                 /* FORGE ONE 0.6: SEQ TOOLS G5 */
+#include "ui_song.c"                                    /* FORGE ONE 0.13: STARTER's SONG */
 enum { LK_HOLD, LK_SET };
 typedef struct {
     uint8_t btn, kind, fam;            /* the button, HOLD / SET, the family whose first page KNOB 1..4 edit */
@@ -177,6 +178,7 @@ static void layer_let_go(uint32_t quiet)
         eu_close(&trk[lys.trk % NTRK], 1);
     forge_close(1);                                     /* (.. and an open FORGE, STARTER) */
     fs_close(1);
+    song_off();                                         /* (0.13: SONG with it, nothing written) */
     if (ui.ly == LAYER_FX && !perf_latch_on)
         perf_k[0] = perf_k[1] = perf_k[2] = perf_k[3] = 0;
     if (lys.rp_dirty) {                                 /* REC: its settings kept, as MENU does when it closes (FX: the map) */
@@ -412,6 +414,13 @@ static void tools_key(uint32_t p)
             return;
         }
     }
+    if (fs.on && sg.on && sg.stage == SG_CONFIRM)       /* (0.13 SONG's confirm: only OCT+ / OCT- answer it) */
+        return;
+    if (fs.on && sg.on && (p == TL_RANDOM || p == TL_COOK)) {   /* (0.13 SONG: the part shown, not the locked) */
+        song_reroll(p == TL_COOK);
+        ui.force = 1;
+        return;
+    }
     if (fs.on && (p == TL_RANDOM || p == TL_COOK)) {    /* (FORGE ONE 0.6 STARTER open: the same, all four) */
         fs_reroll(p == TL_COOK);
         ui.force = 1;
@@ -419,6 +428,7 @@ static void tools_key(uint32_t p)
     }
     if (fs.on) {                                        /* (STARTER open: applied; G5 again does only that) */
         fs_close(1);
+        song_off();
         if (p == TL_STARTER) {
             ui_message("STARTER APPLIED");
             ui.force = 1;
@@ -728,7 +738,16 @@ static void layer_key(uint32_t l, uint32_t k)
     } else if (l == LAYER_SEQ) {
         if (!key_black(k))
             tools_key(p);
-        else if (fs.on) {                               /* (0.8 STARTER open: black keys 1..4 the genre's variations) */
+        else if (fs.on && p == 10u) {                   /* (0.13: F#5 SONG on / off) */
+            song_toggle();
+            ui.force = 1;
+        } else if (fs.on && sg.on) {                    /* (SONG: black 1..4 a part, 5..8 a track's lock) */
+            if (sg.stage != SG_CONFIRM && p < SG_N)
+                song_part(p);
+            else if (sg.stage != SG_CONFIRM && p >= 4u && p < 8u)
+                song_lock(p - 4u);
+            ui.force = 1;
+        } else if (fs.on) {                             /* (0.8 STARTER open: black keys 1..4 the genre's variations) */
             fs_variation(p);
             ui.force = 1;
         } else if (p < NLANE && drum_track(TSEL)) {
@@ -794,6 +813,9 @@ static void layer_knob(uint32_t k, int32_t s)
         eu_knob(TSEL, k, s);
     } else if (l == LAYER_SEQ && fg.on) {               /* FORGE: SEED DENSITY EVOLVE STYLE */
         forge_knob(k, s);
+    } else if (l == LAYER_SEQ && fs.on && sg.on) {      /* 0.13 SONG: the same, then the part shown */
+        if (sg.stage != SG_CONFIRM)
+            song_knob(k, s);
     } else if (l == LAYER_SEQ && fs.on) {               /* STARTER: SEED DENSITY EVOLVE STARTER */
         fs_knob(k, s);
     } else if (l) {                                     /* the page's knobs, wherever the page is */
@@ -844,6 +866,11 @@ static uint32_t layer_oct(uint32_t pressed, uint32_t oct)
     if ((mine & 3u) && eu.on && lys.l == LAYER_SEQ) {   /* EUCLID open: OCT+ applies, OCT- cancels (only that) */
         eu_close(&trk[lys.trk % NTRK], mine & 2u);
         ui_message(mine & 2u ? "EUCLID APPLIED" : "EUCLID CANCELLED");
+        ui.force = 1;
+        mine = 0;
+    }
+    if ((mine & 3u) && fs.on && sg.on && lys.l == LAYER_SEQ) {   /* 0.13 SONG: GENERATE, the confirm, SAVE X? */
+        song_oct((mine & 2u) != 0u);
         ui.force = 1;
         mine = 0;
     }
@@ -954,9 +981,11 @@ static uint32_t layer_leds(uint32_t *br)
         } else if (l == LAYER_EDIT && (a = eqa_of(TSEL, p)) != 0) {   /* the quick actions: on lit (DRUM: sounding), */
             on = a->on(TSEL, a->arg) != 0u;             /* a HOLD one off breathes, none dark */
             can = a->kind == LK_HOLD;
+        } else if (l == LAYER_SEQ && b && fs.on && sg.on) {   /* 0.13 SONG: the part, the locks, F#5 */
+            song_led(p, &on, &can);
         } else if (l == LAYER_SEQ && b && fs.on) {      /* 0.8 STARTER: the variation lit, the genre's others breathe */
             on = p == fs.var;
-            can = p < FS_GENRE[fs.genre % FS_NGENRE].n;
+            can = p < FS_GENRE[fs.genre % FS_NGENRE].n || p == 10u;   /* (0.13: F#5 SONG) */
         } else if (l == LAYER_SEQ) {                    /* the tools breathe (not while a song plays); DRUM: the lane */
             on = (b && p < NLANE && drum_track(TSEL) && p == ui.lane) || (!b && p == TL_EUCLID && eu.on) ||
                  (!b && p == TL_FORGE && fg.on) || (!b && p == TL_STARTER && fs.on);   /* lit, the */
@@ -1237,6 +1266,10 @@ static void layer_seq(void)
         layer_forge();
         return;
     }
+    if (fs.on && sg.on) {                               /* (0.13 SONG: the parts, the tracks; the confirm) */
+        layer_song();
+        return;
+    }
     if (fs.on) {                                        /* (0.6 STARTER open: the four tracks) */
         layer_starter();
         return;
@@ -1432,7 +1465,7 @@ static void draw_layer(void)
         sig += (uint32_t)ui_rec_prefs * 31u + (uint32_t)chain_busy() * 3u + (uint32_t)rec_clearable() * 5u + song.sel * 977u;
     else if (l == LAYER_SEQ)
         sig += (uint32_t)drum_track(TSEL) * 31u + ui.lane * 5u + (uint32_t)chain_busy() * 3u + (uint32_t)TSEL->p[P_E0] * 131u + song.sel * 977u +
-               (eu.on ? 7u + eu.hits * 13u + eu.steps * 1031u + eu.rot * 65537u + (uint32_t)TSEL->p[P_SLEN] * 257u : 0u) + forge_sig() + fs_sig();
+               (eu.on ? 7u + eu.hits * 13u + eu.steps * 1031u + eu.rot * 65537u + (uint32_t)TSEL->p[P_SLEN] * 257u : 0u) + forge_sig() + fs_sig() + song_sig();
     else
         sig += snd_id() * 31u + (uint32_t)preset_favorite() * 5u + (uint32_t)chain_busy() * 3u + up_gen * 101u +
                eqa_sig() * 2654435761u;
@@ -1461,9 +1494,9 @@ static void draw_layer(void)
         cv_begin(240, H_FOOT, T_BG);
         const khint_t *ft = l == LAYER_FX && fx_key_held() ? FX_KEY_FOOT : l == LAYER_FX && pm_on() ? PM_FOOT :
                             l == LAYER_FX && perf_latch_on ? FX_LATCH_FOOT :
-                            l == LAYER_GLO && ui.lock == LAYER_GLO ? GLO_LOCK_FOOT : l == LAYER_SEQ && (eu.on || fg.on || fs.on) ? EU_FOOT :
+                            l == LAYER_GLO && ui.lock == LAYER_GLO ? GLO_LOCK_FOOT : l == LAYER_SEQ && fs.on && sg.on ? song_foot() : l == LAYER_SEQ && (eu.on || fg.on || fs.on) ? EU_FOOT :
                             LAYERS[l].foot;
-        int h = help_on() && help_row(l == LAYER_SEQ && eu.on ? H_EUCLID : l == LAYER_SEQ && fg.on ? H_FORGE : l == LAYER_SEQ && fs.on ? H_STARTER :
+        int h = help_on() && help_row(l == LAYER_SEQ && eu.on ? H_EUCLID : l == LAYER_SEQ && fg.on ? H_FORGE : l == LAYER_SEQ && fs.on && sg.on ? H_SONG : l == LAYER_SEQ && fs.on ? H_STARTER :
                                 l == LAYER_FX && pm_on() ? H_PERFORM : HELP_LAYER[l], 21);   /* 1.5, HELP ON: a
                                                          * second row, what this one does not say */
         cv_key_row(8, 232, h ? 2 : 9, ft, ft[2].act ? 3u : 2u, 7u, T_BG);

@@ -4,6 +4,7 @@ Newest first. FORGE is the SEQ TOOLS F5 motif generator in FORGE ONE (based on F
 
 | Version | Date | Theme |
 | --- | --- | --- |
+| 0.13 | 23 Oct 2026 | SONG: four parts A–D and the arrangement from one seed |
 | 0.12 | 23 Oct 2026 | F5 follows the track's sound: bass lines on a bass, held chords on a pad |
 | 0.11 | 23 Oct 2026 | A logo on the splash: one flame on an anvil |
 | 0.10 | 23 Oct 2026 | The FORGE palette: FORGE ONE's own look, the default |
@@ -20,6 +21,33 @@ Newest first. FORGE is the SEQ TOOLS F5 motif generator in FORGE ONE (based on F
 | 0.3 | 21 Oct 2026 | Safe live turns, chords in every scale, pinned seeds |
 | 0.2 | 21 Oct 2026 | The generator: SEED, DENSITY, EVOLVE, 8 styles |
 | 0.1 | 21 Oct 2026 | Scaffold: F5 FORGE cell, CI build |
+
+## 0.13
+
+SONG, built to the Song Mode spec v0.3 (MVP, §9).
+
+- **F#5 in STARTER opens SONG**: four related parts from one song seed, A VERSE, B CHORUS, C BRIDGE and D, which is
+  LIFT (a bigger last chorus) in BERLIN, DEEP HOUSE, SYNTHWAVE, AMBIENT and JARRE and BREAK (a breakdown) in the
+  other eight genres (`FS_GENRE_D`, next to `FS_GENRE`). Shared: the sounds, ROOT, SCALE, tempo, SWING, genre, seed.
+- **GENERATE** (OCT+) asks `OVERWRITE A-D?` with the four slots' current names; OCT+ writes slots A–D (`S42 VERSE`,
+  `S42 CHORUS`, `S42 BRIDGE`, `S42 LIFT` / `S42 BREAK`) and the 8-row default chain for D's type; OCT- writes nothing
+  and puts the four tracks back.
+- Black keys 1–4 play a part, 5–8 lock a track, C4 / D4 reroll the part shown (locked tracks byte-identical);
+  after writing, a reroll asks `SAVE B?`: OCT+ saves that slot only, OCT- keeps it unsaved.
+- No format change: parts are FUN10 projects, the arrangement the existing chain, labels the project names; stock
+  Felucca 1.6.1 loads and plays them. Factory presets and every existing pinned render are unchanged.
+- Choices the spec left to the build: entry key **F#5** (free in STARTER); reroll on **C4 / D4** for the part shown,
+  with the part picked on black keys 1–4 (A3–D4 white keys are other tools, and C4 / D4 are the reroll keys); locks on
+  black keys 5–8 (the FM-1 has no track keys). The kits have no crash, so CHORUS / LIFT accent step 1 with an open
+  hat. Fills use the b:b condition of the section's last loop, or sit in a pattern as long as the section (up to 64
+  steps), rather than `COND_FILL`, which only plays while FILL is held. BREAK's pad sweep uses automation events
+  (they hold between steps; a step lock lasts one step) on the pad engine's cutoff (else FREQ, TONE, DCW, BRIT,
+  MLVL; else LEVEL).
+- Tests (forge_test, `test_song`): the D table; each part rendered twice byte-identical; each slot loads back as its
+  part; the chain of §3b for SYNTHWAVE and TRANCE; B denser than A in all 13 genres; C a new motif; LIFT's lead
+  ≥ 12 semitones over A's, denser than B, a fill; BREAK's empty T1, no kick / clap, the roll, the pad filter down
+  then open; the chain played on stock code row by row; confirm OCT- leaves all slots and tracks byte-identical;
+  SAVE X? writes only that slot; a locked track survives a reroll; labels fit 12 characters. UI lint: 3 new screens.
 
 ## 0.12
 

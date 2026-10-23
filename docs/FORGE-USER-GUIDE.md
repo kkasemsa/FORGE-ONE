@@ -1,6 +1,6 @@
 # FORGE User Guide
 
-FORGE 0.12 in FORGE ONE (Felucca 1.6.1) · M-VAVE FM-1
+FORGE 0.13 in FORGE ONE (Felucca 1.6.1) · M-VAVE FM-1
 
 FORGE writes a musical idea onto a track in one key press, then lets that idea evolve: a melody on a synth track,
 a beat on a DRUM track (section 6). From 0.6, **STARTER** on the G5 key writes all four tracks at once, sounds
@@ -332,6 +332,43 @@ give the same four patterns. A set of starter seeds is pinned by a test, as FORG
 
 **CPU:** each starter's four engines were chosen to play together, but FORGE ONE has not yet been tested on a real
 FM-1. If you hear voices drop out, swap the pad for a lighter engine (ANALOG or FM6) on the EDIT layer.
+
+**SONG (0.13): four parts and the arrangement from one seed.** With STARTER open, press **F#5** (the last black key).
+SONG uses the starter's sounds, genre, SEED, DENSITY and EVOLVE (the knobs work as in STARTER) and makes four related
+parts:
+
+| Part (slot) | What it is |
+| --- | --- |
+| **A VERSE** | The starter as it is, a little sparser (DENSITY ×0.85, the lead ×0.7) |
+| **B CHORUS** | Denser (×1.15), the lead an octave up and developed (EVOLVE +1), open hats on the off-beat 8ths, step 1 accented |
+| **C BRIDGE** | A new motif, the bass and pad moved to the scale's 4th or 6th degree, a half-time beat (kick on 1, snare on 9) |
+| **D LIFT** | (BERLIN, DEEP HOUSE, SYNTHWAVE, AMBIENT, JARRE) the last chorus bigger: lead and pad an octave up, DENSITY ×1.25, 8th hats, a fill on the last bar (AMBIENT: gentler, no hats or fill) |
+| **D BREAK** | (the other 8 genres) the breakdown: no bass, no kick or snare, sparse hats, a snare roll building over the last bar, the pad's filter down and opening on the last bar |
+
+- **Black keys 1–4** play part A–D (its steps go into the four tracks; the selected part is lit). **Black keys 5–8**
+  lock T1–T4. **C4 / D4** reroll the notes / rhythm of the part shown, leaving locked tracks exactly as they are.
+- **OCT+ GENERATE** asks `OVERWRITE A-D?` and lists what is in the four project slots now (`--` for an empty one).
+  **OCT+** writes the four parts to slots A–D, named `S42 VERSE`, `S42 CHORUS`, `S42 BRIDGE`, `S42 LIFT` or
+  `S42 BREAK`, and writes the arrangement into GLO > SONG. **OCT−** cancels: no slot is touched and the four tracks
+  go back to how they were before STARTER. The transport must be stopped to save (`STOP TO SAVE`).
+- After writing, a reroll asks **`SAVE B?`** (for the part you rerolled): **OCT+** saves that slot only, **OCT−**
+  keeps the change in the tracks without saving. OCT+ or OCT− otherwise closes SONG, leaving the part shown in the
+  tracks. F#5 again goes back to plain STARTER.
+- The arrangement (8 rows, edit it in GLO > SONG):
+
+| Row | Section | T1 BASS | T2 LEAD | T3 PAD | T4 DRUM | Repeats (LIFT / BREAK genres) |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | INTRO | - | - | A | A | 2 |
+| 2 | VERSE | A | A | A | A | 4 |
+| 3 | CHORUS | B | B | B | B | 4 |
+| 4 | VERSE | A | A | A | A | 4 |
+| 5 | BRIDGE | C | C | C | C | 2 |
+| 6 | CHORUS / BREAK | B / D | B / D | B / D | B / D | 4 / 2 |
+| 7 | LIFT / CHORUS | D / B | D / B | D / B | D / B | 4 |
+| 8 | OUTRO | - | - | B | B | 2 |
+
+The parts are ordinary projects and the arrangement an ordinary SONG chain, so stock Felucca 1.6.1 loads and plays
+them too. Edit a part as usual: load its slot, change it, save it back to the same slot.
 
 ## 8. What FORGE writes, and what it leaves alone
 

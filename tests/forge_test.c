@@ -1193,9 +1193,298 @@ static int test_roles(void)
     return bad;
 }
 
+/* 0.13 SONG (ui_song.c; FORGE-ONE Song Mode spec v0.3 §9, acceptance tests 1..12): STARTER's F#5 SONG, four parts
+ * into slots A..D and the chain, the confirm, SAVE X?, the locks, the labels, the chain played as stock code plays it */
+static uint32_t sg_act(const track_t *t)                /* the steps that sound within LEN (notes or hits) */
+{
+    uint32_t i, n = 0;
+    for (i = 0; i < tl_len(t); i++)
+        n += drum_track(t) ? step_lanes(&t->step[i]) != 0u : t->step[i].time == ST_NOTE && t->step[i].n;
+    return n;
+}
+static int32_t sg_mean(const track_t *t)                /* the mean pitch of its notes (x 16), -1 none */
+{
+    uint32_t i, k, n = 0;
+    int32_t sum = 0;
+    for (i = 0; i < tl_len(t); i++)
+        for (k = 0; t->step[i].time == ST_NOTE && k < t->step[i].n; k++, n++)
+            sum += t->step[i].note[k];
+    return n ? sum * 16 / (int32_t)n : -1;
+}
+static void sg_tap(uint32_t b) { key_down(black(b)); frame(); key_up(black(b)); frame(); }
+static void sg_open(uint32_t genre, uint32_t seed)     /* STARTER on GENRE's first, SEED; then F#5: SONG, part A */
+{
+    track_t *t = melody(16);
+    t->p[P_SCALE] = 0;
+    t->p[P_ROOT] = 9;
+    go_page(GR_ROLL); frame();
+    btn_down(B_SEQ); frame();
+    fg.set = 1; fg.seed = (uint8_t)seed; fg.evolve = 1; fs.set = 1; fs.genre = (uint8_t)genre; fs.var = 0; fs.dens = 100;
+    tkey(TL_STARTER);
+    sg_tap(10);                                         /* F#5 */
+}
+static void sg_close(void) { if (fs.on) { btn_up(B_SEQ); frame(); } song_off(); fs.on = 0; }
+static int sg_genre(const char *name)
+{
+    uint32_t g;
+    for (g = 0; g < FS_NGENRE; g++)
+        if (str_eq(FS_GENRE[g].name, name))
+            return (int)g;
+    return -1;
+}
+static int test_song(void)
+{
+    static const struct { const char *g; uint8_t d; } MAP[13] = {
+        {"BERLIN", SD_LIFT}, {"DETROIT", SD_BREAK}, {"DUB TECHNO", SD_BREAK}, {"MELODIC", SD_BREAK},
+        {"ACID HOUSE", SD_BREAK}, {"ACID TECHNO", SD_BREAK}, {"TRANCE", SD_BREAK}, {"DEEP HOUSE", SD_LIFT},
+        {"SYNTHWAVE", SD_LIFT}, {"BREAKBEAT", SD_BREAK}, {"AMBIENT", SD_LIFT}, {"LO-FI", SD_BREAK}, {"JARRE", SD_LIFT}};
+    static const uint8_t CH[2][8][5] = {          /* §3b: T1 T2 T3 T4 repeats; 4 = "-" */
+        {{4, 4, 0, 0, 2}, {0, 0, 0, 0, 4}, {1, 1, 1, 1, 4}, {0, 0, 0, 0, 4}, {2, 2, 2, 2, 2}, {1, 1, 1, 1, 4},
+         {3, 3, 3, 3, 4}, {4, 4, 1, 1, 2}},
+        {{4, 4, 0, 0, 2}, {0, 0, 0, 0, 4}, {1, 1, 1, 1, 4}, {0, 0, 0, 0, 4}, {2, 2, 2, 2, 2}, {3, 3, 3, 3, 2},
+         {1, 1, 1, 1, 4}, {4, 4, 1, 1, 2}}};
+    static step_t part[SG_N][NTRK][NSTEP];
+    static project_store_t slots[4], slots2[4];
+    static track_t before[NTRK];
+    int bad = 0, ok, g;
+    uint32_t i, j, x, d, lo, n;
+    char nm[SG_NAME_LEN + 1u];
+    ok = SG_NAME_LEN == PROJ_NAME_LEN && sizeof FS_GENRE_D == 13u;
+    for (i = 0; i < 13u; i++)
+        ok &= (g = sg_genre(MAP[i].g)) >= 0 && FS_GENRE_D[g] == MAP[i].d;
+    for (i = 0, n = 0; i < 13u; i++)
+        n += FS_GENRE_D[i] == SD_LIFT;
+    bad += check("SONG (0.13) 3. D by genre: the 13 of §3a (5 LIFT, 8 BREAK)", ok && n == 5u);
+
+    /* 1. determinism, 2. relation: SYNTHWAVE (LIFT) and TRANCE (BREAK), seed 42 */
+    for (d = 0; d < 2u; d++) {
+        uint32_t gi = (uint32_t)sg_genre(d ? "TRANCE" : "SYNTHWAVE"), bpm;
+        uint8_t eng[NTRK], pre[NTRK];
+        sg_open(gi, 42);
+        ok = sg.on && fs.on && sg.part == SG_A && sg.stage == SG_EDIT && song_dtype() == d && msg_is(d ? "SONG 42 TRANCE" : "SONG 42 SYNTHWAVE");
+        for (x = 0; x < SG_N; x++) {
+            song_render(x);
+            for (i = 0; i < NTRK; i++)
+                memcpy(part[x][i], trk[i].step, sizeof part[x][i]);
+            song_render(x);                             /* (again: the same steps) */
+            for (i = 0; i < NTRK; i++)
+                ok &= !memcmp(part[x][i], trk[i].step, sizeof part[x][i]);
+        }
+        bad += check(d ? "  1. TRANCE 42: each part twice, byte for byte the same" : "  1. SYNTHWAVE 42: each part twice, byte for byte the same", ok);
+        bpm = (uint32_t)song.g[G_BPM];
+        for (i = 0; i < NTRK; i++)
+            eng[i] = trk[i].eng_req, pre[i] = trk[i].preset;
+        song_render(SG_A);
+        oct_fwd();                                      /* GENERATE: the confirm */
+        ok = sg.stage == SG_CONFIRM && msg_is("OVERWRITE A-D?");
+        oct_fwd();                                      /* OVERWRITE */
+        ok &= sg.stage == SG_WRITTEN && msg_is("SONG SAVED: A-D") && sg.part == SG_A;
+        for (x = 0; x < SG_N; x++) {
+            ok &= project_name(x, nm) && str_eq(nm, x == SG_A ? "S42 VERSE" : x == SG_B ? "S42 CHORUS" :
+                                                    x == SG_C ? "S42 BRIDGE" : d ? "S42 BREAK" : "S42 LIFT");
+        }
+        bad += check("  GENERATE: OVERWRITE A-D?, then the four slots named S42 VERSE CHORUS BRIDGE LIFT / BREAK", ok);
+        sg_close();
+        ok = 1;
+        for (x = 0; x < SG_N; x++) {                    /* each slot as stock code loads it: the part, all four tracks */
+            project_load(x);
+            for (i = 0; i < NTRK; i++) {
+                int q = !memcmp(part[x][i], trk[i].step, sizeof part[x][i]), r = trk[i].eng_req == eng[i] && trk[i].preset == pre[i],
+                    u = trk[i].p[P_ROOT] == 9 && trk[i].p[P_SCALE] == trk[0].p[P_SCALE];
+                if (!(q && r && u) && getenv("SGDBG"))
+                    printf("    slot %c T%u: steps %d sound %d (eng %u/%u preset %u/%u) key %d\n", (char)('A' + x), (unsigned)i + 1u, q, r,
+                           (unsigned)trk[i].eng_req, (unsigned)eng[i], (unsigned)trk[i].preset, (unsigned)pre[i], u);
+                ok &= q && r && u;
+            }
+            ok &= (uint32_t)song.g[G_BPM] == bpm;
+            ok &= chain_config.count == 8u;
+            for (j = 0; j < 8u; j++) {
+                for (i = 0; i < NTRK; i++)
+                    ok &= chain_config.row[j].slot[i] == (CH[d][j][i] == 4u ? CHAIN_SILENT : CH[d][j][i]);
+                ok &= chain_config.row[j].repeat == CH[d][j][4];
+            }
+        }
+        bad += check("  1-2, 6. each slot loads as its part (all four tracks), one sound set, ROOT, SCALE, tempo; the chain of §3b", ok);
+        {   /* 2. B denser than A; C's motif not A's */
+            uint32_t na = 0, nb = 0;
+            for (i = 0; i < NTRK; i++) {
+                project_load(SG_A); na += sg_act(&trk[i]);
+                project_load(SG_B); nb += sg_act(&trk[i]);
+            }
+            ok = nb > na && memcmp(part[SG_C][FP_LEAD], part[SG_A][FP_LEAD], 16u * sizeof(step_t));
+            if (!ok) printf("    active A %u B %u\n", (unsigned)na, (unsigned)nb);
+            bad += check("  2. B denser than A (all four tracks); C's lead another motif", ok);
+        }
+        project_load(SG_A);
+        {
+            int32_t ma = sg_mean(&trk[FP_LEAD]);
+            uint32_t ab = 0;
+            project_load(SG_B);
+            for (i = 0; i < NTRK; i++) ab += sg_act(&trk[i]);
+            project_load(SG_D);
+            if (!d) {                                   /* 4. LIFT */
+                uint32_t nd = 0, fill = 0, L = tl_len(&trk[FP_DRUM]);
+                for (i = 0; i < NTRK; i++) nd += sg_act(&trk[i]);
+                for (j = L - 16u; j < L; j++)
+                    fill += (step_lanes(&trk[FP_DRUM].step[j]) & (1u << DV_SNARE | 1u << DV_TOM)) && step_ratchet(&trk[FP_DRUM].step[j]) > 1u;
+                ok = sg_mean(&trk[FP_LEAD]) - ma >= 12 * 16 && nd > ab && fill >= 2u && L == 64u;
+                if (!ok) printf("    LIFT: lead +%d/16, D %u B %u, fill %u, LEN %u\n", (int)(sg_mean(&trk[FP_LEAD]) - ma), (unsigned)nd, (unsigned)ab, (unsigned)fill, (unsigned)L);
+                bad += check("  4. LIFT: the lead 12 semitones or more over A's, denser than B, a fill on the last bar", ok);
+            } else {                                    /* 5. BREAK */
+                uint32_t L = tl_len(&trk[FP_DRUM]), lowhits = 0, snl = 0, id = song_filter_id(&trk[FP_PAD]);
+                int16_t v0 = 0, vl = 0;
+                int32_t top = motion_base_value(&trk[FP_PAD], id);
+                ok = !sg_act(&trk[FP_BASS]) && tl_len(&trk[FP_BASS]) == FORGE_STARTER[fs_idx()].len[FP_BASS];
+                for (j = 0; j < L; j++) {
+                    uint32_t h = step_lanes(&trk[FP_DRUM].step[j]);
+                    lowhits += (h & (1u << DV_KICK | 1u << DV_CLAP)) != 0u || (j < L - 16u && (h & (1u << DV_SNARE)));
+                    snl += j >= L - 16u && (h & (1u << DV_SNARE));
+                }
+                ok &= !lowhits && snl >= 8u && tl_len(&trk[FP_PAD]) == L;
+                ok &= motion_lock_get(&trk[FP_PAD], 0, id, &v0) == 0 || 1;   /* (events, not locks) */
+                {
+                    int32_t e0 = motion_find(&trk[FP_PAD], 0, id), el = motion_find(&trk[FP_PAD], L - 2u, id);
+                    ok &= e0 >= 0 && el >= 0;
+                    if (e0 >= 0 && el >= 0) {
+                        v0 = motion.event[e0].value;
+                        vl = motion.event[el].value;
+                        ok &= v0 < top && vl == top && v0 < vl;
+                    }
+                }
+                ok &= chain_config.row[6].slot[0] == SG_B && chain_config.row[6].slot[3] == SG_B && chain_config.row[5].slot[0] == SG_D;
+                if (!ok) printf("    BREAK: bass %u, low %u, roll %u, pad LEN %u, filter %d .. %d of %d\n", (unsigned)sg_act(&trk[FP_BASS]), (unsigned)lowhits, (unsigned)snl, (unsigned)tl_len(&trk[FP_PAD]), v0, vl, (int)top);
+                bad += check("  5. BREAK: T1 empty (LEN kept), no kick / clap, snare only in the last bar's roll, the PAD's filter down then open, CHORUS after", ok);
+            }
+        }
+        {   /* 11. the chain as stock code plays it: rows 1..8 in order, then it stops */
+            uint32_t it = 0, rows = 0, last = 99;
+            project_load(SG_A);
+            ok = chain_valid(&chain_config) && chain_prepare() == 0;
+            while (it++ < 2000000u && (chain.running || chain.armed)) {
+                events_block(CTL);
+                if (chain.running && chain.row != last) {
+                    ok &= chain.row == (last == 99 ? 0u : last + 1u);
+                    last = chain.row;
+                    rows++;
+                }
+            }
+            ok &= !chain.running && rows == 8u;
+            if (!ok) printf("    chain: %u rows, last %u, running %u\n", (unsigned)rows, (unsigned)last, (unsigned)chain.running);
+            bad += check("  11. the chain plays its 8 rows in order on stock code, then stops", ok);
+            transport_req = 2;
+            events_block(CTL);
+        }
+    }
+
+    /* 7. the confirm: OCT- leaves every slot and the four tracks as they were */
+    sg_open((uint32_t)sg_genre("SYNTHWAVE"), 7);
+    sg_close();
+    memcpy(slots, proj_slot, sizeof slots);
+    {
+        track_t *t = melody(16);
+        t->p[P_SCALE] = 0; t->p[P_ROOT] = 9;
+        memcpy(before, trk, sizeof before);
+        go_page(GR_ROLL); frame();
+        btn_down(B_SEQ); frame();
+        fg.seed = 7; fs.genre = (uint8_t)sg_genre("SYNTHWAVE"); fs.var = 0;
+        tkey(TL_STARTER);
+        sg_tap(10);
+        oct_fwd();
+        ok = sg.stage == SG_CONFIRM;
+        tkey(TL_RANDOM);                                /* (the confirm: only OCT+ / OCT- answer it) */
+        ok &= sg.stage == SG_CONFIRM && fs.on;
+        oct_back();
+        ok &= !sg.on && !fs.on && !memcmp(slots, proj_slot, sizeof slots) && msg_is("SONG CANCELLED");
+        for (i = 0; i < NTRK; i++)
+            ok &= !memcmp(trk[i].step, before[i].step, sizeof trk[i].step) && !memcmp(trk[i].p, before[i].p, sizeof trk[i].p);
+        btn_up(B_SEQ); frame();
+        bad += check("  7. OVERWRITE A-D? then OCT-: all four slots and tracks byte for byte as before; other keys wait", ok);
+    }
+    /* 8. SAVE X?: OCT- writes nothing, OCT+ slot B only; 9. a locked track keeps its steps */
+    sg_open((uint32_t)sg_genre("TRANCE"), 42);
+    oct_fwd(); oct_fwd();                               /* generated */
+    sg_tap(1);                                          /* G#3: part B */
+    ok = sg.part == SG_B && msg_is("B CHORUS");
+    memcpy(slots, proj_slot, sizeof slots);
+    {
+        step_t t3[NSTEP], t1[NSTEP];
+        memcpy(t3, trk[2].step, sizeof t3);
+        memcpy(t1, trk[0].step, sizeof t1);
+        sg_tap(6);                                      /* G#4: T3 locked */
+        ok &= (sg.lock >> 2) & 1u;
+        tkey(TL_RANDOM);                                /* C4: new notes, part B */
+        ok &= sg.pend == SG_B + 1u && msg_is("SAVE B?") && !memcmp(t3, trk[2].step, sizeof t3) && memcmp(t1, trk[0].step, sizeof t1);
+        bad += check("  9. T3 locked: a reroll of B leaves T3's steps byte for byte, rerolls T1", ok);
+    }
+    oct_back();                                         /* KEEP: nothing saved */
+    ok = !sg.pend && !memcmp(slots, proj_slot, sizeof slots) && sg.on;
+    tkey(TL_COOK);                                      /* D4: a new rhythm, SAVE B? again */
+    ok &= sg.pend == SG_B + 1u;
+    oct_fwd();                                          /* SAVE: slot B only */
+    memcpy(slots2, proj_slot, sizeof slots2);
+    ok &= !sg.pend && !memcmp(&slots[0], &slots2[0], sizeof slots[0]) && memcmp(&slots[1], &slots2[1], sizeof slots[1]) &&
+          !memcmp(&slots[2], &slots2[2], sizeof slots[2]) && !memcmp(&slots[3], &slots2[3], sizeof slots[3]) &&
+          project_name(1, nm) && str_eq(nm, "S42 CHORUS");
+    bad += check("  8. SAVE B?: OCT- (KEEP) writes no slot; after another reroll OCT+ writes slot B only", ok);
+    oct_fwd();                                          /* written: DONE */
+    ok = !sg.on && !fs.on && msg_is("SONG DONE");
+    sg_close();
+    bad += check("  written: OCT+ DONE ends SONG and STARTER, the part shown in the tracks", ok);
+    /* 10. labels: every seed and type fits 12 characters */
+    ok = 1;
+    for (n = 0; n < 100u; n++)
+        for (x = 0; x < SG_N; x++) {
+            char b[SG_NAME_LEN + 1u];
+            fg.seed = (uint8_t)n;
+            fs.genre = (uint8_t)(n % FS_NGENRE);
+            song_name(x, b);
+            ok &= str_len(b) <= SG_NAME_LEN && b[0] == 'S';
+        }
+    fg.seed = 42; fs.genre = (uint8_t)sg_genre("TRANCE");
+    {
+        char b[SG_NAME_LEN + 1u];
+        song_name(SG_D, b);
+        ok &= str_eq(b, "S42 BREAK");
+        fs.genre = (uint8_t)sg_genre("JARRE");
+        song_name(SG_D, b);
+        ok &= str_eq(b, "S42 LIFT");
+    }
+    bad += check("  10. labels S<seed> VERSE CHORUS BRIDGE LIFT / BREAK, all in 12 characters", ok);
+    /* every genre: four parts by the rules (the generator's own: in scale, VEL, a drum KICK on step 1 except BREAK) */
+    ok = 1;
+    for (n = 0; n < FS_NGENRE && ok; n++) {
+        sg_open(n, 42);
+        uint32_t na = 0, nb = 0;
+        for (x = 0; x < SG_N && ok; x++) {
+            const char *why;
+            song_render(x);
+            for (i = 0; i < NTRK; i++) {
+                na += x == SG_A ? sg_act(&trk[i]) : 0u;
+                nb += x == SG_B ? sg_act(&trk[i]) : 0u;
+            }
+            for (i = 0; i < FP_DRUM && ok; i++)
+                if (sg_act(&trk[i]) && (why = rules(&trk[i], tl_len(&trk[i])))) {
+                    printf("    %s %c T%u: %s\n", FS_GENRE[n].name, (char)('A' + x), (unsigned)i + 1u, why);
+                    ok = 0;
+                }
+        }
+        if (nb <= na) {
+            printf("    %s: B %u not denser than A %u\n", FS_GENRE[n].name, (unsigned)nb, (unsigned)na);
+            ok = 0;
+        }
+        sg_close();
+    }
+    bad += check("  every genre: the four parts' notes by FORGE's rules (in the scale, VEL, ties); B denser than A", ok);
+    lo = 0;
+    (void)lo;
+    memset(proj_slot, 0, sizeof proj_slot);
+    chain_defaults(&chain_config);
+    return bad;
+}
+
 int main(void)
 {
-    int bad = test_open() + test_styles() + test_evolve() + test_names() + test_chords() + test_reroll() + test_golden() + test_drum() + test_051() + test_starter() + test_perform() + test_roles();
+    int bad = test_open() + test_styles() + test_evolve() + test_names() + test_chords() + test_reroll() + test_golden() + test_drum() + test_051() + test_starter() + test_perform() + test_roles() + test_song();
     printf("%s\n", bad ? "FORGE TEST FAILED" : "forge tests passed");
     return bad != 0;
 }

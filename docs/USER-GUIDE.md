@@ -1,6 +1,6 @@
 # FORGE ONE User Guide
 
-Felucca 1.6.1 with FORGE 0.12 · M-VAVE FM-1
+Felucca 1.6.1 with FORGE 0.13 · M-VAVE FM-1
 
 This guide covers the whole instrument: the Felucca firmware by Hügelton Instruments, and FORGE, the motif generator
 this fork adds. Felucca's own sections follow its official manual, the [Felucca wiki](https://github.com/hugelton/Felucca/wiki),
@@ -443,6 +443,45 @@ they sit 7 to 12 dB lower, so a chord does not bury the bass), and OCT− puts i
 \* The starter's SCALE is used only when the selected track's SCALE is CHR (the default). Any other SCALE you set is kept.
 
 ---
+
+### 9.7 SONG: four parts and the arrangement (F#5 in STARTER)
+
+With STARTER open, press **F#5** (the last black key).
+SONG uses the starter's sounds, genre, SEED, DENSITY and EVOLVE (the knobs work as in STARTER) and makes four related
+parts:
+
+| Part (slot) | What it is |
+| --- | --- |
+| **A VERSE** | The starter as it is, a little sparser (DENSITY ×0.85, the lead ×0.7) |
+| **B CHORUS** | Denser (×1.15), the lead an octave up and developed (EVOLVE +1), open hats on the off-beat 8ths, step 1 accented |
+| **C BRIDGE** | A new motif, the bass and pad moved to the scale's 4th or 6th degree, a half-time beat (kick on 1, snare on 9) |
+| **D LIFT** | (BERLIN, DEEP HOUSE, SYNTHWAVE, AMBIENT, JARRE) the last chorus bigger: lead and pad an octave up, DENSITY ×1.25, 8th hats, a fill on the last bar (AMBIENT: gentler, no hats or fill) |
+| **D BREAK** | (the other 8 genres) the breakdown: no bass, no kick or snare, sparse hats, a snare roll building over the last bar, the pad's filter down and opening on the last bar |
+
+- **Black keys 1–4** play part A–D (its steps go into the four tracks; the selected part is lit). **Black keys 5–8**
+  lock T1–T4. **C4 / D4** reroll the notes / rhythm of the part shown, leaving locked tracks exactly as they are.
+- **OCT+ GENERATE** asks `OVERWRITE A-D?` and lists what is in the four project slots now (`--` for an empty one).
+  **OCT+** writes the four parts to slots A–D, named `S42 VERSE`, `S42 CHORUS`, `S42 BRIDGE`, `S42 LIFT` or
+  `S42 BREAK`, and writes the arrangement into GLO > SONG. **OCT−** cancels: no slot is touched and the four tracks
+  go back to how they were before STARTER. The transport must be stopped to save (`STOP TO SAVE`).
+- After writing, a reroll asks **`SAVE B?`** (for the part you rerolled): **OCT+** saves that slot only, **OCT−**
+  keeps the change in the tracks without saving. OCT+ or OCT− otherwise closes SONG, leaving the part shown in the
+  tracks. F#5 again goes back to plain STARTER.
+- The arrangement (8 rows, edit it in GLO > SONG):
+
+| Row | Section | T1 BASS | T2 LEAD | T3 PAD | T4 DRUM | Repeats (LIFT / BREAK genres) |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | INTRO | - | - | A | A | 2 |
+| 2 | VERSE | A | A | A | A | 4 |
+| 3 | CHORUS | B | B | B | B | 4 |
+| 4 | VERSE | A | A | A | A | 4 |
+| 5 | BRIDGE | C | C | C | C | 2 |
+| 6 | CHORUS / BREAK | B / D | B / D | B / D | B / D | 4 / 2 |
+| 7 | LIFT / CHORUS | D / B | D / B | D / B | D / B | 4 |
+| 8 | OUTRO | - | - | B | B | 2 |
+
+The parts are ordinary projects and the arrangement an ordinary SONG chain, so stock Felucca 1.6.1 loads and plays
+them too. Edit a part as usual: load its slot, change it, save it back to the same slot.
 
 ## 10. Quick layers
 
