@@ -4,6 +4,7 @@ Newest first. FORGE is the SEQ TOOLS F5 motif generator in FORGE ONE (based on F
 
 | Version | Date | Theme |
 | --- | --- | --- |
+| 0.12 | 23 Oct 2026 | F5 follows the track's sound: bass lines on a bass, held chords on a pad |
 | 0.11 | 23 Oct 2026 | A logo on the splash: one flame on an anvil |
 | 0.10 | 23 Oct 2026 | The FORGE palette: FORGE ONE's own look, the default |
 | 0.9.3 | 23 Oct 2026 | The splash names its maker |
@@ -19,6 +20,23 @@ Newest first. FORGE is the SEQ TOOLS F5 motif generator in FORGE ONE (based on F
 | 0.3 | 21 Oct 2026 | Safe live turns, chords in every scale, pinned seeds |
 | 0.2 | 21 Oct 2026 | The generator: SEED, DENSITY, EVOLVE, 8 styles |
 | 0.1 | 21 Oct 2026 | Scaffold: F5 FORGE cell, CI build |
+
+## 0.12
+
+From a question on the instrument: F5 on a pad track wrote a bass-like line, because the STYLE alone set the register.
+
+- **F5 reads the role of the track's sound**, its category (the PRESETS list's BASS, PAD, LEAD, ...; a user preset's
+  own, a FORGE PACK sound its base preset's) and fits the style to it:
+  - **BASS**: single notes in the octave of C2 near the root; MELODIC, TRANCE and AMBIENT become root-fifth-octave
+    lines (no arcs, arpeggios or wide leaps, no octave jump over the octave). Header: `BASS 42 BERLIN`.
+  - **PAD**: a chord on the bar's 1 and 9 only, held with ties, moving a scale step at a time, the root's chord voiced
+    between F#3 and F4; no slides, ratchets or octave jumps; EVOLVE drops chords but never adds one. `PAD 42 BERLIN`.
+  - **LEAD, PLUCK, KEYS, FX, OTHER**: the style exactly as in 0.11 (the 144 pinned seeds are unchanged).
+- T1's default sound (ANALOG ACID) is a BASS, so F5 on a fresh T1 now writes a bass line.
+- STARTER and DRUM tracks are unchanged (STARTER's 135 pinned renders too).
+- New test: every style x 4 scale-and-root sets x EVOLVE 0..4 x 20 seeds on a lead, a bass and a pad sound (9,600
+  renders): all notes in the scale, basses single notes never over B4 and 70 % or more under C4, pad chords only on
+  1 and 9, 3 notes or more, A2..E6, held 4 steps or more on average, no ratchet or slide.
 
 ## 0.11
 

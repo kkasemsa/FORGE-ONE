@@ -35,6 +35,8 @@ static track_t *melody(uint32_t len)
     t = &trk[0];
     track_defaults_steps(t);
     motion_clear(t);
+    apply_preset_to(t, 0);                              /* (0.12: ANALOG SAW LEAD, a LEAD: the styles as they are; T1's
+                                                         * default ACID is a BASS, which F5 now fits: test_roles) */
     t->p[P_SLEN] = (int16_t)len;
     t->p[P_SDIV] = 2;
     t->p[P_ROOT] = 9;                                   /* A minor */
@@ -1071,9 +1073,129 @@ static int test_perform(void)
     return bad;
 }
 
+/* 0.12: F5 reads the role of the track's sound. On a BASS sound (ANALOG SQR BASS) every style writes single notes in
+ * the bass register; on a PAD sound (ANALOG SOFT PAD) chords held from the bar's 1 and 9, voiced between A2 and E6; on a
+ * LEAD sound (ANALOG SAW LEAD) the style as it was (test_golden pins it). Every style, 20 seeds, EVOLVE 0..4, LEN 32
+ * (two copies of a 16-step motif), every scale-and-root set of test_golden; all of rules() as well. (A LEAD's steps
+ * are 0.11's exactly: test_golden's track is a LEAD, melody(), and its pins did not move) */
+static const char *bass_rules(const track_t *t, uint32_t len, uint32_t *low, uint32_t *all)
+{
+    uint32_t i, mn = 127;
+    for (i = 0; i < len; i++) {
+        const step_t *s = &t->step[i];
+        if (s->time != ST_NOTE || !s->n)
+            continue;
+        if (s->n != 1u)
+            return "a chord on a bass";
+        if (s->note[0] > 71u)
+            return "a bass note over B4";
+        if (s->note[0] < mn)
+            mn = s->note[0];
+        *all += 1u;
+        *low += s->note[0] < 60u;
+    }
+    return mn > 47u ? "a bass line that never goes under C3" : 0;
+}
+static const char *pad_rules(const track_t *t, uint32_t len, uint32_t *held, uint32_t *onsets)
+{
+    uint32_t i;
+    for (i = 0; i < len; i++) {
+        const step_t *s = &t->step[i];
+        if (s->time == ST_TIE)
+            *held += 1u;
+        if (s->time != ST_NOTE || !s->n)
+            continue;
+        *onsets += 1u;
+        *held += 1u;
+        if (i % 8u)
+            return "a pad chord off the bar's 1 and 9";
+        if (s->n < 3u)
+            return "a pad onset that is not a chord";
+        if (s->note[0] < 45u || s->note[s->n - 1u] > 88u)
+            return "a pad chord out of A2..E6";
+        if (step_ratchet(s) > 1u || (s->flags & SF_SLIDE))
+            return "a ratchet or slide on a pad";
+    }
+    return 0;
+}
+static int test_roles(void)
+{
+    static const struct { uint8_t scl, root; } SET[4] = {{2, 9}, {1, 0}, {0, 4}, {5, 7}};
+    static const char *const PN[3] = {"LEAD", "BASS", "PAD"};
+    static const uint8_t PRE[3] = {0, 2, 1};            /* ANALOG: SAW LEAD, SQR BASS, SOFT PAD */
+    int bad = 0, ok;
+    uint32_t p, s, k, e, seed, low = 0, all = 0, held = 0, onsets = 0;
+    track_t *t = melody(16);
+    go_page(GR_ROLL); frame();
+    btn_down(B_SEQ); frame();
+    for (p = 0; p < 3u; p++) {
+        const char *why = 0;
+        ok = 1;
+        if (t->eng_req % NENGINES != 0u)
+            set_engine_of(t, 0);
+        apply_preset_to(t, PRE[p]);
+        t->user = 0;
+        ok &= track_cat(t) == (p == 0u ? CAT_LEAD : p == 1u ? CAT_BASS : CAT_PAD) && fg_part_of(t) == p;
+        for (s = 0; s < FS_N && ok; s++)
+            for (k = 0; k < 4u && ok; k++)
+                for (e = 0; e < 5u && ok; e++)
+                    for (seed = 0; seed < 20u && ok; seed++) {
+                        forge_close(0);
+                        t->p[P_SLEN] = 32; t->p[P_SCALE] = SET[k].scl; t->p[P_ROOT] = SET[k].root;
+                        fg.set = 1; fg.drum = 0; fg.style = (uint8_t)s; fg.dens = FORGE_STYLE[s].dens;
+                        fg.evolve = (uint8_t)e; fg.seed = (uint8_t)(seed * 5u); fg.nvar = fg.rvar = 0;
+                        forge_open(t);
+                        why = rules(t, 32);
+                        if (!why && p == 1u)
+                            why = bass_rules(t, 32, &low, &all);
+                        if (!why && p == 2u)
+                            why = pad_rules(t, 32, &held, &onsets);
+                        if (why) {
+                            printf("    %s %s set %u EVOLVE %u seed %u: %s\n", PN[p], FORGE_STYLE[s].name, (unsigned)k,
+                                   (unsigned)e, (unsigned)(seed * 5u), why);
+                            ok = 0;
+                        }
+                    }
+        forge_close(0);
+        bad += check(p == 0u ? "F5 (0.12) on a LEAD sound: every style as before, by the rules"
+                     : p == 1u ? "  on a BASS sound: single notes, never over B4, down to C3 or under, every style and set"
+                               : "  on a PAD sound: chords from the bar's 1 and 9 only, A2..E6, no ratchet or slide", ok);
+    }
+    ok = all && low * 10u >= all * 7u;
+    if (!ok) printf("    bass notes under C4: %u of %u\n", (unsigned)low, (unsigned)all);
+    bad += check("  the bass mostly under C4 (70 % of its notes or more)", ok);
+    ok = onsets && held >= onsets * 4u;
+    if (!ok) printf("    pad: %u steps held over %u onsets\n", (unsigned)held, (unsigned)onsets);
+    bad += check("  the pad held: 4 steps a chord or more on average", ok);
+    {   /* the message names the role; STARTER's parts (fg_ovr) and DRUM tracks never take one */
+        forge_close(0);
+        apply_preset_to(t, 2);
+        fg.style = FS_AMBIENT; fg.seed = 42; fg.evolve = 1; fg.dens = FORGE_STYLE[FS_AMBIENT].dens;
+        forge_open(t);
+        ok = msg_is("BASS 42 AMBIENT");
+        {
+            static const char *const W[] = {"BASS 99 MELODIC", "BASS 99 AMBIENT", "BASS 99 DETROIT", "PAD 99 MELODIC"};
+            uint32_t q;
+            for (q = 0; q < 4u; q++)
+                ok &= text_w(&AF_M, W[q]) <= HEAD_MSG_W - 8;   /* (the big font, not the hint's) */
+        }
+        fg_ovr = &FORGE_STYLE[0];
+        ok &= fg_part_of(t) == FR_NONE;
+        fg_ovr = 0;
+        forge_close(0);
+        apply_preset_to(t, 0);
+        forge_open(t);
+        ok &= msg_is("FORGE 42 AMBIENT");
+        forge_close(0);
+        bad += check("  the message leads with the role (BASS 42 AMBIENT); STARTER's parts and LEAD sounds: FORGE 42 ..", ok);
+    }
+    btn_up(B_SEQ); frame();
+    return bad;
+}
+
 int main(void)
 {
-    int bad = test_open() + test_styles() + test_evolve() + test_names() + test_chords() + test_reroll() + test_golden() + test_drum() + test_051() + test_starter() + test_perform();
+    int bad = test_open() + test_styles() + test_evolve() + test_names() + test_chords() + test_reroll() + test_golden() + test_drum() + test_051() + test_starter() + test_perform() + test_roles();
     printf("%s\n", bad ? "FORGE TEST FAILED" : "forge tests passed");
     return bad != 0;
 }

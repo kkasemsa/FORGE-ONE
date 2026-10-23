@@ -1,6 +1,6 @@
 # FORGE User Guide
 
-FORGE 0.11 in FORGE ONE (Felucca 1.6.1) · M-VAVE FM-1
+FORGE 0.12 in FORGE ONE (Felucca 1.6.1) · M-VAVE FM-1
 
 FORGE writes a musical idea onto a track in one key press, then lets that idea evolve: a melody on a synth track,
 a beat on a DRUM track (section 6). From 0.6, **STARTER** on the G5 key writes all four tracks at once, sounds
@@ -100,6 +100,19 @@ K1 SEED, K3 EVOLVE and K4 STYLE.
 
 Chords need a polyphonic track: set the voice mode to **POLY** on EDIT > VOICE (K1). On MONO, LEG or UNI only one
 note of each chord sounds.
+
+**The track's sound sets the role (0.12).** FORGE reads the category of the selected track's sound (the one the
+PRESETS list filters by: BASS, LEAD, PAD, PLUCK, KEYS, ...; a FORGE PACK sound has its base preset's) and fits the
+style to it. The STYLE still sets the genre; the role sets the register and the shape:
+
+| Sound | What FORGE writes | The header says |
+| --- | --- | --- |
+| **BASS** (e.g. ANALOG SQR BASS, SUB BASS, ACID; T1's default) | Single notes, no chords, in the octave of C2, close to the root (MELODIC, TRANCE and AMBIENT walk the root, fifth and octave instead of arcs, arpeggios and wide leaps) | `BASS 42 BERLIN` |
+| **PAD** (e.g. ANALOG SOFT PAD, STRINGS, VOICE CHOIR AAH, GRAIN CLOUD PAD) | A chord on the bar's 1 and 9 only, held with ties, moving by a scale step at a time, voiced between F#3 and F4 at the root; no slides, ratchets or octave jumps; EVOLVE only drops chords, never adds them | `PAD 42 BERLIN` |
+| **LEAD, PLUCK, KEYS, FX, OTHER** | The style as it is (the table above) | `FORGE 42 BERLIN` |
+
+To get a style exactly as written on a bass or pad sound, load a LEAD sound, open FORGE, apply, then change the
+sound: the steps stay. STARTER is not affected: its parts are BASS, LEAD, PAD and DRUM by design.
 
 ## 4. EVOLVE: how the idea changes
 

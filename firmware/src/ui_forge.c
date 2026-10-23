@@ -36,6 +36,7 @@ typedef struct {
     uint8_t tie, chord, chord_p;  /* % a step after a note ties; chord notes (0, 3, 4) and % of notes that are one */
     uint8_t slide, octv, orn, ratch;   /* % slide, % octave jump, % ornaments (x EVOLVE / 2), % ratchet (EVOLVE > 0) */
     uint8_t vdyn;                 /* 0.4: VEL's range: beats louder, off-beat 16ths softer, a little each way */
+    uint8_t sparse;               /* 0.12: 1: only the template's steps start notes (a PAD part: no extra onsets) */
 } forge_style_t;
 static const forge_style_t FORGE_STYLE[FS_N] = {
     /*                    rhythm  accent motif dens base contour   span tie chord ch% slide oct orn rat vel */
@@ -96,6 +97,60 @@ static uint32_t fg_start(uint32_t salt)
     return r ? r : 0x1234567u;
 }
 static void fg_seed(uint32_t salt) { fg_r = fg_start(salt); }
+
+/* 0.12: F5 on a melodic track reads the role of its sound (its category, category.c track_cat: a user preset's, else
+ * its factory preset's; a FORGE PACK sound has its base preset's) and fits the style to it; STARTER's parts have their
+ * own rows (fg_ovr) and DRUM tracks their beats, so neither is touched:
+ *   BASS  in the octave of C2 (the style's under it stays: ACID), single notes (no chords), near the root: ARC,
+ *         CHORD and WIDE contours become ROOT5 (root, fifth, octave; no octave jumps over it), a span of at most 4
+ *         degrees
+ *   PAD   the root's chord between F#3 and F4 (a middle voicing), chords on every onset (a triad, the style's 7th chord where it has one), onsets on the
+ *         bar's 1 and 9 only (sparse: DENSITY no longer adds any), held with TIEs, moving by step (WALK, span 2, every
+ *         style), no octave jumps, slides or ratchets, an even VEL
+ *   other LEAD PLUCK KEYS FX OTHER: the style as it is (0.11's notes, the pinned seeds) */
+enum { FR_NONE, FR_BASS, FR_PAD };
+static const char *const FR_NAME[3] = {"", "BASS", "PAD"};
+static uint32_t fg_part_of(const track_t *t)
+{
+    uint32_t c;
+    if (fg_ovr || drum_track(t))
+        return FR_NONE;
+    c = track_cat(t);
+    return c == CAT_BASS ? FR_BASS : c == CAT_PAD ? FR_PAD : FR_NONE;
+}
+static const forge_style_t *fg_style_for(const track_t *t, const forge_style_t *st, forge_style_t *b)
+{
+    uint32_t part = fg_part_of(t);
+    if (part == FR_NONE)
+        return st;
+    *b = *st;
+    if (part == FR_BASS) {
+        b->base = st->base < 36u ? st->base : 36u;
+        b->chord = 0;
+        b->chord_p = 0;
+        if (st->contour == FC_ARC || st->contour == FC_CHORD || st->contour == FC_WIDE)
+            b->contour = FC_ROOT5;
+        if (b->contour == FC_ROOT5)                     /* (ROOT5 has its octave: no jump over it, two octaves up) */
+            b->octv = 0;
+        b->span = st->span < 4u ? st->span : 4u;
+    } else {
+        b->base = t->p[P_ROOT] % 12 >= 6 ? 48u : 60u;   /* (the root's chord between F#3 and F4: a warm, middle voicing) */
+        b->rhythm = 0x0101;
+        b->accent = 0;
+        b->motif = 16;
+        b->tie = 92;
+        b->chord = st->chord ? st->chord : 3u;
+        b->chord_p = 100;
+        b->slide = 0;
+        b->octv = 0;
+        b->ratch = 0;
+        b->vdyn = 6;
+        b->sparse = 1;
+        b->contour = FC_WALK;                           /* (AMBIENT's WIDE too: its leaps would leave the pad's octave) */
+        b->span = 2;                                    /* (two scale steps either way: the chords move by step) */
+    }
+    return b;
+}
 static uint32_t fg_xs(uint32_t *r, uint32_t n)
 {
     *r ^= *r << 13;
@@ -230,7 +285,8 @@ static void fg_rhythm(const forge_style_t *st, fg_step_t *m, uint32_t ml)
     for (i = 0; i < ml; i++) {
         uint32_t tpl = (st->rhythm >> (i % 16u)) & 1u;
         m[i].flags = 0;
-        m[i].on = (uint8_t)(!i || (tpl ? fg_pct(d + 20u > 100u ? 100u : d + 20u) : fg_pct(d > 75u ? (d - 75u) * 2u : 0u)));
+        m[i].on = (uint8_t)(!i || (tpl ? fg_pct(d + 20u > 100u ? 100u : d + 20u) :
+                                         fg_pct(d > 75u && !st->sparse ? (d - 75u) * 2u : 0u)));
         if (!m[i].on && i && m[i - 1].on && fg_pct(st->tie))
             m[i].on = 2;                                /* (a TIE: it holds the note before it) */
         if (m[i].on == 1u && ((st->accent >> (i % 16u)) & 1u))
@@ -351,7 +407,8 @@ static void forge_render_drum(track_t *t, uint32_t len)
 static void forge_render(void)
 {
     track_t *t = fg_track();
-    const forge_style_t *st = fg_ovr ? fg_ovr : &FORGE_STYLE[fg.style % FS_N];
+    forge_style_t sb;
+    const forge_style_t *st = fg_style_for(t, fg_ovr ? fg_ovr : &FORGE_STYLE[fg.style % FS_N], &sb);   /* (0.12: its role) */
     uint8_t deg[FG_NDEG], vel[16];
     fg_step_t m[16];
     uint32_t len = tl_len(t), ml = st->motif < len ? st->motif : len, nd, a0, i, k, e = fg.evolve, g, held = 0;
@@ -380,8 +437,8 @@ static void forge_render(void)
         if (k && e) {
             if (f.on == 1u && fg_pct(e * 8u + (k - 1u) * e * 4u))
                 f.idx = (uint8_t)fg_reflect((int32_t)f.idx + (fg_rnd(2) ? 1 : -1), 0, (int32_t)nd - 1);
-            if (e >= 3u && i % ml && fg_pct(e * 3u))    /* a note dropped, or one in a rest */
-                f.on = f.on == 1u ? 0u : f.on == 0u ? 1u : f.on;
+            if (e >= 3u && i % ml && fg_pct(e * 3u))    /* a note dropped, or one in a rest (0.12: a PAD only drops) */
+                f.on = f.on == 1u ? 0u : f.on == 0u && !st->sparse ? 1u : f.on;
         }
         fg_write(t, &s, &f, k ? drift : 0, deg, nd);
         if (s.time == ST_NOTE)                          /* 0.4: VEL by place in the motif (copies alike) */
@@ -406,10 +463,12 @@ static void forge_render(void)
     }
 }
 
-static void forge_say(void)                             /* "FORGE 42 BERLIN" */
+static void forge_say(void)                             /* "FORGE 42 BERLIN"; 0.12 a BASS / PAD sound: "BASS 42 BERLIN" */
 {
     char b[24], n[4];
-    str_cpy(b, "FORGE ", sizeof b);
+    uint32_t part = fg_part_of(fg_track());
+    str_cpy(b, part ? FR_NAME[part] : "FORGE", sizeof b);      /* (the role first: "FORGE 99 DETROIT BASS" is too wide) */
+    str_cpy(b + str_len(b), " ", sizeof b - str_len(b));
     fmt_int(n, fg.seed);
     str_cpy(b + str_len(b), n, sizeof b - str_len(b));
     str_cpy(b + str_len(b), " ", sizeof b - str_len(b));

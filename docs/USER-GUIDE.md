@@ -1,6 +1,6 @@
 # FORGE ONE User Guide
 
-Felucca 1.6.1 with FORGE 0.11 · M-VAVE FM-1
+Felucca 1.6.1 with FORGE 0.12 · M-VAVE FM-1
 
 This guide covers the whole instrument: the Felucca firmware by Hügelton Instruments, and FORGE, the motif generator
 this fork adds. Felucca's own sections follow its official manual, the [Felucca wiki](https://github.com/hugelton/Felucca/wiki),
@@ -305,7 +305,7 @@ has more recipes and detail.
 | C4 | New notes | NOTES 0–99 | The same rhythm, new notes |
 | D4 | New rhythm | RHYTHM 0–99 | A new rhythm; each step that still sounds keeps its pitch (at EVOLVE 0) |
 
-The header briefly shows `FORGE <seed> <style>` after each turn, and the screen shows the C4 / D4 counts under the
+The header briefly shows `FORGE <seed> <style>` after each turn (`BASS <seed> <style>` or `PAD <seed> <style>` on a bass or pad sound, 9.2), and the screen shows the C4 / D4 counts under the
 steps. K1 SEED sets both counts back to 0. F5 is lit while FORGE is open.
 
 ### 9.2 Styles
@@ -323,6 +323,19 @@ steps. K1 SEED sets both counts back to 0. F5 is lit while FORGE is open.
 
 Step 1 is always the root. Every note is in the track's ROOT and SCALE; chords are built from real intervals kept in
 the scale, so they work in every scale (minor in CHR). Melodies move above and below the root; octave jumps only go up.
+
+**The track's sound sets the role (0.12).** FORGE reads the category of the selected track's sound (the one the
+PRESETS list filters by: BASS, LEAD, PAD, PLUCK, KEYS, ...; a FORGE PACK sound has its base preset's) and fits the
+style to it. The STYLE still sets the genre; the role sets the register and the shape:
+
+| Sound | What FORGE writes | The header says |
+| --- | --- | --- |
+| **BASS** (e.g. ANALOG SQR BASS, SUB BASS, ACID; T1's default) | Single notes, no chords, in the octave of C2, close to the root (MELODIC, TRANCE and AMBIENT walk the root, fifth and octave instead of arcs, arpeggios and wide leaps) | `BASS 42 BERLIN` |
+| **PAD** (e.g. ANALOG SOFT PAD, STRINGS, VOICE CHOIR AAH, GRAIN CLOUD PAD) | A chord on the bar's 1 and 9 only, held with ties, moving by a scale step at a time, voiced between F#3 and F4 at the root; no slides, ratchets or octave jumps; EVOLVE only drops chords, never adds them | `PAD 42 BERLIN` |
+| **LEAD, PLUCK, KEYS, FX, OTHER** | The style as it is (the table above) | `FORGE 42 BERLIN` |
+
+To get a style exactly as written on a bass or pad sound, load a LEAD sound, open FORGE, apply, then change the
+sound: the steps stay. STARTER is not affected: its parts are BASS, LEAD, PAD and DRUM by design.
 
 ### 9.3 EVOLVE
 
