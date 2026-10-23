@@ -4,6 +4,7 @@ Newest first. FORGE is the SEQ TOOLS F5 motif generator in FORGE ONE (based on F
 
 | Version | Date | Theme |
 | --- | --- | --- |
+| 0.9.3 | 23 Oct 2026 | The splash names its maker |
 | 0.9.2 | 22 Oct 2026 | First hardware feedback: the pads lower, CHOIR AAH −12 dB |
 | 0.9.1 | 22 Oct 2026 | Fixes from the third code review: PERFORM state, build and release packaging |
 | 0.9 | 22 Oct 2026 | FORGE PACK: 40 sounds for the starters |
@@ -16,6 +17,10 @@ Newest first. FORGE is the SEQ TOOLS F5 motif generator in FORGE ONE (based on F
 | 0.3 | 21 Oct 2026 | Safe live turns, chords in every scale, pinned seeds |
 | 0.2 | 21 Oct 2026 | The generator: SEED, DENSITY, EVOLVE, 8 styles |
 | 0.1 | 21 Oct 2026 | Scaffold: F5 FORGE cell, CI build |
+
+## 0.9.3
+
+- The splash reads FORGE ONE / 0.9.3 by Khantipol / on Felucca v1.6.1 / by Hügelton, as ABOUT does.
 
 ## 0.9.2
 

@@ -1,6 +1,6 @@
 # FORGE ONE User Guide
 
-Felucca 1.6.1 with FORGE 0.9.2 · M-VAVE FM-1
+Felucca 1.6.1 with FORGE 0.9.3 · M-VAVE FM-1
 
 This guide covers the whole instrument: the Felucca firmware by Hügelton Instruments, and FORGE, the motif generator
 this fork adds. Felucca's own sections follow its official manual, the [Felucca wiki](https://github.com/hugelton/Felucca/wiki),
