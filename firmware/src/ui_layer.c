@@ -156,6 +156,7 @@ static void layer_masks(void)
         uint32_t on = m && ui.ly == LAYER_SEQ && fs.on && sg.on && sg.stage != SG_CONFIRM;
         perf_song = (uint8_t)on;
         sg_fxmask = on ? song_keymask(song_fx_btn()) : 0u;
+        song_fx_poll(on, song_fx_btn());                /* (FX let go: the macros snap back) */
     }
 }
 

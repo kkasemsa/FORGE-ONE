@@ -55,8 +55,18 @@ SONG, built to the Song Mode spec v0.3 (MVP, §9).
   macros; D5–F5 do nothing; leaving SONG turns everything off. Routed through perform.c's `perf_key_press` with a
   SONG map (`perf_song`, `sg_fxmask`, seq.c `SG_FX`): no new DSP, buffers or storage. Held mutes are master-side
   (never `P_MUTE`, never saved) and never unmute a chain `-` track or change the chain or its clock. Tests 19–29.
-  Host CPU (TRANCE 42 BREAK song played through its chain, best of 5): 174.7 ns/sample with no effects, 213.2 with
-  REPEAT 1/16 + ECHO THROW + DUCK (the same DSP path as PERFORM), no sample at full scale.
+  Host CPU proxy for test 30 (`tests/song_cpu_probe.c`: a TRANCE 42 BREAK song played through its 8-row chain on
+  the host, cc -O2 x86-64, best of 5 runs, a relative figure, not the FM-1's): no effect 174.7 ns/sample, REPEAT
+  1/16 alone 195.7, REPEAT 1/16 + ECHO THROW + DUCK 213.2 (a later rerun: 179.0 / 195.0 / 206.1); the same DSP
+  path as PERFORM; no sample at full scale. The device's CPU / PEAK / LATE (test 30) are measured on hardware.
+- After review of 52fe595: in SONG, K1–K4 with FX held are the FX macros and snap back to 0 when FX is let go,
+  as in the FX layer (FX LATCH: they stay until CLEAR). Test 28 now holds the mutes through the keys (the ISR's
+  path, FX held at the key's down) in INTRO and OUTRO: T3, which the row plays, is silenced while held and back
+  on release; T1, which the row silences, never sounds, held, released or untouched; the chain and its rows'
+  timing match a run without mutes.
+- Test map (tests/forge_test.c `check` labels carry the spec's numbers): spec v0.3 tests 1–11 in `test_song`
+  (labelled 1–11); spec v0.4.1 15–18 in `test_song_fix`; 19–29 in `test_song_fx`, plus the FX-knob check; 30 is the
+  device test, with `tests/song_cpu_probe.c` as its host proxy.
 - Review of PR #1, before merge: GENERATE checks the save can happen before writing anything, and if a slot is
   refused halfway it puts the chain back and says `SAVE FAILED X`; turning DENSITY or EVOLVE keeps the song written
   (only SEED or GENRE make a new one), so a reroll still asks `SAVE X?`; a refused `SAVE X?` (playing: `STOP TO

@@ -329,6 +329,15 @@ static uint32_t song_keymask(uint32_t fx)               /* the keys that take an
     }
     return m;
 }
+/* each pass (ui_layer.c layer_masks): FX let go in SONG, its knob macros back to 0 as the FX layer's are when it lets go
+ * (FX LATCH: they stay, as there) */
+static uint8_t sg_fx_was;
+static void song_fx_poll(uint32_t on, uint32_t fx)
+{
+    if (on && sg_fx_was && !fx && !perf_latch_on)
+        perf_k[0] = perf_k[1] = perf_k[2] = perf_k[3] = 0;
+    sg_fx_was = (uint8_t)(on && fx);
+}
 static void song_fx_clear(void)                         /* C#5, and leaving SONG: every effect, latch, mute, DUCK off */
 {
     perf_kill = 1;                                      /* (held ones: off until their keys are let go) */

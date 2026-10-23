@@ -1257,7 +1257,7 @@ static int test_song(void)
         ok &= (g = sg_genre(MAP[i].g)) >= 0 && FS_GENRE_D[g] == MAP[i].d;
     for (i = 0, n = 0; i < 13u; i++)
         n += FS_GENRE_D[i] == SD_LIFT;
-    bad += check("SONG (0.13) 3. D by genre: the 13 of §3a (5 LIFT, 8 BREAK)", ok && n == 5u);
+    bad += check("SONG (0.13, spec v0.3 tests 1..11) 3. D by genre: the 13 of §3a (5 LIFT, 8 BREAK)", ok && n == 5u);
 
     /* 1. determinism, 2. relation: SYNTHWAVE (LIFT) and TRANCE (BREAK), seed 42 */
     for (d = 0; d < 2u; d++) {
@@ -1518,7 +1518,7 @@ static int test_song_fix(void)
     oct_fwd(); oct_fwd();                               /* GENERATE, OVERWRITE: D written, C refused */
     ok &= msg_is("SAVE FAILED C") && !memcmp(&ch, &chain_config, sizeof ch) && sg.stage == SG_EDIT && sg.on;
     sg_fail_slot = -1;
-    bad += check("SONG 0.13.1 fix 1: playing, nothing written; a slot refused halfway: SAVE FAILED C, the chain as it was", ok);
+    bad += check("SONG spec v0.4.1 15. playing, nothing written; a slot refused halfway: SAVE FAILED C, the chain as it was", ok);
     /* 2. written; DENSITY / EVOLVE: still written (a reroll asks SAVE X?); SEED: another song, EDIT */
     oct_fwd(); oct_fwd();
     ok = sg.stage == SG_WRITTEN;
@@ -1532,7 +1532,7 @@ static int test_song_fix(void)
     ok &= sg.stage == SG_EDIT && !sg.pend;
     tkey(TL_RANDOM);
     ok &= !sg.pend;
-    bad += check("  fix 2: DENSITY / EVOLVE keep the song written (a reroll asks SAVE A?); SEED: EDIT, no prompt", ok);
+    bad += check("  16. DENSITY / EVOLVE keep the song written (a reroll asks SAVE A?); SEED: EDIT, no prompt", ok);
     /* 3. SAVE X? while playing: STOP TO SAVE, the prompt stays, nothing written; stopped: saved */
     kt(EN_K1, -1);
     oct_fwd(); oct_fwd();
@@ -1552,7 +1552,7 @@ static int test_song_fix(void)
     oct_fwd();
     ok &= !sg.pend && msg_is("C SAVED") && memcmp(&slots[2], &proj_slot[2], sizeof slots[2]) &&
           !memcmp(&slots[0], &proj_slot[0], sizeof slots[0]);
-    bad += check("  fix 3: SAVE C? playing or refused: STOP TO SAVE / SAVE FAILED C, the prompt stays; then C SAVED", ok);
+    bad += check("  17. SAVE C? playing or refused: STOP TO SAVE / SAVE FAILED C, the prompt stays; then C SAVED", ok);
     sg_close();
     /* 4. BREAK's PAD: one loop the whole section (128 steps: 64 at 1/8); the sweep only in its last bar, never over
      * the top; a bar or less: its second half; under 4 steps: none. AMBIENT named */
@@ -1584,7 +1584,7 @@ static int test_song_fix(void)
             motion_clear(t);
             t->p[P_SDIV] = 2;
         }
-        bad += check("  fix 4: BREAK's PAD one loop per section (64 at 1/8 past 64 steps); sweep in the last bar only; short patterns", ok);
+        bad += check("  18. BREAK's PAD one loop per section (64 at 1/8 past 64 steps); sweep in the last bar only; short patterns", ok);
     }
     memset(proj_slot, 0, sizeof proj_slot);
     chain_defaults(&chain_config);
@@ -1758,43 +1758,93 @@ static int test_song_fx(void)
         ok &= msg_is("NOT IN SONG") && fs.on && sg.on && !perf_held && sg_same((const step_t (*)[NSTEP])was, 99);
     }
     bad += check("  29. D5 E5 F5 in SONG: NOT IN SONG, nothing changes", ok);
-    /* 28. INTRO: a held T1 mute leaves T1 silent; the chain, its rows' timing the same with and without */
+    /* 28. INTRO and OUTRO, the mutes through the keys as SONG takes them (the ISR's path: SEQ held, FX held at the
+     * key's down): T3, which the row plays, is silenced while held and back when let go; T1, which the row silences
+     * ("-"), stays silent held, let go, or never touched; the chain and its rows' timing the same with and without */
     {
+        static int32_t o[2 * CTL];
         uint32_t tm[2][8], r, run, it;
+        uint32_t seqb = 1u << panel.btn[B_SEQ];
         oct_fwd(); oct_fwd();
         sg_close();
         for (run = 0; run < 2u; run++) {
-            uint32_t last = 99, n = 0, t1 = 0, blocks = 0;
+            uint32_t last = 99, n = 0, t1 = 0, blocks = 0, inrow = 0, held3 = 0, back3 = 0, rows_checked = 0;
             chain_config_t c0;
             project_load(SG_A);
             c0 = chain_config;
-            perf_held = run ? PF_BIT(PF_M1) : 0u;      /* (run 1: T1 held muted all through) */
             ok = chain_prepare() == 0;
+            if (run) {                                  /* (as layer_masks sets them in SONG with FX held) */
+                kb_mask = seqb; perf_mask = 0; kb_lock = 0; fm1_in.buttons |= seqb;
+                perf_song = 1; sg_fxmask = song_keymask(1);
+                perf_kill = 0;                          /* (the main loop's, no layer key held: ui_input.c) */
+            }
             for (it = 0; it < 2000000u && (chain.running || chain.armed); it++) {
                 uint32_t v0 = vage, k;
-                perf_begin(CTL);
-                events_block(CTL);
+                mix_block(o, CTL);
                 blocks++;
                 if (chain.running && chain.row != last && n < 8u) {
                     last = chain.row;
                     tm[run][n++] = blocks;
+                    inrow = 0;
                 }
-                if (chain.running && chain.row == 0u)
+                inrow++;
+                if (chain.running && (chain.row == 0u || chain.row == 7u)) {
                     for (; v0 < vage; v0++)
                         for (k = 0; k < NVOICE; k++)
-                            t1 += trk[0].v[k].age == v0 + 1u;
-                if (run && chain.running && chain.row == 1u && blocks == tm[1][1] + 4u)
-                    perf_held = 0;                      /* (let go in VERSE: INTRO was silent anyway) */
+                            t1 += trk[0].v[k].age == v0 + 1u;   /* (T1's notes in INTRO / OUTRO: none, ever) */
+                    if (run && inrow == 20u) {          /* FX + F3 (T1, silent by the chain) and FX + A3 (T3, playing) */
+                        key_down(white(0));
+                        key_down(white(2));
+                    }
+                    if (run && inrow == 40u) {
+                        held3 += pf.mg[2] == 0 && ((perf_held >> (PF_M1 + 2u)) & 1u) && ((perf_held >> PF_M1) & 1u);
+                        key_up(white(0));
+                        key_up(white(2));
+                    }
+                    if (run && inrow == 60u) {
+                        back3 += pf.mg[2] == 32768 && !(perf_held & PF_MUTE);
+                        rows_checked++;
+                    }
+                }
             }
             ok &= n == 8u && !t1 && !memcmp(&c0, &chain_config, sizeof c0);
+            if (run)
+                ok &= rows_checked == 2u && held3 == 2u && back3 == 2u;
+            for (r = 0; r < NTRK; r++)
+                ok &= trk[r].p[P_MUTE] == 0;
             transport_req = 2;
-            events_block(CTL);
-            if (!ok) printf("    run %u: rows %u, T1 notes in INTRO %u\n", (unsigned)run, (unsigned)n, (unsigned)t1);
+            mix_block(o, CTL);
+            if (!ok) printf("    run %u: rows %u, T1 notes in INTRO / OUTRO %u, T3 held %u back %u of %u\n", (unsigned)run,
+                            (unsigned)n, (unsigned)t1, (unsigned)held3, (unsigned)back3, (unsigned)rows_checked);
         }
+        kb_mask = 0; fm1_in.buttons &= ~seqb; perf_song = 0; sg_fxmask = 0; fm1_in.notes = 0;
         for (r = 0; r < 8u; r++)
             ok &= tm[0][r] == tm[1][r];
         perf_held = 0;
-        bad += check("  28. INTRO: T1 silent held-muted or not; the chain and its rows' timing identical with and without a held mute", ok);
+        bad += check("  28. INTRO and OUTRO: FX + A3 silences T3 while held, back on release; FX + F3 never brings back T1 (\"-\"); chain and row timing identical", ok);
+    }
+    /* (review of 52fe595) K1..K4 with FX held: the FX macros, not SEED .. GENRE; FX let go: back to 0 (FX LATCH: kept) */
+    {
+        uint8_t seed, dens;
+        sg_open((uint32_t)sg_genre("TRANCE"), 42);
+        seed = fg.seed; dens = fs.dens;
+        btn_down(B_FX); frame();
+        kt(EN_K1, 4); kt(EN_K2, 3); kt(EN_K3, 2); kt(EN_K4, -2);   /* (DEPTH turns the other way: layer_knob) */
+        ok = perf_k[0] != 0 && perf_k[1] > 0 && perf_k[2] > 0 && perf_k[3] != 0 && fg.seed == seed && fs.dens == dens;
+        btn_up(B_FX); frame();
+        ok &= !perf_k[0] && !perf_k[1] && !perf_k[2] && !perf_k[3];
+        kt(EN_K1, 1);
+        ok &= fg.seed == (uint8_t)(seed + 1u) && !perf_k[0];
+        fx_latch |= 1u; frame();
+        btn_down(B_FX); frame();
+        kt(EN_K2, 3);
+        btn_up(B_FX); frame();
+        ok &= perf_k[1] > 0;
+        sg_tap(8);                                      /* CLEAR */
+        ok &= !perf_k[1];
+        fx_latch &= ~1u; frame();
+        sg_close();
+        bad += check("  K1..K4 with FX held: FILTER CRUSH THROW DEPTH, not SEED DENSITY; FX let go: back to 0 (FX LATCH: kept to CLEAR)", ok);
     }
     memset(proj_slot, 0, sizeof proj_slot);
     chain_defaults(&chain_config);
