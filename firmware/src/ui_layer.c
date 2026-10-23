@@ -152,6 +152,11 @@ static void layer_masks(void)
     perf_mask = m & ly_bit(LAYER_FX);
     kb_lock = (uint8_t)(m && ui.lock ? 1u | (ui.lock == LAYER_FX ? 2u : 0u) : 0u);   /* (no button held: the ISR's) */
     perf_pmode = (uint8_t)(m && ui.lock == LAYER_FX);   /* (FORGE ONE 0.7: PERFORM, its black keys the UI's) */
+    {   /* (0.13 SONG, spec v0.4.1: its effect keys with SEQ held, the mutes with FX held too; not at the confirm) */
+        uint32_t on = m && ui.ly == LAYER_SEQ && fs.on && sg.on && sg.stage != SG_CONFIRM;
+        perf_song = (uint8_t)on;
+        sg_fxmask = on ? song_keymask(song_fx_btn()) : 0u;
+    }
 }
 
 /* a layer button pressed (its edge) while none is armed: it is now, a dead one where no layer opens */
@@ -736,16 +741,23 @@ static void layer_key(uint32_t l, uint32_t k)
         if (!key_black(k) && p < 4u)
             rec_key(p);
     } else if (l == LAYER_SEQ) {
-        if (!key_black(k))
+        if (!key_black(k) && fs.on && sg.on && sg.stage != SG_CONFIRM && song_wkey(k))
+            ui.force = 1;                               /* (0.13 SONG: effects, per-track rerolls, mutes) */
+        else if (!key_black(k))
             tools_key(p);
         else if (fs.on && p == 10u) {                   /* (0.13: F#5 SONG on / off) */
             song_toggle();
             ui.force = 1;
-        } else if (fs.on && sg.on) {                    /* (SONG: black 1..4 a part, 5..8 a track's lock) */
-            if (sg.stage != SG_CONFIRM && p < SG_N)
+        } else if (fs.on && sg.on) {                    /* (SONG: black 1..4 a part, 5..8 a track's lock, 9 CLEAR, */
+            if (sg.stage != SG_CONFIRM && p < SG_N)     /* 10 DUCK) */
                 song_part(p);
             else if (sg.stage != SG_CONFIRM && p >= 4u && p < 8u)
                 song_lock(p - 4u);
+            else if (p == 8u) {
+                song_fx_clear();
+                ui_message("CLEAR: ALL OFF");
+            } else if (p == 9u)
+                song_duck();
             ui.force = 1;
         } else if (fs.on) {                             /* (0.8 STARTER open: black keys 1..4 the genre's variations) */
             fs_variation(p);
@@ -813,6 +825,10 @@ static void layer_knob(uint32_t k, int32_t s)
         eu_knob(TSEL, k, s);
     } else if (l == LAYER_SEQ && fg.on) {               /* FORGE: SEED DENSITY EVOLVE STYLE */
         forge_knob(k, s);
+    } else if (l == LAYER_SEQ && fs.on && sg.on && song_fx_btn()) {   /* 0.13 SONG, FX held: the FX macros */
+        if (k == 3u && !perf_harm_on())
+            s = -s;
+        perf_k[k] = (int8_t)clamp(perf_k[k] + accel(EN_K1 + k, s, k ? 100 : 200), k ? 0 : -100, 100);
     } else if (l == LAYER_SEQ && fs.on && sg.on) {      /* 0.13 SONG: the same, then the part shown */
         if (sg.stage != SG_CONFIRM)
             song_knob(k, s);
@@ -983,6 +999,8 @@ static uint32_t layer_leds(uint32_t *br)
             can = a->kind == LK_HOLD;
         } else if (l == LAYER_SEQ && b && fs.on && sg.on) {   /* 0.13 SONG: the part, the locks, F#5 */
             song_led(p, &on, &can);
+        } else if (l == LAYER_SEQ && fs.on && sg.on) {  /* .. the white keys: effects, rerolls (spec v0.4.1) */
+            song_led_w(p, &on, &can);
         } else if (l == LAYER_SEQ && b && fs.on) {      /* 0.8 STARTER: the variation lit, the genre's others breathe */
             on = p == fs.var;
             can = p < FS_GENRE[fs.genre % FS_NGENRE].n || p == 10u;   /* (0.13: F#5 SONG) */

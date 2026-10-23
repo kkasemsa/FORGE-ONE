@@ -370,6 +370,30 @@ parts:
 The parts are ordinary projects and the arrangement an ordinary SONG chain, so stock Felucca 1.6.1 loads and plays
 them too. Edit a part as usual: load its slot, change it, save it back to the same slot.
 
+**SONG's keys** (spec v0.4.1). With FX held only F3–B3 and the knobs change:
+
+| Key | In SONG | With FX held |
+| --- | --- | --- |
+| Black 1–4 (F#3 G#3 A#3 C#4) | Part A–D | same |
+| Black 5–8 (D#4 F#4 G#4 A#4) | Lock T1–T4 | same |
+| Black 9 (C#5) | CLEAR: every effect, latch, mute and DUCK off | same |
+| Black 10 (D#5) | DUCK on / off (non-drum tracks pump on the kick) | same |
+| Black 11 (F#5) | SONG on / off | same |
+| F3 G3 A3 B3 | Reroll T1 / T2 / T3 notes, T4 drum rhythm (the part shown, that track only) | Mute T1–T4 while held |
+| C4 / D4 | Reroll notes / rhythm, every unlocked track | same |
+| E4 F4 G4 A4 B4 C5 | Held: REPEAT 1/16, LPF, HPF, TAPE STOP, REV THROW, ECHO THROW (no FX button needed) | same |
+| D5 E5 F5 | Nothing (`NOT IN SONG`) | same |
+| G5 | Applies STARTER, leaves SONG | same |
+| KNOB 1–4 | SEED DENSITY EVOLVE GENRE | FX macros FILTER CRUSH THROW DEPTH |
+
+- A locked track ignores its own reroll key (`T3 LOCKED`). Before the song is written a per-track reroll says
+  `NEW T3`; after, it asks `SAVE X?` like C4 / D4.
+- Whether F3–B3 mute or reroll is decided when the key goes down: FX held then, it mutes until the key is let go
+  (even if FX is let go first); FX pressed after the key, it was a reroll. Mutes are never saved and never change
+  the chain: a track the chain row silences (`-`, as in INTRO and OUTRO) stays silent.
+- With MENU > FX LATCH ON the effects and mutes toggle and stay on across part changes and rerolls; CLEAR turns
+  them off. Leaving SONG (F#5, G5, letting go of SEQ) turns every effect, latch, mute and DUCK off.
+
 ## 8. What FORGE writes, and what it leaves alone
 
 **Writes:** steps 1 to LEN of the selected track. On a synth track each step gets notes (1, 3 or 4), NOTE, TIE or REST, accent,

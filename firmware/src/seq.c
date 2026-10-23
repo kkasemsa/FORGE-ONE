@@ -651,9 +651,15 @@ static void input_off(track_t *t, uint32_t note)
 
 /* the effect of key k in the FX layer (PF_N none): the white keys F3 .. G5 the map's (perf_map: the settings,
  * ui_layer.c; by default 1.1.5's ten, FLANGER, PHASER, REV / ECHO THROW), black keys 1..4 the track mutes */
+/* 0.13 SONG (spec v0.4.1 §B2): E4 F4 G4 A4 B4 C5, held with no FX button: REPEAT 1/16, LPF, HPF, TAPE STOP,
+ * REV THROW, ECHO THROW; F3..B3 (with FX held at key-down): T1..T4 muted while held */
+static const uint8_t SG_FX[6] = {PF_R16, PF_LPF, PF_HPF, PF_TAPE, PF_RTHR, PF_ETHR};
+#define SG_FX_KEY0 6u                                   /* E4: SG_FX[0] (key_place) */
 static uint32_t perf_key(uint32_t k)
 {
     uint32_t p = key_place(k);
+    if (perf_song)                                      /* (0.13 SONG: its own map, black keys none) */
+        return key_black(k) ? PF_N : p >= SG_FX_KEY0 && p < SG_FX_KEY0 + 6u ? SG_FX[p - SG_FX_KEY0] : p < NTRK ? PF_M1 + p : PF_N;
     return !key_black(k) ? (p < PF_KEYS ? perf_map[p] : PF_N) : p < NTRK && !perf_pmode ? PF_M1 + p : PF_N;   /* (0.7:
                                                  * PERFORM's black keys are the UI's: ui_perform.c) */
 }
@@ -788,7 +794,7 @@ static void keyboard_block(void)
             if (lay) {                            /* a layer's button held (or locked): the key is the layer's */
                 kb_note[k] = KB_SILENT;           /* (ui_layer.c), with FX an effect (perform.c) */
                 kb_layer |= 1u << k;
-                if (fx)
+                if (fx || ((sg_fxmask >> k) & 1u))   /* (0.13 SONG: its effect keys, no FX layer) */
                     perf_key_press(k, 1);
                 continue;
             }

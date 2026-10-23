@@ -42,9 +42,12 @@ enum { SG_EDIT, SG_CONFIRM, SG_WRITTEN };
 static const char *const SG_ROLE[SG_N + 1] = {"VERSE", "CHORUS", "BRIDGE", "LIFT", "BREAK"};
 static struct {
     uint8_t on, stage, part, lock, pend;    /* lock: bit i T(i+1); pend: SAVE X? asked (X + 1), 0 none */
+    uint8_t flash;                          /* 0.13 (spec v0.4.1 §C): the track row a per-track reroll flashes (+ 1) */
+    uint32_t flash_ms;
     uint8_t nvar[SG_N][NTRK], rvar[SG_N][NTRK];
 } sg;
 
+static void song_off(void);
 static uint32_t song_dtype(void) { return FS_GENRE_D[fs.genre % FS_NGENRE]; }
 static const char *song_role(uint32_t x) { return SG_ROLE[x == SG_D && song_dtype() == SD_BREAK ? SG_N : x]; }
 static void song_name(uint32_t x, char *b)                /* "S42 CHORUS" (b: SG_NAME_LEN + 1) */
@@ -310,11 +313,41 @@ static void song_reset(void)                            /* a new song: its rerol
     sg.stage = SG_EDIT;
     sg.pend = 0;
 }
+/* 0.13 (spec v0.4.1 §B2): SONG's punch-in effects, routed through perform.c as FX held routes them: E4..C5 the six
+ * of seq.c SG_FX held (no FX button), FX held + F3..B3 the T1..T4 mutes (the choice at the key's down: seq.c kb_fx
+ * keeps it to its up), C#5 CLEAR, D#5 DUCK. FX LATCH: they toggle. Never saved, never a step, never P_MUTE */
+static uint32_t song_fx_btn(void) { return (fm1_in.buttons >> panel.btn[B_FX]) & 1u; }
+static uint32_t song_keymask(uint32_t fx)               /* the keys that take an effect at their down now */
+{
+    uint32_t k, m = 0, p;
+    for (k = 0; k < 27u; k++) {
+        if (key_black(k))
+            continue;
+        p = key_place(k);
+        if ((p >= SG_FX_KEY0 && p < SG_FX_KEY0 + 6u) || (fx && p < NTRK))
+            m |= 1u << k;
+    }
+    return m;
+}
+static void song_fx_clear(void)                         /* C#5, and leaving SONG: every effect, latch, mute, DUCK off */
+{
+    perf_kill = 1;                                      /* (held ones: off until their keys are let go) */
+    perf_latched = 0;
+    perf_k[0] = perf_k[1] = perf_k[2] = perf_k[3] = 0;
+}
+static void song_duck(void)                             /* D#5: DUCK on / off, latch or not */
+{
+    perf_latched ^= PF_BIT(PF_DUCK);
+    ui_message(perf_latched & PF_BIT(PF_DUCK) ? "DUCK ON" : "DUCK OFF");
+}
+
 /* F#5 in STARTER: SONG on (part A in the tracks) or off (STARTER's own patterns back) */
 static void song_toggle(void)
 {
     if (sg.stage == SG_CONFIRM)
         return;
+    if (sg.on)
+        song_fx_clear();                                /* (leaving SONG: nothing keeps playing unseen) */
     sg.on = (uint8_t)!sg.on;
     sg.part = SG_A;
     sg.lock = 0;
@@ -368,6 +401,52 @@ static void song_reroll(uint32_t rhythm)                /* C4 / D4: the part sho
         ui_message(rhythm ? "NEW RHYTHM" : "NEW NOTES");
     }
 }
+/* F3 G3 A3 B3 (no FX held at the key's down): T1..T4 of the part shown rerolled alone, T1..T3 their notes (the rhythm
+ * kept), T4 its rhythm; a locked track: nothing, "T3 LOCKED". After the song is written: SAVE X? */
+static void song_track(uint32_t i)
+{
+    char b[12] = {'T', (char)('1' + i), ' ', 0};
+    if ((sg.lock >> i) & 1u) {
+        str_cpy(b + 3, "LOCKED", sizeof b - 3u);
+        ui_message(b);
+        return;
+    }
+    if (i < FP_DRUM)
+        sg.nvar[sg.part][i] = (uint8_t)((sg.nvar[sg.part][i] + 1u) % 100u);
+    else
+        sg.rvar[sg.part][i] = (uint8_t)((sg.rvar[sg.part][i] + 1u) % 100u);
+    song_render(sg.part);
+    sg.flash = (uint8_t)(i + 1u);
+    sg.flash_ms = fm1_ms;
+    if (sg.stage == SG_WRITTEN) {
+        sg.pend = (uint8_t)(sg.part + 1u);
+        song_say();
+    } else {
+        str_cpy(b, "NEW T", sizeof b);
+        b[5] = (char)('1' + i);
+        b[6] = 0;
+        ui_message(b);
+    }
+}
+/* a white key in SONG (layer_key, at its down): 1 when SONG answered it. E4..C5 are the ISR's effects; F3..B3 the
+ * per-track rerolls, or the mutes when the ISR took them (kb_fx) or FX is held; D5 E5 F5 nothing */
+static int song_wkey(uint32_t k)
+{
+    uint32_t p = key_place(k);
+    if (p >= SG_FX_KEY0 && p < SG_FX_KEY0 + 6u)
+        return 1;
+    if (p < NTRK) {
+        if (!kb_fx[k] && !song_fx_btn())
+            song_track(p);
+        return 1;
+    }
+    if (p >= SG_FX_KEY0 + 6u && p < TL_STARTER) {
+        ui_message("NOT IN SONG");
+        return 1;
+    }
+    return 0;
+}
+
 /* the four slots and the chain, after the confirm's OCT+; D first, A last (the slot in use and the tracks: A) */
 static int song_write(void)
 {
@@ -427,7 +506,7 @@ static int song_oct(uint32_t up)
     }
     if (sg.stage == SG_EDIT) {
         if (!up) {
-            sg.on = 0;
+            song_off();
             fs_close(0);
             ui_message("STARTER CANCELLED");
             return 1;
@@ -442,8 +521,7 @@ static int song_oct(uint32_t up)
     }
     if (sg.stage == SG_CONFIRM) {
         if (!up) {                                      /* (the tracks and every slot as they were) */
-            sg.stage = SG_EDIT;
-            sg.on = 0;
+            song_off();
             fs_close(0);
             ui_message("SONG CANCELLED");
             return 1;
@@ -452,14 +530,16 @@ static int song_oct(uint32_t up)
             sg.stage = SG_EDIT;
         return 0;
     }
-    sg.on = 0;                                          /* (written: done, the part shown stays in the tracks) */
+    song_off();                                         /* (written: done, the part shown stays in the tracks) */
     fs_close(1);
     ui_message("SONG DONE");
     return 1;
 }
 static uint32_t song_sig(void)
 {
-    return sg.on ? 29u + sg.stage * 7u + sg.part * 131u + sg.lock * 1031u + sg.pend * 8191u : 0u;
+    uint32_t fl = sg.flash && fm1_ms - sg.flash_ms < 300u ? sg.flash : 0u;
+    return sg.on ? 29u + sg.stage * 7u + sg.part * 131u + sg.lock * 1031u + sg.pend * 8191u + fl * 65521u +
+                   (perf_latched & PF_BIT(PF_DUCK) ? 3u : 0u) : 0u;
 }
 
 /* the footer and the help row of each stage */
@@ -468,7 +548,7 @@ static const khint_t SONG_FOOT[4][3] = {
     {{KC_OCTUP, "OVERWRITE"}, {KC_OCTDN, "CANCEL"}, {0, 0}},    /* OVERWRITE A-D? */
     {{KC_OCTUP, "DONE"}, {KC_OCTDN, "DONE"}, {0, 0}},          /* written */
     {{KC_OCTUP, "SAVE"}, {KC_OCTDN, "KEEP"}, {0, 0}}};         /* SAVE X? */
-static const char H_SONG[] = "[KEYS]BLACK 1-4 PART 5-8 LOCK";
+static const char H_SONG[] = "[KEYS]F3-B3 TRACK REROLL";
 static const khint_t *song_foot(void) { return SONG_FOOT[sg.pend ? 3u : sg.stage]; }
 
 /* the SONG screen: the four parts (black keys 1..4, the one shown selected), then a row a track: T1..T4, its role
@@ -509,7 +589,8 @@ static void layer_song(void)
         GFX_HOOK_ALIGN(0, y, 0, y + 17, AL_V, "song row text on its middle");
         cv_text_on(8, y + CAP_IN(S, 17), &AF_S, n, T_MID, T_SURF);
         GFX_HOOK_ALIGN(0, y, 0, y + 17, AL_V, "song row text on its middle");
-        cv_text_on(26, y + CAP_IN(S, 17), &AF_S, FP_ROLE[i], T_TEXT, T_SURF);
+        cv_text_on(26, y + CAP_IN(S, 17), &AF_S, FP_ROLE[i],
+                   sg.flash == i + 1u && fm1_ms - sg.flash_ms < 300u ? T_THEME : T_TEXT, T_SURF);   /* (a reroll) */
         if ((sg.lock >> i) & 1u) {
             GFX_HOOK_ALIGN(0, y, 0, y + 17, AL_V, "song row text on its middle");
             cv_text_r(116, y + CAP_IN(S, 17), &AF_S, "LOCK", T_THEME, T_SURF);
@@ -535,12 +616,27 @@ static void layer_song(void)
 /* the LEDs of the black keys in SONG: the part shown lit (the others breathe), a lock lit (free: breathes), F#5 lit */
 static void song_led(uint32_t p, uint32_t *on, uint32_t *can)
 {
-    *on = (p < SG_N && p == sg.part) || (p >= 4u && p < 8u && ((sg.lock >> (p - 4u)) & 1u)) || p == 10u;
-    *can = p < 8u;
+    *on = (p < SG_N && p == sg.part) || (p >= 4u && p < 8u && ((sg.lock >> (p - 4u)) & 1u)) || p == 10u ||
+          (p == 9u && (perf_latched & PF_BIT(PF_DUCK)));
+    *can = p < 10u;
 }
+/* the white keys' LEDs in SONG: an effect on (held or latched) lit, the others breathe; F3..B3 breathe (locked:
+ * dark), C4 D4 breathe, G5 lit; D5 E5 F5 dark */
+static void song_led_w(uint32_t p, uint32_t *on, uint32_t *can)
+{
+    uint32_t held = perf_kill ? 0u : perf_held | perf_latched;
+    *on = p == TL_STARTER || (p >= SG_FX_KEY0 && p < SG_FX_KEY0 + 6u && ((held >> SG_FX[p - SG_FX_KEY0]) & 1u)) ||
+          (p < NTRK && ((held >> (PF_M1 + p)) & 1u));
+    *can = (p < NTRK && !((sg.lock >> p) & 1u)) || p == TL_RANDOM || p == TL_COOK || (p >= SG_FX_KEY0 && p < SG_FX_KEY0 + 6u);
+}
+
 /* STARTER or SONG closed some other way (the layer let go, another tool): SONG with it, nothing written */
 static void song_off(void)
 {
+    if (sg.on)
+        song_fx_clear();                                /* (spec v0.4.1: leaving SONG turns its effects off) */
+    perf_song = 0;
+    sg_fxmask = 0;
     sg.on = 0;
     sg.stage = SG_EDIT;
     sg.pend = 0;

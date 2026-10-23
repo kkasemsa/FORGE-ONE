@@ -48,6 +48,15 @@ SONG, built to the Song Mode spec v0.3 (MVP, §9).
   ≥ 12 semitones over A's, denser than B, a fill; BREAK's empty T1, no kick / clap, the roll, the pad filter down
   then open; the chain played on stock code row by row; confirm OCT- leaves all slots and tracks byte-identical;
   SAVE X? writes only that slot; a locked track survives a reroll; labels fit 12 characters. UI lint: 3 new screens.
+- Spec v0.4.1 (keymap final): **F3 G3 A3 B3 reroll one track** of the part shown (T1–T3 notes, T4 the drum
+  rhythm; a locked track: `T3 LOCKED`; written: `SAVE X?`); **E4–C5 are punch-in effects held with no FX
+  button**: REPEAT 1/16, LPF, HPF, TAPE STOP, REV THROW, ECHO THROW; **FX held + F3–B3 mute T1–T4** while held
+  (decided at the key's down); **C#5 CLEAR**, **D#5 DUCK**; FX LATCH toggles them; K1–K4 with FX held are the FX
+  macros; D5–F5 do nothing; leaving SONG turns everything off. Routed through perform.c's `perf_key_press` with a
+  SONG map (`perf_song`, `sg_fxmask`, seq.c `SG_FX`): no new DSP, buffers or storage. Held mutes are master-side
+  (never `P_MUTE`, never saved) and never unmute a chain `-` track or change the chain or its clock. Tests 19–29.
+  Host CPU (TRANCE 42 BREAK song played through its chain, best of 5): 174.7 ns/sample with no effects, 213.2 with
+  REPEAT 1/16 + ECHO THROW + DUCK (the same DSP path as PERFORM), no sample at full scale.
 - Review of PR #1, before merge: GENERATE checks the save can happen before writing anything, and if a slot is
   refused halfway it puts the chain back and says `SAVE FAILED X`; turning DENSITY or EVOLVE keeps the song written
   (only SEED or GENRE make a new one), so a reroll still asks `SAVE X?`; a refused `SAVE X?` (playing: `STOP TO

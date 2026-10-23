@@ -1591,9 +1591,219 @@ static int test_song_fix(void)
     return bad;
 }
 
+/* 0.13 spec v0.4.1 (§B, §C; tests 19..29): per-track rerolls on F3..B3, the punch-in effects E4..C5 with no FX button,
+ * FX held + F3..B3 the mutes (decided at the key's down), CLEAR, DUCK, the latch, leaving SONG, the chain untouched */
+static void sg_w(uint32_t p, int down) { if (down) key_down(white(p)); else key_up(white(p)); frame(); }
+static void sg_wtap(uint32_t p) { sg_w(p, 1); sg_w(p, 0); }
+static int sg_same(const step_t (*a)[NSTEP], uint32_t skip)   /* the four tracks as a[], but track skip */
+{
+    uint32_t i;
+    for (i = 0; i < NTRK; i++)
+        if (i != skip && memcmp(a[i], trk[i].step, sizeof a[i]))
+            return 0;
+    return 1;
+}
+static int test_song_fx(void)
+{
+    static step_t was[NTRK][NSTEP];
+    static project_store_t slots[4];
+    int bad = 0, ok;
+    uint32_t i, j, e;
+    int16_t mute[NTRK];
+    /* 19. F3 G3 A3: that track's notes (its rhythm kept), B3: T4's rhythm; the others byte for byte; deterministic */
+    sg_open((uint32_t)sg_genre("TRANCE"), 42);
+    fx_latch &= ~1u; perf_latch_on = 0;
+    for (i = 0; i < NTRK; i++) mute[i] = trk[i].p[P_MUTE];
+    ok = perf_song && sg_fxmask;
+    for (i = 0; i < NTRK; i++) {
+        for (j = 0; j < NTRK; j++) memcpy(was[j], trk[j].step, sizeof was[j]);
+        sg_wtap(i);
+        ok &= sg_same((const step_t (*)[NSTEP])was, i) && memcmp(was[i], trk[i].step, sizeof was[i]) && fs.on && sg.on;
+        if (i < FP_DRUM) {
+            for (j = 0; j < NSTEP; j++)
+                ok &= (trk[i].step[j].time == ST_NOTE) == (was[i][j].time == ST_NOTE) && trk[i].step[j].time == was[i][j].time;
+            ok &= sg.nvar[SG_A][i] == 1u;
+        } else {
+            ok &= sg.rvar[SG_A][3] == 1u;
+        }
+        {
+            char m[8] = {'N', 'E', 'W', ' ', 'T', (char)('1' + i), 0};
+            ok &= msg_is(m);
+        }
+    }
+    for (j = 0; j < NTRK; j++) memcpy(was[j], trk[j].step, sizeof was[j]);
+    song_render(SG_A);
+    ok &= sg_same((const step_t (*)[NSTEP])was, 99);
+    bad += check("SONG spec v0.4.1 19. F3 G3 A3: one track's notes (its rhythm kept), B3: T4's rhythm, the rest byte for byte", ok);
+    /* 20. T3 locked: A3 nothing, no prompt, T3 LOCKED; C4 skips T3 */
+    oct_fwd(); oct_fwd();                               /* (written: a reroll would ask) */
+    sg_tap(6);                                          /* G#4: T3 locked */
+    for (j = 0; j < NTRK; j++) memcpy(was[j], trk[j].step, sizeof was[j]);
+    sg_wtap(2);
+    ok = msg_is("T3 LOCKED") && !sg.pend && sg_same((const step_t (*)[NSTEP])was, 99);
+    tkey(TL_RANDOM);
+    ok &= !memcmp(was[2], trk[2].step, sizeof was[2]) && sg.pend == SG_A + 1u;
+    oct_back();
+    sg_tap(6);
+    bad += check("  20. T3 locked: A3 changes nothing and asks nothing (T3 LOCKED); C4 skips T3", ok);
+    /* 21. SAVE X? after a per-track reroll: one prompt for several; OCT- writes nothing, OCT+ slot A only */
+    memcpy(slots, proj_slot, sizeof slots);
+    sg_wtap(1); sg_wtap(0);
+    ok = sg.pend == SG_A + 1u && msg_is("SAVE A?");
+    oct_back();
+    ok &= !sg.pend && !memcmp(slots, proj_slot, sizeof slots);
+    sg_wtap(3);
+    oct_fwd();
+    ok &= !sg.pend && memcmp(&slots[0], &proj_slot[0], sizeof slots[0]) && !memcmp(&slots[1], &proj_slot[1], 3 * sizeof slots[0]);
+    bad += check("  21. a per-track reroll asks SAVE A? (once for several); OCT- writes nothing, OCT+ slot A only", ok);
+    /* 22. E4..C5: held, the six effects; no note, no step, STARTER stays */
+    ok = 1;
+    for (j = 0; j < NTRK; j++) memcpy(was[j], trk[j].step, sizeof was[j]);
+    for (i = 0; i < 6u; i++) {
+        sg_w(6u + i, 1);
+        e = SG_FX[i];
+        ok &= ((perf_held >> e) & 1u) && !gates() && fs.on && sg.on;
+        sg_w(6u + i, 0);
+        ok &= !((perf_held >> e) & 1u);
+    }
+    ok &= sg_same((const step_t (*)[NSTEP])was, 99) && SG_FX[0] == PF_R16 && SG_FX[1] == PF_LPF && SG_FX[2] == PF_HPF &&
+          SG_FX[3] == PF_TAPE && SG_FX[4] == PF_RTHR && SG_FX[5] == PF_ETHR;
+    bad += check("  22. E4..C5 held: REPEAT 1/16, LPF, HPF, TAPE STOP, REV THROW, ECHO THROW; no note, no step, STARTER open", ok);
+    /* 23. FX held + G3: T2 muted while G3 is (FX let go first: still), no reroll; G3 then FX: a reroll, no mute */
+    {
+        uint8_t nv = sg.nvar[SG_A][1];
+        btn_down(B_FX); frame();
+        sg_w(1, 1);
+        ok = ((perf_held >> (PF_M1 + 1u)) & 1u) && sg.nvar[SG_A][1] == nv && fs.on && sg.on && ui.ly == LAYER_SEQ;
+        btn_up(B_FX); frame();
+        ok &= ((perf_held >> (PF_M1 + 1u)) & 1u) != 0u;
+        sg_w(1, 0);
+        ok &= !((perf_held >> (PF_M1 + 1u)) & 1u);
+        sg_w(1, 1);                                     /* G3 first: a reroll */
+        btn_down(B_FX); frame();
+        ok &= !((perf_held >> (PF_M1 + 1u)) & 1u) && sg.nvar[SG_A][1] == (uint8_t)(nv + 1u);
+        sg_w(1, 0);
+        btn_up(B_FX); frame();
+        for (i = 0; i < NTRK; i++) ok &= trk[i].p[P_MUTE] == mute[i];
+        if (sg.pend) oct_back();
+        bad += check("  23. FX + G3: T2 muted while G3 is down (FX let go first too), no reroll; G3 then FX: a reroll; P_MUTE untouched", ok);
+    }
+    /* 24. FX held + black 2 in SONG: part B, no mute; outside SONG black 1 is a mute (the FX layer) */
+    btn_down(B_FX); frame();
+    sg_tap(1);
+    ok = sg.part == SG_B && !(perf_held & PF_MUTE);
+    btn_up(B_FX); frame();
+    perf_song = 0;
+    ok &= perf_key(black(0)) == PF_M1 && perf_key(white(6)) == perf_map[6];
+    frame();
+    ok &= perf_song == 1u;
+    bad += check("  24. FX + black 2 in SONG: part B, no mute; outside SONG FX's black 1 still mutes T1, E4 its map's", ok);
+    /* 25. latch: E4 and FX + F3 toggle, survive a part change and a reroll; C#5 CLEAR: all off, DUCK too */
+    fx_latch |= 1u; perf_latch_on = 1;
+    sg_wtap(6);
+    ok = (perf_latched >> PF_R16) & 1u;
+    btn_down(B_FX); frame(); sg_wtap(0); btn_up(B_FX); frame();
+    ok &= (perf_latched >> PF_M1) & 1u;
+    sg_tap(9);                                          /* D#5: DUCK */
+    sg_tap(2);                                          /* part C */
+    tkey(TL_COOK);
+    if (sg.pend) oct_back();
+    ok &= ((perf_latched >> PF_R16) & 1u) && ((perf_latched >> PF_M1) & 1u) && (perf_latched & PF_BIT(PF_DUCK));
+    sg_wtap(6);
+    ok &= !((perf_latched >> PF_R16) & 1u);
+    sg_wtap(6);
+    sg_tap(8);                                          /* C#5: CLEAR */
+    ok &= !perf_latched && msg_is("CLEAR: ALL OFF");
+    bad += check("  25. FX LATCH: E4 and FX + F3 toggle and survive a part change and a reroll; C#5 CLEAR turns all off, DUCK too", ok);
+    /* 26. D#5 DUCK on / off, latch or not */
+    sg_tap(9);
+    ok = (perf_latched & PF_BIT(PF_DUCK)) && msg_is("DUCK ON");
+    sg_tap(9);
+    ok &= !(perf_latched & PF_BIT(PF_DUCK));
+    fx_latch &= ~1u; perf_latch_on = 0;
+    sg_tap(9);
+    ok &= (perf_latched & PF_BIT(PF_DUCK)) != 0u;
+    sg_tap(9);
+    ok &= !(perf_latched & PF_BIT(PF_DUCK));
+    bad += check("  26. D#5 toggles DUCK, latch on or off", ok);
+    /* 27. leaving SONG (F#5, G5, the layer let go) with an effect held, one latched, a mute and DUCK: all off */
+    ok = 1;
+    for (i = 0; i < 3u; i++) {
+        uint32_t hold, k;
+        if (!sg.on) { sg_close(); sg_open((uint32_t)sg_genre("TRANCE"), 42); }
+        fx_latch |= 1u; perf_latch_on = 1;
+        sg_wtap(7);                                     /* F4 LPF latched */
+        btn_down(B_FX); frame(); sg_wtap(2); btn_up(B_FX); frame();   /* T3 muted, latched */
+        fx_latch &= ~1u; perf_latch_on = 0;
+        sg_tap(9);                                      /* DUCK */
+        sg_w(6, 1);                                     /* E4 held */
+        if (i == 0) sg_tap(10);                         /* F#5 */
+        else if (i == 1) tkey(TL_STARTER);              /* G5 */
+        else { btn_up(B_SEQ); frame(); }                /* the layer let go */
+        hold = perf_kill ? 0u : perf_held | perf_latched;
+        ok &= !sg.on && !perf_latched && !hold && !perf_song && !sg_fxmask;
+        sg_w(6, 0);
+        for (k = 0; k < 4u; k++) ok &= !perf_k[k];
+        if (!ok) printf("    leaving %u: on %u latched %x held %x kill %u\n", (unsigned)i, sg.on, (unsigned)perf_latched, (unsigned)perf_held, perf_kill);
+        if (i < 2u) { btn_up(B_SEQ); frame(); }
+        fs.on = 0;
+    }
+    bad += check("  27. leaving SONG by F#5, G5 or the layer let go: every effect, latch, mute and DUCK off", ok);
+    /* 29. D5 E5 F5: nothing */
+    sg_open((uint32_t)sg_genre("TRANCE"), 42);
+    for (j = 0; j < NTRK; j++) memcpy(was[j], trk[j].step, sizeof was[j]);
+    ok = 1;
+    for (i = 12; i < 15u; i++) {
+        sg_wtap(i);
+        ok &= msg_is("NOT IN SONG") && fs.on && sg.on && !perf_held && sg_same((const step_t (*)[NSTEP])was, 99);
+    }
+    bad += check("  29. D5 E5 F5 in SONG: NOT IN SONG, nothing changes", ok);
+    /* 28. INTRO: a held T1 mute leaves T1 silent; the chain, its rows' timing the same with and without */
+    {
+        uint32_t tm[2][8], r, run, it;
+        oct_fwd(); oct_fwd();
+        sg_close();
+        for (run = 0; run < 2u; run++) {
+            uint32_t last = 99, n = 0, t1 = 0, blocks = 0;
+            chain_config_t c0;
+            project_load(SG_A);
+            c0 = chain_config;
+            perf_held = run ? PF_BIT(PF_M1) : 0u;      /* (run 1: T1 held muted all through) */
+            ok = chain_prepare() == 0;
+            for (it = 0; it < 2000000u && (chain.running || chain.armed); it++) {
+                uint32_t v0 = vage, k;
+                perf_begin(CTL);
+                events_block(CTL);
+                blocks++;
+                if (chain.running && chain.row != last && n < 8u) {
+                    last = chain.row;
+                    tm[run][n++] = blocks;
+                }
+                if (chain.running && chain.row == 0u)
+                    for (; v0 < vage; v0++)
+                        for (k = 0; k < NVOICE; k++)
+                            t1 += trk[0].v[k].age == v0 + 1u;
+                if (run && chain.running && chain.row == 1u && blocks == tm[1][1] + 4u)
+                    perf_held = 0;                      /* (let go in VERSE: INTRO was silent anyway) */
+            }
+            ok &= n == 8u && !t1 && !memcmp(&c0, &chain_config, sizeof c0);
+            transport_req = 2;
+            events_block(CTL);
+            if (!ok) printf("    run %u: rows %u, T1 notes in INTRO %u\n", (unsigned)run, (unsigned)n, (unsigned)t1);
+        }
+        for (r = 0; r < 8u; r++)
+            ok &= tm[0][r] == tm[1][r];
+        perf_held = 0;
+        bad += check("  28. INTRO: T1 silent held-muted or not; the chain and its rows' timing identical with and without a held mute", ok);
+    }
+    memset(proj_slot, 0, sizeof proj_slot);
+    chain_defaults(&chain_config);
+    return bad;
+}
+
 int main(void)
 {
-    int bad = test_open() + test_styles() + test_evolve() + test_names() + test_chords() + test_reroll() + test_golden() + test_drum() + test_051() + test_starter() + test_perform() + test_roles() + test_song() + test_song_fix();
+    int bad = test_open() + test_styles() + test_evolve() + test_names() + test_chords() + test_reroll() + test_golden() + test_drum() + test_051() + test_starter() + test_perform() + test_roles() + test_song() + test_song_fix() + test_song_fx();
     printf("%s\n", bad ? "FORGE TEST FAILED" : "forge tests passed");
     return bad != 0;
 }
