@@ -1092,7 +1092,7 @@ before MIDI IN the first 21, 1.2 the first 23, 1.3 / 1.4 the first 24, 1.5 / 1.5
 
 | index | id | name | kind | values (min 0) | default | tab |
 | --- | --- | --- | --- | --- | --- | --- |
-| 0 | 0 | COLOR | 0 | 0..9: GREY GREEN AMBER ICE VIOLET ROSE PAPER HI-CON NIGHT MONO (the order of `UI_PALETTES`); 1.6: 10 CUSTOM while one is stored (CUSTOM palette, cmds 80, 81) | GREY | 0 DISPLAY |
+| 0 | 0 | COLOR | 0 | 0..10: GREY GREEN AMBER ICE VIOLET ROSE PAPER HI-CON NIGHT MONO FORGE (the order of `UI_PALETTES`; FORGE ONE 0.10 appends FORGE, stock Felucca has 0..9); 1.6: the next id (11 here, 10 on stock) is CUSTOM while one is stored (CUSTOM palette, cmds 80, 81). The editor reads the names from the device (cmd UI_PALETTES) | FORGE (Felucca: GREY) | 0 DISPLAY |
 | 1 | 1 | STYLE | 0 | 0 FLAT, 1 LINE | FLAT | 0 DISPLAY |
 | 2 | 2 | LARGE | 0 | 0 OFF, 1 ON | OFF | 0 DISPLAY |
 | 3 | 3 | ANIM | 0 | 0 ON, 1 OFF, 2 IDLE (1.2: ON plus the LEDs' idle animation; firmware before: max 1) | ON | 0 DISPLAY |

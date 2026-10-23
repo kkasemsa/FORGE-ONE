@@ -4,6 +4,7 @@ Newest first. FORGE is the SEQ TOOLS F5 motif generator in FORGE ONE (based on F
 
 | Version | Date | Theme |
 | --- | --- | --- |
+| 0.10 | 23 Oct 2026 | The FORGE palette: FORGE ONE's own look, the default |
 | 0.9.3 | 23 Oct 2026 | The splash names its maker |
 | 0.9.2 | 22 Oct 2026 | First hardware feedback: the pads lower, CHOIR AAH −12 dB |
 | 0.9.1 | 22 Oct 2026 | Fixes from the third code review: PERFORM state, build and release packaging |
@@ -17,6 +18,16 @@ Newest first. FORGE is the SEQ TOOLS F5 motif generator in FORGE ONE (based on F
 | 0.3 | 21 Oct 2026 | Safe live turns, chords in every scale, pinned seeds |
 | 0.2 | 21 Oct 2026 | The generator: SEED, DENSITY, EVOLVE, 8 styles |
 | 0.1 | 21 Oct 2026 | Scaffold: F5 FORGE cell, CI build |
+
+## 0.10
+
+- **The FORGE palette**, FORGE ONE's own look and the default on a fresh setting: deep indigo night (BG 10 12 26),
+  a slate surface, warm paper text, ember THEME (values, curves, steps: 255 164 56) and a cool cyan ACCENT for the
+  one hot thing (cursor, playhead, the selected track: 86 222 214). Appended after MONO as id 10, so every saved
+  setting keeps its palette; MENU > DISPLAY > COLOR steps to it after MONO. It passes `gen_ui_palettes.py`'s 21
+  contrast checks with room (body text 16:1, labels 8:1, values 10:1) and the UI lint over all 243 screens.
+- The web editor reads palette names from the device, so it shows FORGE as it is; CUSTOM moves to id 11
+  (EDITOR_PROTOCOL.md). Stock Felucca's ids 0..9 are unchanged.
 
 ## 0.9.3
 

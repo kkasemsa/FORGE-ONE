@@ -1,6 +1,6 @@
 # FORGE ONE User Guide
 
-Felucca 1.6.1 with FORGE 0.9.3 · M-VAVE FM-1
+Felucca 1.6.1 with FORGE 0.10 · M-VAVE FM-1
 
 This guide covers the whole instrument: the Felucca firmware by Hügelton Instruments, and FORGE, the motif generator
 this fork adds. Felucca's own sections follow its official manual, the [Felucca wiki](https://github.com/hugelton/Felucca/wiki),
@@ -673,7 +673,7 @@ the value. Press HOME to close. The web editor's Settings tab can change all of 
 
 | Tab | Rows |
 | --- | --- |
-| **DISPLAY** | COLOR (10 palettes, and CUSTOM from the web editor), STYLE (FLAT, LINE), LARGE, ANIM (ON, OFF, IDLE), LEDS (OFF, DIM LO, DIM HI, INV, INV LO, INV HI), SCREEN OFF (NEVER … 60 MIN), SCOPE (OUT, MIX), HOME (SCOPE, TRACKS, LEVELS) |
+| **DISPLAY** | COLOR (11 palettes: Felucca's 10 and **FORGE**, FORGE ONE's own, indigo night with ember values and a cyan cursor, the default; and CUSTOM from the web editor), STYLE (FLAT, LINE), LARGE, ANIM (ON, OFF, IDLE), LEDS (OFF, DIM LO, DIM HI, INV, INV LO, INV HI), SCREEN OFF (NEVER … 60 MIN), SCOPE (OUT, MIX), HOME (SCOPE, TRACKS, LEVELS) |
 | **CONTROL** | HOLD (layer hold time), KNOB ACCEL, FX LATCH, BPM LOCK, SCALE LEDS, STEP PREVIEW, CHORD ENTRY (HOLD, ADD), SELECT (BPM, PAGE, MODW, VEL) |
 | **AUDIO** | SPEAKER EQ (FLAT, LOWCUT, BASS+), USB LEVEL (MASTER, FIXED), CLICK, CLICK LEVEL, COUNT-IN, TUNE (±50 cents) |
 | **MIDI** | MIDI IN, T1–T4 CHANNEL, AUTO SELECT, SCREEN WAKE (+MIDI, PANEL), LEARN CLEAR |
