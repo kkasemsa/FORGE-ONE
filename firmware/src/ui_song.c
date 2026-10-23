@@ -460,7 +460,9 @@ static void song_track(uint32_t i)
  *           They are the tracks' own params: kept over parts, rerolls, CLEAR and leaving SONG (FOCUS turns off);
  *           saved with a part as any sound edit
  *   SCENES  D5 / E5 recall SCENE 1 / 2 at the next 1/16 (stopped: at once); FX held + D5 / E5 stores the focus params
- *           of all four tracks. RAM only (perform.c sg_scene): kept to power-off, not saved with the song */
+ *           of all four tracks and their engines; a track on another engine at the recall is skipped ("SCENE 1 SKIP
+ *           T2"), the values held to their ranges (seq.c sc_apply; no ramp, see there). RAM only (perform.c
+ *           sg_scene): kept to power-off, not saved with the song */
 #define SG_KD4 9u                               /* D4's key */
 #define SG_NONE 0xFFu
 static uint32_t song_named(const track_t *t, const char *const *names, uint32_t n)
@@ -583,7 +585,7 @@ static void song_d4_poll(uint32_t on)
 }
 static void song_scene(uint32_t x, uint32_t store)      /* D5 / E5: recall, FX held: store */
 {
-    char b[20] = "SCENE 1 ";
+    char b[28] = "SCENE 1 ";
     sg_scene_t *c = &sg_scene[x & 1u];
     b[6] = (char)('1' + (x & 1u));
     if (store) {
@@ -592,6 +594,7 @@ static void song_scene(uint32_t x, uint32_t store)      /* D5 / E5: recall, FX h
         c->n = 0;
         for (i = 0; i < NTRK; i++) {
             uint8_t m[4][2];
+            c->eng[i] = trk[i].eng_req;
             song_fmap(i, m);
             for (k = 0; k < 4u; k++)
                 for (j = 0; j < 2u; j++)
@@ -606,10 +609,17 @@ static void song_scene(uint32_t x, uint32_t store)      /* D5 / E5: recall, FX h
     } else if (!((sg.scenes >> (x & 1u)) & 1u)) {
         str_cpy(b + 8, "EMPTY", sizeof b - 8u);
     } else {
+        uint32_t i;
+        b[7] = 0;
+        for (i = 0; i < NTRK; i++)              /* (a track with another engine now: skipped, said) */
+            if (trk[i].eng_req != c->eng[i]) {
+                char n[3] = {'T', (char)('1' + i), 0};
+                str_cpy(b + str_len(b), str_len(b) > 7u ? " " : " SKIP ", sizeof b - str_len(b));
+                str_cpy(b + str_len(b), n, sizeof b - str_len(b));
+            }
         sc_pend = (uint8_t)((x & 1u) + 1u);
         if (!song.playing)
             sc_apply();                         /* (stopped: no 1/16 to wait for) */
-        b[7] = 0;
     }
     ui_message(b);
 }

@@ -2030,6 +2030,34 @@ static int test_song_perf(void)
     btn_up(B_FX); frame();
     ok &= !perf_held && !perf_latched && sg_same((const step_t (*)[NSTEP])was, 99);
     bad += check("  40. FX + D5 / E5 store only: no PF_* effect, no note, no step", ok);
+    /* (review of 10456b0) store, T2 on another engine, recall: T2 skipped ("SCENE 1 SKIP T2"), the others put back;
+     * a stored value outside its param's range now: held to it */
+    {
+        uint32_t e2 = trk[1].eng_req, n;
+        sg_vals(pv);
+        for (i = 0; i < NTRK; i++)
+            if (i != 1u) {
+                song_fmap(i, m);
+                trk[i].p[m[3][0]] = (int16_t)(trk[i].p[m[3][0]] > 20 ? trk[i].p[m[3][0]] - 20 : trk[i].p[m[3][0]] + 20);
+            }
+        set_engine_of(&trk[1], e2 == ENGI_FM6 ? 0u : ENGI_FM6);
+        frame();
+        sg_vals(pv2);
+        sg_wtap(SG_D5);                                 /* (stopped: at once) */
+        ok = msg_is("SCENE 1 SKIP T2") && !memcmp(pv2[1], trk[1].p, sizeof pv2[1]);
+        for (i = 0; i < NTRK; i++)
+            if (i != 1u)
+                ok &= !memcmp(pv[i], trk[i].p, sizeof pv[i]);
+        set_engine_of(&trk[1], e2);
+        frame();
+        for (n = 0; n < sg_scene[0].n && sg_scene[0].trk[n] != 0u; n++)
+            ;
+        sg_scene[0].eng[1] = (uint8_t)trk[1].eng_req;
+        sg_scene[0].v[n] = 999;                         /* (T1's first: CUTOFF) */
+        sg_wtap(SG_D5);
+        ok &= msg_is("SCENE 1") && trk[0].p[sg_scene[0].id[n]] == param_desc_of(eng_idx(trk[0].eng_req), sg_scene[0].id[n])->max;
+        bad += check("  scene recall after T2's engine changed: T2 skipped (SCENE 1 SKIP T2), T1 T3 T4 back; a value past its range held to it", ok);
+    }
     /* 41. CLEAR keeps FOCUS, its values and the scenes; leaving SONG: FOCUS off, the params kept, the scenes too */
     sg_w(SG_D4, 1); sg_w(0, 1); sg_w(0, 0); sg_w(SG_D4, 0);
     kt(EN_K1, 3);

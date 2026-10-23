@@ -43,8 +43,12 @@ SONG, built to the Song Mode spec v0.3 (MVP, §9), then v0.4.1 and v0.5 on the s
 - **Pickup** (§H1): the FM-1's knobs are endless encoders, so a turn always moves a value from where it is and none
   ever jumps; no pickup state or ▲ / ▼ hint is needed (test 35 checks this instead).
 - **Scenes:** D5 / E5 recall SCENE 1 / 2, applied by the audio ISR at the next 1/16 before its step plays (`sc_apply`,
-  seq.c; stopped: at once; the engines' own smoothing ramps the change as a knob turn's); FX + D5 / E5 stores the 20
-  focus params of T1–T4 (no PF_* effect). RAM only (`sg_scene`, 2 × 81 B), kept to power-off, not saved (v0.6).
+  seq.c; stopped: at once); FX + D5 / E5 stores the 20 focus params of T1–T4 and each track's engine (no PF_*
+  effect). RAM only (`sg_scene`, 2 × 85 B), kept to power-off, not saved (v0.6). Review of 10456b0: a track whose
+  engine changed since the store is skipped (`SCENE 1 SKIP T2`), every value is held to its param's range. No ramp:
+  as with a knob turn, the engines read a param once a 32-sample block (0.7 ms) and the mix reads LEVEL and the sends
+  once a block, so a value steps there (the 0.13 text that said the engines smooth it was wrong; only pitch bend
+  is smoothed, voice.c). A short ramp on recall follows if test 42 hears a click.
 - CLEAR keeps FOCUS, its values and the scenes; leaving SONG turns FOCUS off and keeps the params and scenes.
 - Tests (forge_test `test_song_perf`, labelled 31–41; 42 is the device test): D4 tap does nothing to steps or
   rerolls, B3 still rerolls T4; focus select without reroll or mute; key-down priority in every order; T1's CUTOFF /
