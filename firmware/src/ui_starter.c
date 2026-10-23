@@ -582,9 +582,12 @@ static void layer_starter(void)
         cv_text_r(230, 100 + CAP_IN(S, 18), &AF_S, b, fg.rvar ? T_THEME : T_MID, T_SURF);
     }
 }
+static int song_cards(void);                            /* (0.14 SONG's FOCUS: its four, ui_song.c) */
 static void starter_cards(void)
 {
     char val[8];
+    if (song_cards())
+        return;
     fmt_int(val, fg.seed);
     draw_column(0, "SEED", val, "", VAL(0u), fg.seed * 1000 / 99, ICON_PROB);
     fmt_int(val, fs.dens);

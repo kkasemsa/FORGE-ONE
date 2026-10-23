@@ -873,11 +873,26 @@ static void pq_apply(void)
     pq_pend = 0;
 }
 
+/* 0.14 SONG spec v0.5 §H3: a scene recalled, its params put in (the ISR at the next 1/16, before its step plays; the
+ * engines' own smoothing ramps them as a knob's turn) */
+static void sc_apply(void)
+{
+    const sg_scene_t *c;
+    uint32_t i;
+    if (!sc_pend)
+        return;
+    c = &sg_scene[(sc_pend - 1u) & 1u];
+    for (i = 0; i < c->n && i < SC_MAX; i++)
+        trk[c->trk[i] % NTRK].p[c->id[i] % P_COUNT] = c->v[i];
+    sc_pend = 0;
+}
+
 static void seq_stop(void)
 {
     uint32_t i;
     song.playing = 0;
-    pq_apply();                                    /* (0.9.1: a queued PERFORM change does not survive the stop) */
+    pq_apply();
+    sc_apply();                                    /* (0.14: a scene waiting for its 1/16 too) */                                    /* (0.9.1: a queued PERFORM change does not survive the stop) */
     cin_left = 0;                                  /* (a count-in: cancelled, nothing recorded) */
     cin_flush = 0;
     memset(cin_n, 0, sizeof cin_n);
@@ -1423,6 +1438,8 @@ static void events_block(uint32_t n)
     if (pq_pend && song.playing &&                    /* FORGE ONE 0.7 PERFORM QUANT: at the bar, before its first */
         (clk_pos == CLK_START || (clk_step == 15u && clk_pos + seq_n >= div_samples(2))))     /* step plays */
         pq_apply();
+    if (sc_pend && song.playing && (clk_pos == CLK_START || clk_pos + seq_n >= div_samples(2)))
+        sc_apply();                                 /* (0.14 SONG: a scene at the next 1/16, before its step plays) */
     for (i = 0; i < NTRK; i++)
         seq_tick(&trk[i], seq_n);
     if (cin_flush)

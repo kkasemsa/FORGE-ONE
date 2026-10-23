@@ -24,7 +24,35 @@ Newest first. FORGE is the SEQ TOOLS F5 motif generator in FORGE ONE (based on F
 
 ## 0.13
 
-SONG, built to the Song Mode spec v0.3 (MVP, §9).
+SONG, built to the Song Mode spec v0.3 (MVP, §9), then v0.4.1 and v0.5 on the same branch.
+
+**Spec v0.5, the performance layer (24 Oct 2026).**
+
+- **D4 is FOCUS** (its reroll of every track's rhythm is removed; B3 rerolls T4's, C4 every unlocked track's notes,
+  F3–B3 one track's). D4 held + F3 / G3 / A3 / B3 puts T1 BASS / T2 LEAD / T3 PAD / T4 DRUM on KNOB 1–4
+  (`FOCUS T2 LEAD`); it stays after D4 is let go; D4 + the same key, or a D4 tap that picked nothing and turned
+  nothing, turns it off. F3–B3 still decide at the key's down: FX held a mute, else D4 held the focus, else a reroll.
+- **Faders:** D4 held alone, KNOB 1–4 are the focus track's (FOCUS off: the last focused, T1 at first); let go, the
+  values stay. Knob priority: FX held (the macros, snapping back) > D4 held > FOCUS > SEED DENSITY EVOLVE GENRE.
+- Params: T1 CUTOFF RESO ENV-MOD (`P_ED_FLT`) DECAY (`P_DEC`); T2 / T3 FILTER, A/R (`P_ATK` and `P_REL` by the same
+  turn), SEND (`P_REV` and `P_DLY`), LEVEL; T4 KICK level (`P_LN0`), the kit's TUNE and DECY, DRV. Nearest where the
+  spec's is missing: the filter by the engine (CUT FREQ TONE DCW BRIT MLVL, as BREAK's sweep), RESO as RES or Q,
+  else FB (FM6) FOLD (PHASE) DUTY (LOFI), else DIST; DRUM has no per-lane tune or decay, so SNARE TUNE and HAT DECAY
+  are the kit's TUNE and DECY; DECAY rather than ACCENT on T1 (no bass engine of the starters has an ACCENT edit;
+  open question G2). The knob cards show the four with their values; the bottom line `FOCUS T2` / `FADER T1`.
+- **Pickup** (§H1): the FM-1's knobs are endless encoders, so a turn always moves a value from where it is and none
+  ever jumps; no pickup state or ▲ / ▼ hint is needed (test 35 checks this instead).
+- **Scenes:** D5 / E5 recall SCENE 1 / 2, applied by the audio ISR at the next 1/16 before its step plays (`sc_apply`,
+  seq.c; stopped: at once; the engines' own smoothing ramps the change as a knob turn's); FX + D5 / E5 stores the 20
+  focus params of T1–T4 (no PF_* effect). RAM only (`sg_scene`, 2 × 81 B), kept to power-off, not saved (v0.6).
+- CLEAR keeps FOCUS, its values and the scenes; leaving SONG turns FOCUS off and keeps the params and scenes.
+- Tests (forge_test `test_song_perf`, labelled 31–41; 42 is the device test): D4 tap does nothing to steps or
+  rerolls, B3 still rerolls T4; focus select without reroll or mute; key-down priority in every order; T1's CUTOFF /
+  RESO only; relative turns after a track change and a scene; FX over FOCUS snaps back; faders latch; FOCUS off by
+  tap and by the same key; scene store / recall at the 1/16 boundary, `SCENE 2 EMPTY`; FX + D5 stores only; CLEAR and
+  leaving SONG. Test 29 now covers F5 only. UI lint: 2 new screens (FOCUS T2, FOCUS T4 on part C).
+
+**Spec v0.3 (23 Oct 2026).**
 
 - **F#5 in STARTER opens SONG**: four related parts from one song seed, A VERSE, B CHORUS, C BRIDGE and D, which is
   LIFT (a bigger last chorus) in BERLIN, DEEP HOUSE, SYNTHWAVE, AMBIENT and JARRE and BREAK (a breakdown) in the

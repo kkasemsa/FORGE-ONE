@@ -422,8 +422,9 @@ static void tools_key(uint32_t p)
     }
     if (fs.on && sg.on && sg.stage == SG_CONFIRM)       /* (0.13 SONG's confirm: only OCT+ / OCT- answer it) */
         return;
-    if (fs.on && sg.on && (p == TL_RANDOM || p == TL_COOK)) {   /* (0.13 SONG: the part shown, not the locked) */
-        song_reroll(p == TL_COOK);
+    if (fs.on && sg.on && (p == TL_RANDOM || p == TL_COOK)) {   /* (0.13 SONG: the part shown, not the locked; 0.14: */
+        if (p == TL_RANDOM)                             /* D4 is FOCUS, song_wkey's) */
+            song_reroll();
         ui.force = 1;
         return;
     }
@@ -830,6 +831,8 @@ static void layer_knob(uint32_t k, int32_t s)
         if (k == 3u && !perf_harm_on())
             s = -s;
         perf_k[k] = (int8_t)clamp(perf_k[k] + accel(EN_K1 + k, s, k ? 100 : 200), k ? 0 : -100, 100);
+    } else if (l == LAYER_SEQ && fs.on && sg.on && sg.stage != SG_CONFIRM && (song_d4() || sg.focus)) {
+        song_focus_knob(k, s);                          /* 0.14 SONG (spec v0.5): D4 held the faders, FOCUS the track's */
     } else if (l == LAYER_SEQ && fs.on && sg.on) {      /* 0.13 SONG: the same, then the part shown */
         if (sg.stage != SG_CONFIRM)
             song_knob(k, s);

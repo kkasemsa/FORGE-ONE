@@ -346,7 +346,8 @@ parts:
 | **D BREAK** | (the other 8 genres) the breakdown: no bass, no kick or snare, sparse hats, a snare roll building over the last bar, the pad's filter down and opening on the last bar |
 
 - **Black keys 1–4** play part A–D (its steps go into the four tracks; the selected part is lit). **Black keys 5–8**
-  lock T1–T4. **C4 / D4** reroll the notes / rhythm of the part shown, leaving locked tracks exactly as they are.
+  lock T1–T4. **C4** rerolls the notes of the part shown and **F3–B3** one track, leaving locked tracks exactly as they
+  are. **D4** is FOCUS (below).
 - **OCT+ GENERATE** asks `OVERWRITE A-D?` and lists what is in the four project slots now (`--` for an empty one).
   **OCT+** writes the four parts to slots A–D, named `S42 VERSE`, `S42 CHORUS`, `S42 BRIDGE`, `S42 LIFT` or
   `S42 BREAK`, and writes the arrangement into GLO > SONG. **OCT−** cancels: no slot is touched and the four tracks
@@ -370,7 +371,7 @@ parts:
 The parts are ordinary projects and the arrangement an ordinary SONG chain, so stock Felucca 1.6.1 loads and plays
 them too. Edit a part as usual: load its slot, change it, save it back to the same slot.
 
-**SONG's keys** (spec v0.4.1). With FX held only F3–B3 and the knobs change:
+**SONG's keys** (spec v0.5). With FX held only F3–B3, D5 / E5 and the knobs change:
 
 | Key | In SONG | With FX held |
 | --- | --- | --- |
@@ -379,20 +380,45 @@ them too. Edit a part as usual: load its slot, change it, save it back to the sa
 | Black 9 (C#5) | CLEAR: every effect, latch, mute and DUCK off | same |
 | Black 10 (D#5) | DUCK on / off (non-drum tracks pump on the kick) | same |
 | Black 11 (F#5) | SONG on / off | same |
-| F3 G3 A3 B3 | Reroll T1 / T2 / T3 notes, T4 drum rhythm (the part shown, that track only) | Mute T1–T4 while held |
-| C4 / D4 | Reroll notes / rhythm, every unlocked track | same |
+| F3 G3 A3 B3 | Reroll T1 / T2 / T3 notes, T4 drum rhythm (the part shown, that track only); **with D4 held: FOCUS T1–T4** | Mute T1–T4 while held |
+| C4 | Reroll notes, every unlocked track | same |
+| D4 | FOCUS: hold + F3–B3 picks a track; hold alone: the focus track's faders; tap: FOCUS off | (FX wins on the knobs) |
 | E4 F4 G4 A4 B4 C5 | Held: REPEAT 1/16, LPF, HPF, TAPE STOP, REV THROW, ECHO THROW (no FX button needed) | same |
-| D5 E5 F5 | Nothing (`NOT IN SONG`) | same |
+| D5 / E5 | Recall SCENE 1 / 2 at the next 1/16 | Store SCENE 1 / 2 |
+| F5 | Nothing (`NOT IN SONG`) | same |
 | G5 | Applies STARTER, leaves SONG | same |
-| KNOB 1–4 | SEED DENSITY EVOLVE GENRE | FX macros FILTER CRUSH THROW DEPTH |
+| KNOB 1–4 | SEED DENSITY EVOLVE GENRE; FOCUS on or D4 held: the track's four (below) | FX macros FILTER CRUSH THROW DEPTH (back to 0 when FX is let go) |
 
 - A locked track ignores its own reroll key (`T3 LOCKED`). Before the song is written a per-track reroll says
-  `NEW T3`; after, it asks `SAVE X?` like C4 / D4.
+  `NEW T3`; after, it asks `SAVE X?` like C4. (0.13 / spec v0.5: D4's reroll of every track's rhythm is gone; B3
+  rerolls T4's.)
 - Whether F3–B3 mute or reroll is decided when the key goes down: FX held then, it mutes until the key is let go
   (even if FX is let go first); FX pressed after the key, it was a reroll. Mutes are never saved and never change
   the chain: a track the chain row silences (`-`, as in INTRO and OUTRO) stays silent.
 - With MENU > FX LATCH ON the effects and mutes toggle and stay on across part changes and rerolls; CLEAR turns
   them off. Leaving SONG (F#5, G5, letting go of SEQ) turns every effect, latch, mute and DUCK off.
+
+**FOCUS, faders and scenes** (spec v0.5, the performance layer):
+
+- **FOCUS:** hold D4 and press F3 / G3 / A3 / B3 to put T1 BASS / T2 LEAD / T3 PAD / T4 DRUM on the knobs; the knob
+  cards and the track row show it (`FOCUS T2`). It stays after D4 is let go. D4 + the same key, or a D4 tap, turns it
+  off. A locked track can be focused (a lock is for notes and rhythm).
+- **Faders:** hold D4 alone and turn the knobs: the focus track's (with FOCUS off, the last focused, T1 at first).
+  Let go: the values stay, the knobs go back. FX held always wins: its macros, which snap back.
+
+| Track | KNOB 1 | KNOB 2 | KNOB 3 | KNOB 4 |
+| --- | --- | --- | --- | --- |
+| T1 BASS | CUTOFF | RESO | ENV MOD (FLT) | DECAY |
+| T2 LEAD, T3 PAD | FILTER | A/R (attack and release together) | SEND (REV and DLY together) | LEVEL |
+| T4 DRUM | KICK level | TUNE (the kit's) | DECY (the kit's) | DRV |
+
+  The filter and RESO are the engine's own (CUT, FREQ, TONE, DCW..; RES or Q, else FB, FOLD or DUTY, else the
+  track's DIST). The knobs are encoders, so a value always moves on from where it is: nothing jumps when you change
+  track or recall a scene. These are the tracks' real settings: they stay across parts, rerolls and CLEAR, and are
+  saved with a part like any sound edit.
+- **Scenes:** FX + D5 / E5 stores the knob settings of all four tracks; tapping D5 / E5 brings them back on the next
+  1/16 (stopped: at once). An empty one says `SCENE 2 EMPTY`. Scenes live until power-off and are not saved with the
+  song.
 
 ## 8. What FORGE writes, and what it leaves alone
 
