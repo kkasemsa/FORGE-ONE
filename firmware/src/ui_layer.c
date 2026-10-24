@@ -475,8 +475,21 @@ static void tools_key(uint32_t p)
             return;
         }
     }
-    if (fs.on && sg.on && sg.stage == SG_CONFIRM)       /* (0.13 SONG's confirm: only OCT+ / OCT- answer it) */
+    if (fs.on && sg.on && sg.stage == SG_CONFIRM) {     /* (0.13 SONG's confirm: only OCT+ / OCT- answer it) */
+        if (p == TL_STARTER)
+            song_refuse("ANSWER FIRST", "OCT+ / OCT-");  /* (0.17, spec v0.8 §1; D4 + C4 FILL too) */
+        else if (p == TL_RANDOM && song_d4_down())
+            song_refuse("ANSWER FIRST", "OCT+ / OCT-");
         return;
+    }
+    if (fs.on && sg.on && p == TL_STARTER) {            /* 0.17 (spec v0.8 §1): G5 in SONG, one press: STARTER applied, */
+        fs_close(1);                                    /* SONG left (everything waiting dropped: song_off), the SEQ */
+        song_off();                                     /* lock released and the layer closed: the play screen. The */
+        layer_let_go(0);                                /* transport as it was */
+        ui_message("STARTER APPLIED");
+        ui.force = 1;
+        return;
+    }
     if (fs.on && sg.on && (p == TL_RANDOM || p == TL_COOK)) {   /* (0.13 SONG: the part shown, not the locked; 0.14: */
         if (p == TL_RANDOM)                             /* D4 is FOCUS, song_wkey's) */
             song_reroll();
@@ -847,8 +860,8 @@ static void layer_keys(uint32_t keys)
         pm_poll();                                      /* (0.7 PERFORM: the scene keys' taps and holds) */
     lys.solo &= kb_layer;
     lys.fill &= kb_layer;
-    if (seq_fill != (lys.fill != 0u)) {                 /* (1.5.5: the steps' FILL / !FILL from the next step) */
-        seq_fill = (uint8_t)(lys.fill != 0u);
+    if (seq_fill != (lys.fill || sgf.live || sgf.bar)) {   /* (1.5.5: the steps' FILL / !FILL from the next step; */
+        seq_fill = (uint8_t)(lys.fill || sgf.live || sgf.bar);   /* FORGE ONE 0.17: SONG's FILL too) */
         ui.force = 1;
     }
     for (k = 0; k < 27u; k++)

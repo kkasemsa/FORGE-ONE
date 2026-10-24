@@ -1109,6 +1109,119 @@ static const motion_store_t *chain_motion(const track_t *t)
     return !chain.running ? &motion : s < 4u ? &chain.source[s].motion : 0;
 }
 
+/* FORGE ONE 0.17 (Song Mode spec v0.8 §2): SONG's FILL on T4 (the DRUM track), never written: while sgf.live (D4 + C4
+ * held) or sgf.bar (the bar-end fill's bar) T4 plays fill_step's step instead of its own; sgf.crash adds a crash
+ * (GM 49; a kit with no cymbal: the open hat, accented) to the next downbeat (after a held fill or a CRASH END one).
+ * The place in the bar is the clock's (sgf_pos), whatever T4's LEN or DIV. The UI (ui_song.c) sets them; read here once
+ * a step. Generated a step at a time from the type, the density, the 1/16 and the kit: no table */
+enum { FILL_ROLL, FILL_TOMS, FILL_KICK, FILL_CRASH };
+static void fill_note(step_t *f, uint32_t note)
+{
+    if (f->n < 4u)
+        f->note[f->n++] = (uint8_t)note;
+}
+static volatile struct { uint8_t live, bar, crash, type, dens; } sgf;
+static uint32_t sgf_adv;                                /* (the block's samples: seq_n, for sgf_pos) */
+static const uint8_t FILL_TOM[6] = {50, 48, 47, 45, 43, 41};   /* (GM toms, high to low) */
+/* 0.17 review: what the track's kit really has. A model kit plays its own piece on a lane (drum_voice.c DV_KIT): a
+ * crash only where its BELL lane is a cymbal (10 55 77 DEEP 90 MP SD), toms only where its TOM lane is one (not 66,
+ * PERC or MP: congas); STD (Felucca's own types) has both. Bit 0: toms, bit 1: a crash */
+#define FILL_HAS_TOM 1u
+#define FILL_HAS_CYM 2u
+static uint32_t fill_kit(const track_t *t)
+{
+    uint32_t kit = drum_kit_plays(t->p[P_E0]);
+    if (kit < DK_80)
+        return FILL_HAS_TOM | FILL_HAS_CYM;
+    return (DV_KIT[kit - DK_80][DV_TOM].run == DVT_TOM ? FILL_HAS_TOM : 0u) |
+           (DV_KIT[kit - DK_80][DV_BELL].run == DVT_CYM ? FILL_HAS_CYM : 0u);
+}
+/* the 1/16 of the bar a step starting in this block falls on (clk_step moves after the tracks: click_tick) */
+static uint32_t sgf_pos(void)
+{
+    return clk_pos == CLK_START ? 0u : (clk_step + (clk_pos + sgf_adv >= div_samples(2) ? 1u : 0u)) & 15u;
+}
+static void fill_tom(step_t *f, uint32_t k, uint32_t x)   /* tom x (0 high .. 5 low), or the snare tuned down */
+{
+    if (k & FILL_HAS_TOM)
+        fill_note(f, FILL_TOM[x % 6u]);
+    else
+        fill_note(f, x < 3u ? 40u : 38u);              /* (no toms: the snare, GM 40 above 38) */
+}
+static void fill_tom(step_t *f, uint32_t k, uint32_t x);
+static void fill_step(uint32_t type, uint32_t dens, uint32_t i, const step_t *o, step_t *f, uint32_t kit)
+{
+    uint32_t e8 = !(i & 1u), hats = o->time == ST_NOTE ? o->hit & (1u << 3 | 1u << 4) : 0u;   /* (HATC HATO) */
+    memset(f, 0, sizeof *f);
+    f->time = ST_NOTE;
+    f->vel = 100;
+    if (type != FILL_CRASH && i < 12u)
+        f->hit = (uint8_t)hats;                         /* (the groove's hats, to the last beat) */
+    if (type == FILL_ROLL) {                            /* snare 8ths, 16ths in the second half; 60 -> 127 */
+        if (i < 8u ? e8 : dens >= 1u || e8)
+            f->hit |= 1u << 1;
+        f->vel = (uint8_t)(60u + 67u * i / 15u);
+        if (dens >= 3u && i >= 12u)
+            f->acc = 1u << 1;                           /* (a flam's weight on the last beat) */
+    } else if (type == FILL_TOMS) {                     /* the kick on 1, toms high to low */
+        if (!i)
+            f->hit |= 1u;
+        else if (dens >= 2u || e8)
+            fill_tom(f, kit, i * 6u / 16u);
+    } else if (type == FILL_KICK) {                     /* the kick in 4ths, 8ths, 16ths; the snare on 2 and 4 */
+        if (i < 8u ? !(i & 3u) : i < 12u || !dens ? e8 : 1u)
+            f->hit |= 1u;
+        if (i == 4u || i == 12u)
+            f->hit |= 1u << 1;
+        f->vel = (uint8_t)(70u + 3u * i);
+    } else if (i < 12u) {                               /* CRASH END: the groove, then snare and toms in 16ths */
+        if (o->time == ST_NOTE)
+            *f = *o;
+        f->time = ST_NOTE;
+        f->probability = 0;
+    } else {
+        f->hit = e8 ? 1u << 1 : 0u;
+        if (!e8)
+            fill_tom(f, kit, i - 10u);
+        f->vel = 110;
+    }
+    f->flags &= (uint8_t)~(SF_SLIDE | SF_RATCH);
+}
+static void fill_crash(step_t *f, uint32_t kit)         /* the crash; a kit with none: the open hat, accented */
+{
+    if (kit & FILL_HAS_CYM)
+        fill_note(f, 49);
+    else {
+        f->hit |= 1u << 4;
+        f->acc |= 1u << 4;
+    }
+}
+static int sgf_step(const track_t *t, const step_t *o, step_t *f)
+{
+    uint32_t i = sgf_pos(), fill = sgf.live || sgf.bar, crash = sgf.crash && !i, kit;
+    if (!fill && !crash)
+        return 0;
+    kit = fill_kit(t);
+    if (fill)
+        fill_step(sgf.type & 3u, sgf.dens & 3u, i, o, f, kit);
+    else {
+        *f = *o;
+        if (f->time != ST_NOTE) {
+            memset(f, 0, sizeof *f);
+            f->time = ST_NOTE;
+            f->vel = 100;
+        }
+        f->probability = 0;
+    }
+    if (crash) {
+        sgf.crash = 0;
+        fill_crash(f, kit);
+        if (f->vel < 110u)
+            f->vel = 110;
+    }
+    return 1;
+}
+
 /* step idx plays: its chance (the one roll, as seq_step made it: a step that does not play applies no lock), the
  * automation and the locks before the notes (so a note-on reads them: eng_drum's KIT, ..), the notes live recording
  * already sounds left out (rskip), then its notes. On its start, or (NUDGE) at its start + its nudge */
@@ -1117,6 +1230,14 @@ static __attribute__((noinline)) void seq_play(track_t *t, uint32_t idx, uint32_
     const step_t *s = &seq_steps(t)[idx];
     const motion_store_t *m = chain_motion(t);
     uint32_t skip = SEQ_ROLLED, i, k;
+    if (t == &trk[NTRK - 1u] && (sgf.live | sgf.bar | sgf.crash)) {   /* (FORGE ONE 0.17: SONG's FILL, T4) */
+        step_t f;
+        if (sgf_step(t, s, &f)) {
+            t->rskip_n = 0;
+            seq_step(t, &f, idx, period, SEQ_ROLLED);
+            return;
+        }
+    }
     if (seq_miss(t, s, idx))
         skip = SEQ_MISS;
     if (m)
@@ -1451,6 +1572,7 @@ static void events_block(uint32_t n)
         pq_apply();
     if (sc_pend && song.playing && (clk_pos == CLK_START || clk_pos + seq_n >= div_samples(2)))
         sc_apply();                                 /* (0.14 SONG: a scene at the next 1/16, before its step plays) */
+    sgf_adv = seq_n;                                    /* (FORGE ONE 0.17: the fill's place in the bar) */
     for (i = 0; i < NTRK; i++)
         seq_tick(&trk[i], seq_n);
     if (cin_flush)

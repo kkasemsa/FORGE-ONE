@@ -359,6 +359,7 @@ static int fs_find(const fs_sound_t *s, uint32_t *e, uint32_t *k)
         return 1;
     return f ? fs_find_base(f->eng, f->base, e, k) : fs_find_base(s->eng, s->preset, e, k);
 }
+static uint8_t fs_packid[NTRK];                        /* FORGE ONE 0.17: the FORGE PACK sound a track got (+ 1; 0 none) */
 static void fs_sounds(void)                             /* the starter's four sounds */
 {
     uint32_t i, e, k;
@@ -369,8 +370,11 @@ static void fs_sounds(void)                             /* the starter's four so
             if (t->eng_req % NENGINES != e)
                 set_engine_of(t, e);
             apply_preset_to(t, k);
-            if (str_eq(sd->eng, "FORGE"))
+            fs_packid[i] = 0;
+            if (str_eq(sd->eng, "FORGE")) {
                 fs_pack_apply(t, fs_pack(sd->preset));  /* (0.9: a FORGE PACK sound over its base) */
+                fs_packid[i] = (uint8_t)(fs_pack(sd->preset) - FORGE_PACK + 1);
+            }
         }
 }
 /* the patterns: each part's LEN and DIV 1/16, the key, then FORGE's generator with the part's row and stream */
@@ -503,11 +507,15 @@ static void fs_reroll(uint32_t rhythm)                  /* C4 / D4: the notes / 
     ui_message(b);
 }
 /* OCT+ (apply: emptied steps lose their locks) or OCT- (cancel: the four tracks as they were, sound and all) */
+static void song_snd_take(void);
+static uint8_t song_on(void);
 static void fs_close(int apply)
 {
     uint32_t i;
     if (!fs.on)
         return;
+    if (song_on())
+        song_snd_take();                                /* (FORGE ONE 0.17: SONG's sounds, before they may go) */
     fs.on = 0;
     if (apply) {
         for (i = 0; i < NTRK; i++)

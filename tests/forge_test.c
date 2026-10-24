@@ -2223,11 +2223,11 @@ static int test_song_v06(void)
         transport_req = 1;
         pm_blocks(2);
         kt(EN_PRESET, 1);
-        ok = sg.ppend == 1u && sg.pk != p0 && trk[0].preset == p0 && sg.ov == SOV_PRESET;
+        ok = sg.ppend == 1u && (sg.pk != p0 || sg.pe != e0 || sg.pkind != SR_FAC) && trk[0].preset == p0 && sg.ov == SOV_PRESET;
         sg_run_ms(200);
         ok &= trk[0].preset == p0;                      /* (under 600 ms: never, bar or not) */
         for (n = 0; n < 400u && sg.ppend; n++) sg_run_ms(16);
-        ok &= trk[0].preset != p0 && trk[0].eng_req == e0 && clk_step >= 14u;
+        ok &= (trk[0].preset != p0 || trk[0].eng_req != e0 || fs_packid[0]) && clk_step >= 14u;   /* (0.17: any BASS) */
         for (i = 1; i < NTRK; i++)
             ok &= !memcmp(pv[i], trk[i].p, sizeof pv[i]);
         k = trk[0].preset;
@@ -2238,7 +2238,7 @@ static int test_song_v06(void)
         ok &= trk[0].preset == k;
         transport_req = 2;
         pm_blocks(2); frame();
-        bad += check("  51. PRESETS (FOCUS T1): T1 only, loaded at the bar 600 ms after the turn; OCT- before: cancelled, SONG open", ok);
+        bad += check("  51. PRESETS (FOCUS T1): T1 only (0.17: its category's next), loaded at the bar 600 ms after the turn; OCT- before: cancelled, SONG open", ok);
     }
     /* 52. favourites: D4 + FX + black 2 stores T1's sound; another preset; D4 + black 2: it again (stopped: at once);
      * kept in the settings; empty: FAV 3 EMPTY; a DRUM favourite on T1: refused */
@@ -2770,9 +2770,648 @@ static int test_song_v07(void)
     return bad;
 }
 
+/* FORGE ONE 0.17 (Song Mode spec v0.8-r2): G5 one press out, FILL on D4 + C4, PRESETS by category (T4: the drum
+ * list), SONG's sounds kept (hardware tests 78..128, their host halves) */
+static uint32_t sg_t4_played(uint8_t *nn)               /* the notes T4's step plays now (0: none sounding) */
+{
+    uint32_t i;
+    for (i = 0; i < trk[3].seq_n; i++) nn[i] = trk[3].seq_notes[i];
+    return trk[3].seq_n;
+}
+static uint32_t sg_step_notes(const step_t *f, uint8_t *nn)   /* what seq_step plays for f */
+{
+    uint32_t m = 0, i;
+    if (f->time != ST_NOTE) return 0;
+    for (i = 0; i < f->n && i < 4u; i++) nn[m++] = f->note[i];
+    for (i = 0; i < NLANE; i++) if ((f->hit >> i) & 1u) nn[m++] = DRUM_LANE_NOTE[i];
+    return m;
+}
+static int sg_same_notes(const uint8_t *a, uint32_t na, const uint8_t *b, uint32_t nb)
+{
+    uint32_t i, j;
+    if (na != nb) return 0;
+    for (i = 0; i < na; i++) { for (j = 0; j < nb && b[j] != a[i]; j++) ; if (j == nb) return 0; }
+    return 1;
+}
+/* run (a frame each ~16 ms) until T4's next step starts, *idx its step; the notes it sounds */
+static uint32_t sg_next_t4(uint32_t *idx, uint8_t *nn)
+{
+    uint32_t at = trk[3].seq_idx, n;
+    for (n = 0; n < 20000u && trk[3].seq_idx == at; n++) { pm_blocks(1); if (n % 22u == 21u) frame(); }
+    pm_blocks(1);
+    *idx = trk[3].seq_idx;
+    return sg_t4_played(nn);
+}
+static uint32_t sg_pk(const char *n) { return (uint32_t)(fs_pack(n) - FORGE_PACK); }   /* a pack sound's index */
+static void sg_play(void) { transport_req = 1; pm_blocks(2); frame(); }
+static void sg_stop(void) { transport_req = 2; pm_blocks(2); frame(); }
+static void sg_g5(void) { key_down(white(TL_STARTER)); frame(); key_up(white(TL_STARTER)); frame(); }
+static void sg_c4_down(void) { key_down(white(5)); frame(); key_down(white(4)); frame(); }   /* D4 held, C4 down */
+static void sg_c4_up(void) { key_up(white(4)); frame(); key_up(white(5)); frame(); }
+static void sg_c4_tap(void) { key_down(white(5)); frame(); key_down(white(4)); frame(); key_up(white(4)); frame(); key_up(white(5)); frame(); }
+static void sg_to_step(uint32_t st) { uint32_t n; for (n = 0; n < 4000u && clk_step != st; n++) pm_blocks(1); frame(); }
+static void sg_pre(int32_t s) { kt(EN_PRESET, s); }
+static void sg_pre_fx(int32_t s) { btn_down(B_FX); frame(); kt(EN_PRESET, s); btn_up(B_FX); frame(); }
+static void sg_pre_load(void) { uint32_t n; for (n = 0; n < 400u && sg.ppend; n++) sg_run_ms(16); }
+static void sg_hold_in(void) { btn_down(B_SEQ); frame(); frames(SG_HOLD_SEQ_MS + 50u); btn_up(B_SEQ); frame(); }
+static int test_song_v08(void)
+{
+    int bad = 0, ok;
+    uint32_t i, n, idx, nn_n;
+    uint8_t nn[12];
+    static step_t was4[NSTEP];
+    sg_snd.valid = 0;
+    /* 78-80. G5 in SONG: STARTER applied, SONG left, the SEQ lock released: the play screen; playing on; BOOT too */
+    sg_close();
+    sg_open((uint32_t)sg_genre("TRANCE"), 42);
+    sg_leave();
+    sg_hold_in();
+    ok = sg.on && ui.lock == LAYER_SEQ;
+    sg_g5();
+    frames(100);
+    ok &= !sg.on && !fs.on && !ui.ly && !ui.lock && !ui.layer && msg_is("STARTER APPLIED");
+    bad += check("SONG spec v0.8 78. SEQ held into SONG, G5: STARTER APPLIED, the play screen (no SEQ layer, no lock)", ok);
+    sg_hold_in();
+    sg_play();
+    {
+        static step_t st[NTRK][NSTEP];
+        for (i = 0; i < NTRK; i++) memcpy(st[i], trk[i].step, sizeof st[i]);
+        sg_g5();
+        sg_run_ms(200);
+        ok = song.playing && !sg.on && !ui.lock;
+        for (i = 0; i < NTRK; i++) ok &= !memcmp(st[i], trk[i].step, sizeof st[i]);
+    }
+    sg_stop();
+    bad += check("  79. playing: G5 leaves SONG, the music goes on with the part shown", ok);
+    song_boot(fm1_ticks()); frame();
+    ok = sg.on && ui.lock == LAYER_SEQ;
+    sg_g5();
+    ok &= !sg.on && !ui.ly && !ui.lock;
+    bad += check("  80. BOOT = SONG, then G5: the play screen in one press", ok);
+    /* 81-83. G5 with OCT- waiting, a part queued, the confirm asking */
+    sg_hold_in();
+    oct_back();
+    sg_g5();
+    ui.msg_t = 0;
+    frames(SG_OCT2_MS + 200u);
+    ok = !sg.on && !ui.msg_t && !sg.octpend;
+    sg_hold_in();
+    sg_play();
+    sg_tap(1);
+    ok &= sg.qpart == 2u;
+    {
+        static step_t st[NTRK][NSTEP];
+        for (i = 0; i < NTRK; i++) memcpy(st[i], trk[i].step, sizeof st[i]);
+        sg_g5();
+        sg_run_ms(3000);
+        for (i = 0; i < NTRK; i++) ok &= !memcmp(st[i], trk[i].step, sizeof st[i]);
+        ok &= !sg.qpart;
+    }
+    sg_stop();
+    sg_hold_in();
+    oct_fwd();
+    ok &= sg.stage == SG_CONFIRM;
+    sg_g5();
+    ok &= sg.on && fs.on && sg.stage == SG_CONFIRM && msg_is("ANSWER FIRST");
+    sg_back();
+    bad += check("  81-83. G5 with one OCT- waiting: nothing after; a part queued: no change after; at the confirm: ANSWER FIRST", ok);
+    sg_close();
+    /* 84 / 124 / 126. FILL held: from the next 1/16 T4 plays the fill (its stored steps untouched); let go after 0.5 s:
+     * the beat back at the next 1/16, a crash on the next downbeat */
+    sg_open((uint32_t)sg_genre("TRANCE"), 42);
+    fx_latch &= ~1u; perf_latch_on = 0;
+    memcpy(was4, trk[3].step, sizeof was4);
+    sg_play();
+    sg_to_step(3);
+    {
+        uint32_t at = trk[3].seq_idx, fills = 0, good = 0, steps;
+        uint8_t ex[12];
+        step_t f;
+        sg_c4_down();
+        ok = sgf.live && sg.ov == SOV_POP && str_eq(sg_pop.sm, "FILL") && str_eq(sg_pop.big, FILL_N[sgf.type & 3u]);
+        ok &= trk[3].seq_idx == at || trk[3].seq_idx == at + 1u;   /* (not moved: the next 1/16 the first) */
+        for (steps = 0; steps < 8u; steps++) {
+            nn_n = sg_next_t4(&idx, nn);
+            fill_step(sgf.type & 3u, sgf.dens & 3u, clk_step, &was4[idx % NSTEP], &f, fill_kit(&trk[3]));
+            n = sg_step_notes(&f, ex);
+            fills++;
+            good += sg_same_notes(nn, nn_n, ex, n);
+        }
+        ok &= good == fills;
+        frames(SG_HOLD_MS);                             /* (held past 0.5 s) */
+        sg_c4_up();
+        ok &= !sgf.live && sgf.crash && !sg.farm;
+        for (n = 0; n < 40u && sgf.crash; n++) {
+            nn_n = sg_next_t4(&idx, nn);
+            if (!sgf.crash) {
+                uint32_t j, c = 0;
+                for (j = 0; j < nn_n; j++) c += nn[j] == ((fill_kit(&trk[3]) & FILL_HAS_CYM) ? 49u : 46u);
+                ok &= clk_step == 0u && c == 1u;
+            }
+        }
+        ok &= !memcmp(was4, trk[3].step, sizeof was4);
+        if (!ok) printf("    live fill: %u/%u steps as fill_step, crash %u\n", (unsigned)good, (unsigned)fills, sgf.crash);
+    }
+    bad += check("  84 / 124 / 126. D4 + C4 held: the fill from the next 1/16; let go after 0.5 s: a crash on the next downbeat; T4's steps untouched", ok);
+    /* 85 / 125 / 128. a tap: FILL @ BAR END, a full bar from the next bar line (a tap inside a bar: the next) */
+    sg_to_step(5);
+    key_down(white(5)); frame(); key_down(white(4)); frame(); key_up(white(4)); frame();
+    ok = !sgf.live && sg.farm && str_eq(sg_pop.big, "@ BAR END");
+    key_up(white(5)); frame();
+    {
+        uint32_t steps = 0;
+        for (n = 0; n < 60u && !sgf.bar; n++) sg_next_t4(&idx, nn);
+        ok &= sgf.bar && (idx & 15u) <= 1u;
+        for (n = 0; n < 40u && sgf.bar; n++) { sg_next_t4(&idx, nn); steps++; }
+        ok &= !sgf.bar && steps >= 15u && steps <= 17u;
+    }
+    bad += check("  85 / 125 / 128. D4 + C4 tap: FILL @ BAR END; a whole bar from the next bar line, then the beat", ok);
+    /* 88. tap twice: FILL OFF */
+    key_down(white(5)); frame(); key_down(white(4)); frame(); key_up(white(4)); frame();
+    key_down(white(4)); frame(); key_up(white(4)); frame(); key_up(white(5)); frame();
+    ok = !sg.farm && !sgf.live && str_eq(sg_pop.big, "OFF");
+    sg_run_ms(4000);
+    ok &= !sgf.bar;
+    bad += check("  88. D4 + C4 tapped twice: FILL OFF, no fill", ok);
+    /* 86 (review of dfb7d01). a part queued, then a fill: the fill is the rest of this (A's last) bar, B on time at the
+     * bar line; a fill armed first, then a part: the same */
+    for (n = 0; n < 4u; n++) {
+        uint32_t way = n & 1u, steps = 0;
+        sg_to_step(4);
+        if (!way) { sg_tap(1); sg_c4_tap(); } else { sg_c4_tap(); sg_tap(1); }
+        ok = sgf.bar && !sg.farm && sg.part == SG_A && sg.qpart == 2u && (way || str_eq(sg_pop.big, "@ PART B"));
+        for (i = 0; i < 40u && sg.part == SG_A; i++) { sg_next_t4(&idx, nn); steps++; }
+        frame();
+        ok &= sg.part == SG_B && !sgf.bar && steps <= 13u;   /* (from step 5: B at the bar line, not a bar later) */
+        if (!ok) printf("    part + fill (%s first): %u steps to B, bar %u\n", way ? "fill" : "part", (unsigned)steps, sgf.bar);
+        sg_tap(0);
+        for (i = 0; i < 40u && sg.qpart; i++) sg_next_t4(&idx, nn);
+        frame();
+        if (!ok) break;
+    }
+    bad += check("  86. part B queued and a fill (either first): the fill on the rest of A's bar, B on time at the bar line", ok);
+    /* 87. the chain: the fill on the last bar before it changes part */
+    sg.chain = 1; sg.cbar = 0;
+    for (i = 0; i < SG_N; i++) sg.cbars[i] = 2;         /* (4 bars a part) */
+    for (n = 0; n < 60u && clk_step != 3u; n++) sg_next_t4(&idx, nn);
+    frame();
+    {
+        uint32_t part0, cb = sg.cbar;
+        sg_c4_tap();
+        ok = sg.farm && sg.fwait == (cb + 1u < 4u ? 3u - cb : 4u);
+        for (n = 0; n < 400u && !sgf.bar; n++) sg_next_t4(&idx, nn);
+        ok &= sgf.bar && sg.cbar == 3u;
+        part0 = sg.part;
+        for (n = 0; n < 40u && sgf.bar; n++) sg_next_t4(&idx, nn);
+        frame();
+        ok &= sg.part == (part0 + 1u) % SG_N;
+        if (!ok) printf("    chain fill: fwait %u cbar %u part %u (was %u)\n", sg.fwait, sg.cbar, sg.part, (unsigned)part0);
+    }
+    {   /* (review) tapped in the part's last bar: the next part's last bar, by its own bars (A 2, B 4) */
+        uint32_t p0, steps = 0;
+        sg_tap(0);
+        for (n = 0; n < 40u && sg.qpart; n++) sg_next_t4(&idx, nn);
+        frame();
+        for (i = 0; i < SG_N; i++) sg.cbars[i] = 2;
+        sg.cbars[SG_A] = 1;                             /* (A 2 bars, B 4) */
+        sg.cbars[SG_B] = 2;
+        sg.cbar = 0;
+        for (n = 0; n < 400u && !(sg.part == SG_A && sg.cbar == 1u && clk_step == 3u); n++) sg_next_t4(&idx, nn);
+        frame();
+        p0 = sg.part;
+        sg_c4_tap();
+        ok &= p0 == SG_A && sg.cbar == 1u && sg.farm && sg.fwait == 4u;
+        for (n = 0; n < 400u && !sgf.bar; n++) sg_next_t4(&idx, nn);
+        ok &= sgf.bar && sg.part == SG_B && sg.cbar == 3u;
+        for (n = 0; n < 40u && sgf.bar; n++) { sg_next_t4(&idx, nn); steps++; }
+        frame();
+        ok &= sg.part == SG_C && steps >= 15u && steps <= 17u;
+        if (!ok) printf("    chain last bar: part %u cbar %u fwait %u steps %u\n", sg.part, sg.cbar, sg.fwait, (unsigned)steps);
+    }
+    sg.chain = 0;
+    bad += check("  87. CHAIN on: a tapped fill lands on the part's last bar, the next part after it", ok);
+    /* 89. T4 locked: the fill plays; its pattern, the reroll counts, the dots as they were */
+    sg_tap(7);
+    memcpy(was4, trk[3].step, sizeof was4);
+    {
+        uint8_t d = sg.dirty, nv = sg.nvar[sg.part][3];
+        sg_c4_down();
+        ok = sgf.live;
+        sg_run_ms(300);
+        sg_c4_up();
+        sg_run_ms(1000);
+        ok &= !memcmp(was4, trk[3].step, sizeof was4) && sg.dirty == d && sg.nvar[sg.part][3] == nv;
+    }
+    sg_tap(7);
+    bad += check("  89. T4 locked: the fill still plays; T4's pattern, rerolls and dots untouched", ok);
+    /* 127. FX + B3 (T4 muted): refused T4 MUTED; armed, then muted: dropped */
+    btn_down(B_FX); frame(); sg_w(3, 1);
+    sg_c4_down();
+    ok = !sgf.live && sg_pop.red && str_eq(sg_pop.big, "T4 MUTED");
+    sg_c4_up();
+    sg_w(3, 0); btn_up(B_FX); frame();
+    sg_c4_tap();
+    ok &= sg.farm;
+    btn_down(B_FX); frame(); sg_w(3, 1);
+    frame();
+    ok &= !sg.farm && sg_pop.red && str_eq(sg_pop.big, "T4 MUTED");
+    sg_w(3, 0); btn_up(B_FX); frame();
+    bad += check("  127. T4 muted by FX: FILL refused, red T4 MUTED; muted after arming: the fill dropped", ok);
+    /* 93. armed, then SONG left: nothing plays */
+    sg_c4_tap();
+    ok = sg.farm;
+    sg_leave();
+    ok &= !sg.farm && !sgf.live && !sgf.bar && !sgf.crash;
+    sg_run_ms(3000);
+    ok &= !sgf.bar;
+    sg_stop();
+    bad += check("  93. a fill armed, SONG left: dropped, nothing plays", ok);
+    /* 90 / 91. refused: stopped PLAY FIRST, T4 not a DRUM NO DRUM, silent in the chain's row T4 OFF; C4 alone still
+     * rerolls, D4 + K1 still T1's level */
+    sg_open((uint32_t)sg_genre("TRANCE"), 42);
+    sg_c4_down();
+    ok = !sgf.live && sg_pop.red && str_eq(sg_pop.big, "PLAY FIRST");
+    sg_c4_up();
+    sg_play();
+    {
+        uint32_t e3 = trk[3].eng_req;
+        set_engine_of(&trk[3], 0);
+        sg_c4_down();
+        ok &= !sgf.live && str_eq(sg_pop.big, "NO DRUM");
+        sg_c4_up();
+        set_engine_of(&trk[3], e3);
+        chain.running = 1; chain.lane[3] = 4;
+        ok &= str_eq(song_fill_no(), "T4 OFF");
+        chain.running = 0;
+    }
+    sg_stop();
+    {
+        uint8_t nv[NTRK];
+        int16_t lv = trk[0].p[P_LEVEL];
+        for (i = 0; i < NTRK; i++) nv[i] = sg.nvar[sg.part][i];
+        tkey(4);                                        /* C4 alone */
+        if (sg.pend) sg_back();
+        for (i = 0, n = 0; i < NTRK; i++) n += sg.nvar[sg.part][i] != nv[i];
+        ok &= n > 0u;
+        key_down(white(5)); frame(); kt(EN_K1, -2); key_up(white(5)); frame();
+        ok &= trk[0].p[P_LEVEL] == lv - 2;
+        trk[0].p[P_LEVEL] = lv;
+    }
+    bad += check("  90-91. refused: PLAY FIRST, NO DRUM, T4 OFF (red); C4 alone rerolls; D4 + K1 T1's LEVEL", ok);
+    /* 92. the four types each their own bar, all reached; DENSITY low / high differ */
+    {
+        uint32_t ty, cnt[4][2] = {{0}}, seen = 0, d, sig[4] = {0}, j;
+        step_t f, o;
+        memset(&o, 0, sizeof o); o.time = ST_NOTE; o.hit = 1u << 3;
+        for (ty = 0; ty < 4u; ty++)
+            for (d = 0; d < 2u; d++)
+                for (i = 0; i < 16u; i++) { fill_step(ty, d ? 3u : 0u, i, &o, &f, FILL_HAS_TOM | FILL_HAS_CYM); cnt[ty][d] += sg_step_notes(&f, nn); }
+        ok = cnt[FILL_ROLL][1] > cnt[FILL_ROLL][0] && cnt[FILL_TOMS][1] > cnt[FILL_TOMS][0] && cnt[FILL_KICK][1] > cnt[FILL_KICK][0];
+        for (ty = 0; ty < 4u; ty++)
+            for (i = 0; i < 16u; i++) {
+                fill_step(ty, 1, i, &o, &f, FILL_HAS_TOM | FILL_HAS_CYM);
+                n = sg_step_notes(&f, nn);
+                for (j = 0; j < n; j++) sig[ty] = sig[ty] * 131u + nn[j] + i * 7u;
+            }
+        ok &= sig[0] != sig[1] && sig[0] != sig[2] && sig[0] != sig[3] && sig[1] != sig[2] && sig[1] != sig[3] && sig[2] != sig[3];
+        for (i = 0; i < 64u; i++) seen |= 1u << song_fill_type(i);
+        ok &= seen == 15u;
+    }
+    bad += check("  92. four fill types (SNARE ROLL TOM RUN KICK BUILD CRASH), all reached; low and high DENSITY differ", ok);
+    /* (review of dfb7d01) the kit: a crash where it has a cymbal, else the open hat accented; toms where it has them,
+     * else the snare (40 / 38); the bar's place from the clock (T4 at LEN 12, DIV 1/8 too) */
+    {
+        static const struct { uint8_t k1, tom, cym; } K[6] = {{0, 1, 1}, {4, 1, 0}, {6, 0, 0}, {12, 1, 1}, {13, 0, 1}, {11, 0, 0}};   /* STD 80 66 90 MP PERC */
+        step_t f, o;
+        int16_t k0 = trk[3].p[P_E0];
+        memset(&o, 0, sizeof o); o.time = ST_NOTE;
+        ok = 1;
+        for (i = 0; i < 6u; i++) {
+            uint32_t kit, j, toms = 0, sn = 0;
+            trk[3].p[P_E0] = K[i].k1;
+            kit = fill_kit(&trk[3]);
+            ok &= ((kit & FILL_HAS_TOM) != 0u) == K[i].tom && ((kit & FILL_HAS_CYM) != 0u) == K[i].cym;
+            memset(&f, 0, sizeof f); f.time = ST_NOTE;
+            fill_crash(&f, kit);
+            ok &= K[i].cym ? f.n == 1u && f.note[0] == 49u : !f.n && (f.hit & f.acc & (1u << 4));
+            for (j = 1; j < 16u; j++) {
+                uint32_t m;
+                fill_step(FILL_TOMS, 3, j, &o, &f, kit);
+                for (m = 0; m < f.n; m++) { toms += f.note[m] >= 41u && f.note[m] <= 50u && f.note[m] != 42u && f.note[m] != 44u && f.note[m] != 46u && f.note[m] != 49u; sn += f.note[m] == 38u || f.note[m] == 40u; }
+            }
+            ok &= K[i].tom ? toms > 0u && !sn : !toms && sn > 0u;
+        }
+        trk[3].p[P_E0] = k0;
+    }
+    bad += check("  (review) fill voices by kit: crash or accented open hat (80 66 PERC: no cymbal); toms or the snare (66 MP PERC: no toms)", ok);
+    {   /* T4 at LEN 12 and DIV 1/8: the fill's notes follow the clock's 1/16 of the bar, the crash on its downbeat */
+        int16_t len0 = trk[3].p[P_SLEN], div0 = trk[3].p[P_SDIV];
+        uint32_t good = 0, cnt = 0;
+        uint8_t ex[12];
+        step_t f;
+        trk[3].p[P_SLEN] = 12; trk[3].p[P_SDIV] = 1;
+        memcpy(was4, trk[3].step, sizeof was4);
+        sg_play();
+        sg_to_step(2);
+        sg_c4_down();
+        for (n = 0; n < 10u; n++) {
+            nn_n = sg_next_t4(&idx, nn);
+            fill_step(sgf.type & 3u, sgf.dens & 3u, clk_step, &was4[idx % NSTEP], &f, fill_kit(&trk[3]));
+            cnt++;
+            good += sg_same_notes(nn, nn_n, ex, sg_step_notes(&f, ex));
+        }
+        frames(SG_HOLD_MS);
+        sg_c4_up();
+        ok = good == cnt && sgf.crash;
+        for (n = 0; n < 20u && sgf.crash; n++) sg_next_t4(&idx, nn);
+        ok &= !sgf.crash && clk_step == 0u;
+        sg_stop();
+        trk[3].p[P_SLEN] = len0; trk[3].p[P_SDIV] = div0;
+        if (!ok) printf("    LEN 12 DIV 1/8: %u/%u steps as the clock's\n", (unsigned)good, (unsigned)cnt);
+    }
+    bad += check("  (review) T4 at LEN 12, DIV 1/8: the fill by the bar's 1/16 (the clock), the crash on the downbeat", ok);
+    /* 112-113 / 98 / 121. PRESETS by category: T1 BASS n/N, engines mixed, the pack, round; T2 LEAD, T3 PAD their own */
+    {
+        static const uint8_t C[3] = {CAT_BASS, CAT_LEAD, CAT_PAD};
+        uint32_t t, len, g, engs, pack, onlyc;
+        sref_t r;
+        ok = 1;
+        for (t = 0; t < 3u; t++) {
+            len = sg_list(0, C[t], 0, &r, &g);
+            engs = pack = 0; onlyc = 1;
+            for (i = 0; i < len; i++) {
+                sg_list(0, C[t], i, &r, &g);
+                if (r.kind == SR_FAC) engs |= 1u << r.e;
+                pack += r.kind == SR_PACK;
+                onlyc &= snd_cat(&r) == C[t];
+            }
+            ok &= len >= 10u && __builtin_popcount(engs) >= 2 && pack >= 2u && onlyc && song_tcat(t) == C[t];
+        }
+        sg_wtap(0);                                     /* FOCUS T1 */
+        sg_pre(1);
+        len = sg_list(0, CAT_BASS, 0, &r, &g);
+        {
+            char want[20] = "T1 BASS ";
+            fmt_int(want + 8, sg_list_pos(0, CAT_BASS, &(sref_t){sg.pkind, sg.pe, sg.pk}, &n) + 1u);
+            str_cpy(want + str_len(want), "/", 20 - str_len(want));
+            fmt_int(want + str_len(want), len);
+            ok &= sg.ppend == 1u && str_eq(sg_pop.sm, want);
+        }
+        {
+            sref_t c0 = {sg.pkind, sg.pe, sg.pk};
+            for (i = 0; i < len; i++) sg_pre(1);        /* (round: back on the same) */
+            ok &= snd_eq(&c0, &(sref_t){sg.pkind, sg.pe, sg.pk});
+        }
+        sg_back();
+        ok &= !sg.ppend && msg_is("PRESET CANCELLED");
+    }
+    bad += check("  112-113 / 98. PRESETS: T1 BASS n/N across engines and the pack, round; LEAD / PAD lists their own; OCT-: cancelled", ok);
+    /* 114-116 / 118. another engine's at the bar (the pattern kept, the dot), a pack one, a user one; OCT- x2: back */
+    {
+        uint32_t g, len, e0 = trk[0].eng_req, k0 = trk[0].preset, pidx = 99, uidx = 99;
+        sref_t r;
+        static step_t st0[NSTEP];
+        uint8_t sel = song.sel;
+        song.sel = 0;
+        up_store_cat(9, "MY BASS", CAT_BASS);
+        song.sel = sel;
+        len = sg_list(0, CAT_BASS, 0, &r, &g);
+        for (i = 0; i < len; i++) {
+            sg_list(0, CAT_BASS, i, &r, &g);
+            if (r.kind == SR_FAC && r.e != e0 && pidx == 99) pidx = i;
+            if (r.kind == SR_USER && r.k == 9u) uidx = i;
+        }
+        ok = pidx < len && uidx < len;
+        memcpy(st0, trk[0].step, sizeof st0);
+        sg.dirty = 0;
+        sg_list(0, CAT_BASS, pidx, &r, &g);
+        sg.ppend = 1; sg.pdrum = 0; sg.pcat = CAT_BASS; sg.pjump = 0; sg.pkind = r.kind; sg.pe = r.e; sg.pk = r.k; sg.pms = fm1_ms;
+        sg_play();
+        sg_pre_load();
+        ok &= trk[0].eng_req == r.e && trk[0].preset == r.k && !memcmp(st0, trk[0].step, sizeof st0) && (sg.dirty & 1u);
+        sg_stop();
+        sg_oct2();
+        ok &= trk[0].eng_req == e0 && trk[0].preset == k0;
+        song_load_ref(0, SR_PACK, 0, sg_pk("DEEP BASS"));
+        ok &= song_pack_of(&trk[0]) == sg_pk("DEEP BASS") + 1u;
+        song_load_ref(0, SR_USER, 0, 9);
+        ok &= user_of(&trk[0]) == 9u;
+        sg_oct2();
+        ok &= song_pack_of(&trk[0]) == sg_pk("DEEP BASS") + 1u;
+        if (!ok) printf("    other engine: pidx %u uidx %u eng %u/%u pack %u\n", (unsigned)pidx, (unsigned)uidx, trk[0].eng_req, r.e, fs_packid[0]);
+    }
+    bad += check("  114-116 / 118. another engine's preset at the bar (the pattern kept, its dot), a pack sound, a user one; OCT- x2 back", ok);
+    /* 119-121. FX + PRESETS: the next category, its first sound (PAD 1/N); left: back; round, the empty skipped */
+    {
+        uint32_t order[16], no = 0, g;
+        sref_t r;
+        sg_wtap(1);                                     /* FOCUS T2 (LEAD) */
+        ok = song_tcat(1) == CAT_LEAD;
+        sg_pre_fx(1);
+        sg_list(0, CAT_PAD, 0, &r, &g);
+        ok &= sg.pcat == CAT_PAD && snd_eq(&r, &(sref_t){sg.pkind, sg.pe, sg.pk}) && str_eq(sg_pop.sm, "T2 CATEGORY") &&
+              !memcmp(sg_pop.big, "PAD 1/", 6);
+        sg_pre_fx(-1);
+        ok &= sg.pcat == CAT_LEAD && !memcmp(sg_pop.big, "LEAD 1/", 7);
+        for (i = 0; i < 8u; i++) { sg_pre_fx(1); order[no++] = sg.pcat; }
+        ok &= order[0] == CAT_PAD && order[1] == CAT_PLUCK && order[2] == CAT_KEYS && order[3] == CAT_FX &&
+              order[4] == CAT_DRUM && order[5] == CAT_BASS && order[6] == CAT_LEAD;
+        sg_pre(1);                                      /* (FX let go: inside the new category) */
+        ok &= sg.pcat == order[7];
+        sg_back();
+        ok &= !sg.ppend;
+        sg_wtap(1);
+    }
+    bad += check("  119-121. FX + PRESETS: T2 CATEGORY PAD 1/N, left back to LEAD; BASS LEAD PAD PLUCK KEYS FX DRUM round; OCT-: cancelled", ok);
+    /* 94-97 / 122. T4 on DRUM: the drum list (12 KIT models, the pack's kits, other drums, the user's); a model K1 only
+     * at the bar; a pack kit; FX + PRESETS: its groups, never out of DRUM */
+    {
+        static const char *const KN[12] = {"STD", "80", "10", "66", "55", "77", "DEEP", "TIGHT", "PERC", "90", "MP", "SD"};
+        uint32_t g, len, gseen = 0, pk = 0;
+        int16_t tune;
+        sref_t r;
+        uint8_t sel = song.sel;
+        song.sel = 3;
+        up_store_cat(10, "MY KIT", CAT_DRUM);
+        song.sel = sel;
+        len = sg_list(1, 0, 0, &r, &g);
+        ok = len >= 12u + 8u + 1u;
+        for (i = 0; i < 12u; i++) { sg_list(1, 0, i, &r, &g); ok &= r.kind == SR_KIT && str_eq(N_DRUM_KIT[r.k], KN[i]) && g == 0u; }
+        for (i = 12; i < len; i++) { sg_list(1, 0, i, &r, &g); gseen |= 1u << g; pk += r.kind == SR_PACK; ok &= snd_cat(&r) == CAT_DRUM && g >= 1u; }
+        ok &= pk == 8u && (gseen & 2u) && (gseen & 8u);
+        sg_wtap(3);                                     /* FOCUS T4 */
+        ok &= song_tdrum(3) && trk[3].eng_req == ENGI_DRUM;
+        apply_preset_to(&trk[3], 0); fs_packid[3] = 0;
+        trk[3].p[P_E0 + 1] = 70;                        /* (TUNE: kept by a model) */
+        tune = trk[3].p[P_E0 + 1];
+        sg_pre(1);
+        ok &= sg.pkind == SR_KIT && str_eq(sg_pop.sm, "T4 KIT");
+        while (sg.pk != 12u && sg.ppend) sg_pre(1);
+        ok &= str_eq(sg_pop.big, "90");
+        sg_pre_load();
+        ok &= trk[3].p[P_E0] == 12 && trk[3].p[P_E0 + 1] == tune && trk[3].eng_req == ENGI_DRUM;
+        song_load_ref(3, SR_PACK, 0, sg_pk("909 KIT"));
+        ok &= song_pack_of(&trk[3]) == sg_pk("909 KIT") + 1u;
+        sg_pre(1);                                      /* (from the pack's 909: the next pack kit) */
+        ok &= sg.pkind == SR_PACK && str_eq(sg_pop.sm, "T4 PRESET");
+        sg_back();
+        song_load_ref(3, SR_KIT, 0, 4);                 /* (a model from a pack kit: DRUM KIT, K1 the model) */
+        ok &= trk[3].eng_req == ENGI_DRUM && trk[3].preset == 0u && trk[3].p[P_E0] == 4 && !song_pack_of(&trk[3]);
+        {   /* FX + PRESETS: the groups, round, DRUM kept */
+            uint32_t gs[6];
+            for (i = 0; i < 6u; i++) {
+                sref_t x;
+                uint32_t gg;
+                sg_pre_fx(1);
+                ok &= sg.pdrum && str_eq(sg_pop.sm, "T4 DRUM");
+                sg_walk(1, 0, sg_list_pos(1, 0, &(sref_t){sg.pkind, sg.pe, sg.pk}, &n), &x, &gg, 0, 0);
+                gs[i] = gg;
+            }
+            ok &= gs[0] == 1u && gs[1] == 2u && gs[2] == 3u && gs[3] == 0u && gs[4] == 1u;
+            ok &= !memcmp(sg_pop.big, "DRUMS 1/", 8);   /* (the 6th: other drums) */
+            sg_back();
+        }
+        if (!ok) printf("    drum list: len %u packs %u groups %x\n", (unsigned)len, (unsigned)pk, (unsigned)gseen);
+    }
+    bad += check("  94-97 / 122. T4: 12 KIT models, the pack's 8 kits, other drums, user; a model K1 only at the bar; FX: groups, DRUM kept", ok);
+    /* 123. T4 on a non-drum sound: every category; to DRUM: the drum list */
+    {
+        uint32_t e3 = trk[3].eng_req;
+        set_engine_of(&trk[3], 0); apply_preset_to(&trk[3], 0); fs_packid[3] = 0;
+        ok = !song_tdrum(3);
+        i = 0;
+        do sg_pre_fx(1); while (++i < 8u && !sg.pdrum);
+        ok &= sg.pdrum && sg.pcat == CAT_DRUM && sg.pkind == SR_KIT;
+        sg_back();
+        set_engine_of(&trk[3], e3); apply_preset_to(&trk[3], 0);
+    }
+    bad += check("  123. T4 on a non-drum sound: FX + PRESETS through every category; DRUM: the drum list", ok);
+    /* 99-100. a user drum preset, OCT- x2 back; favourites keep a KIT model and a pack kit */
+    {
+        sref_t r;
+        uint32_t g, len = sg_list(1, 0, 0, &r, &g), u = 99;
+        song_load_ref(3, SR_KIT, 0, 9);                 /* DEEP */
+        for (i = 0; i < len; i++) { sg_list(1, 0, i, &r, &g); if (r.kind == SR_USER && r.k == 10u) u = i; }
+        ok = u < len;
+        song_load_ref(3, SR_USER, 0, 10);
+        ok &= user_of(&trk[3]) == 10u;
+        sg_oct2();
+        ok &= user_of(&trk[3]) == UP_SLOTS && trk[3].p[P_E0] == 9;
+        song_load_ref(3, SR_KIT, 0, 12);                /* 90 */
+        sg_hold(black(2), SG_HOLD_MS + 40u);            /* FAV 3 */
+        song_load_ref(3, SR_PACK, 0, sg_pk("808 KIT"));
+        sg_hold(black(3), SG_HOLD_MS + 40u);            /* FAV 4 */
+        song_load_ref(3, SR_KIT, 0, 0);
+        sg_d4_black(2, 0);
+        ok &= trk[3].eng_req == ENGI_DRUM && trk[3].p[P_E0] == 12 && !song_pack_of(&trk[3]);
+        sg_d4_black(3, 0);
+        ok &= song_pack_of(&trk[3]) == sg_pk("808 KIT") + 1u;
+    }
+    bad += check("  99-100. a user drum preset, OCT- x2 back; favourites on T4: a KIT model (90) and a pack kit (808 KIT) come back as they were", ok);
+    sg_wtap(3);                                         /* FOCUS off */
+    /* 102-105 / 107 / 108 / 111. SONG's sounds stay: left by SEQ, F#5, G5 and back (SEQ held): as chosen, the knob
+     * edits too; parts; OCT- x2 then out and in: the one before; the dots as they were, none added */
+    {
+        uint32_t way;
+        ok = 1;
+        for (way = 0; way < 3u; way++) {
+            uint32_t e1, k1;
+            int16_t cut;
+            uint8_t d;
+            song_load_ref(1, SR_PACK, 0, sg_pk("SUPERSAW"));
+            song_load_ref(3, SR_KIT, 0, 12);            /* T4: KIT 90 */
+            trk[0].p[P_E0 + 4] = (int16_t)(trk[0].p[P_E0 + 4] > 10 ? trk[0].p[P_E0 + 4] - 7 : 30);
+            cut = trk[0].p[P_E0 + 4];
+            e1 = trk[1].eng_req; k1 = trk[1].preset;
+            d = sg.dirty;
+            if (way == 0u) sg_leave();
+            else if (way == 1u) { sg_tap(10); sg_leave(); }   /* F#5, then out */
+            else sg_g5();
+            ok &= !sg.on;
+            apply_preset_to(&trk[1], 2); fs_packid[1] = 0;   /* (something else meanwhile) */
+            sg_hold_in();
+            ok &= sg.on && trk[1].eng_req == e1 && trk[1].preset == k1 && song_pack_of(&trk[1]) == sg_pk("SUPERSAW") + 1u &&
+                  trk[3].p[P_E0] == 12 && trk[0].p[P_E0 + 4] == cut && sg.dirty == d;
+            sg_tap(1); sg_tap(0);                       /* (parts) */
+            ok &= trk[1].eng_req == e1 && song_pack_of(&trk[1]) == sg_pk("SUPERSAW") + 1u;
+            if (!ok) printf("    persist way %u: T2 %u/%u pack %u T4 K1 %d cut %d/%d dirty %x/%x\n", (unsigned)way, trk[1].eng_req, trk[1].preset, (unsigned)song_pack_of(&trk[1]), trk[3].p[P_E0], trk[0].p[P_E0 + 4], cut, sg.dirty, d);
+        }
+        song_load_ref(1, SR_PACK, 0, sg_pk("TRANCE PLUCK"));   /* then OCT- x2: SUPERSAW */
+        sg_oct2();
+        sg_leave();
+        sg_hold_in();
+        ok &= song_pack_of(&trk[1]) == sg_pk("SUPERSAW") + 1u;
+    }
+    bad += check("  102-105 / 107 / 108 / 111. sounds chosen in SONG kept: out by SEQ, F#5, G5 and back in, knob edits, parts, an UNDO; no dot added", ok);
+    /* 106. another song (SEED): its own sounds; a reroll keeps them */
+    {
+        uint32_t e1 = trk[1].eng_req, k1 = trk[1].preset;
+        sg_rr(0); if (sg.pend) sg_back();
+        tkey(4); if (sg.pend) sg_back();
+        ok = trk[1].eng_req == e1 && trk[1].preset == k1 && song_pack_of(&trk[1]) == sg_pk("SUPERSAW") + 1u;
+        kt(EN_K1, 1);                                   /* SEED + 1 */
+        ok &= song_pack_of(&trk[1]) != sg_pk("SUPERSAW") + 1u;
+        kt(EN_K1, -1);
+        ok &= song_pack_of(&trk[1]) != sg_pk("SUPERSAW") + 1u;   /* (the song's own again, not the kept ones) */
+    }
+    bad += check("  106. another SEED: the song's sounds; C4 and D4 + F3 rerolls keep the sounds", ok);
+    /* 110. power off (the RAM gone), BOOT = SONG: the last chosen sounds (the ids in the settings) */
+    {
+        persist_t ps;
+        song_load_ref(1, SR_PACK, 0, sg_pk("SUPERSAW"));
+        song_load_ref(3, SR_KIT, 0, 13);                /* MP */
+        sg_leave();
+        settings_export(&ps);
+        memset(sg_ids, 0, 16);
+        ok = settings_import(&ps, (int)sizeof ps) != 0;
+        sg_snd.valid = 0;                               /* (power-off) */
+        apply_preset_to(&trk[1], 2); fs_packid[1] = 0;
+        song_boot(fm1_ticks()); frame();
+        ok &= sg.on && song_pack_of(&trk[1]) == sg_pk("SUPERSAW") + 1u && trk[3].eng_req == ENGI_DRUM && trk[3].p[P_E0] == 13;
+        for (i = 5; i <= 7u; i++) ok &= ENGINES[i]->npresets <= 64u;   /* (sg_ids: engines 5..7's bits of 64..191) */
+        sg_leave();
+    }
+    bad += check("  110. power off and BOOT = SONG: the last chosen sounds, not the song's defaults", ok);
+    /* 109. out by SEQ: the tracks as SONG left them (0.16's: the layer let go applies STARTER) */
+    sg_hold_in();
+    {
+        uint32_t e1 = trk[1].eng_req, k1 = trk[1].preset;
+        sg_leave();
+        ok = trk[1].eng_req == e1 && trk[1].preset == k1 && !fs.on;
+    }
+    bad += check("  109. out by SEQ again: the tracks keep the part and sounds shown (as 0.16)", ok);
+    /* (bug report on eef024e) the key set outside SONG since it was left wins on SEQ held; unchanged: the song's own
+     * (ALGORITHM's in SONG kept); the entry box says the key */
+    {
+        char k[16];
+        sg_hold_in();
+        kt(EN_ALGO, 3);                                 /* (in SONG: 3 up, stopped: at once) */
+        {
+            uint32_t r = fs.root;
+            sg_leave();
+            sg_hold_in();                               /* (nothing changed outside: the song's key) */
+            ok = fs.root == r && trk[0].p[P_ROOT] == (int16_t)r;
+        }
+        sg_leave();
+        btn_down(B_SCL); frame(); key_down(9); frame(); key_up(9); frame(); btn_up(B_SCL); frame();   /* SCL: ROOT D */
+        TSEL->p[P_SCALE] = 2;                           /* MIN */
+        ok &= TSEL->p[P_ROOT] == 2;
+        sg_hold_in();
+        song_key_name(k, sizeof k);
+        ok &= sg.on && fs.root == 2u && str_eq(k, "D MIN") && trk[0].p[P_ROOT] == 2 && trk[3].p[P_ROOT] == 2 &&
+              str_eq(sg_pop.note, "KEY D MIN");
+        if (!ok) printf("    key on entry: root %u key %s note %s\n", fs.root, k, sg_pop.note);
+        sg_leave();
+    }
+    bad += check("  (bug, eef024e) ROOT D set on SCL, SEQ held: SONG in D MIN (KEY D MIN in its box); unchanged: the song's key", ok);
+    sg_close();
+    sg_snd.valid = 0;
+    return bad;
+}
+
 int main(void)
 {
-    int bad = test_open() + test_styles() + test_evolve() + test_names() + test_chords() + test_reroll() + test_golden() + test_drum() + test_051() + test_starter() + test_perform() + test_roles() + test_song() + test_song_fix() + test_song_fx() + test_song_perf() + test_song_v06() + test_song_view() + test_song_v07();
+    int bad = test_open() + test_styles() + test_evolve() + test_names() + test_chords() + test_reroll() + test_golden() + test_drum() + test_051() + test_starter() + test_perform() + test_roles() + test_song() + test_song_fix() + test_song_fx() + test_song_perf() + test_song_v06() + test_song_view() + test_song_v07() + test_song_v08();
     printf("%s\n", bad ? "FORGE TEST FAILED" : "forge tests passed");
     return bad != 0;
 }
