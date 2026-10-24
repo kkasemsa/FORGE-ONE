@@ -377,25 +377,33 @@ them too. Edit a part as usual: load its slot, change it, save it back to the sa
 
 ![SONG keyboard map](keymaps/song.png)
 
-**SONG's keys** (spec v0.6, FORGE ONE 0.15): one touch for the common things. The columns: the key alone, with D4
-held, with FX held.
+**Into SONG in one step (0.16, spec v0.7):** hold **SEQ for 0.6 s** (from anywhere, stopped or playing): SONG opens
+straight away with the last song (its SEED, genre, key, scale, tempo, part, locks and rerolls; kept in the settings
+when SONG is left or written), skipping the STARTER screen. A short SEQ tap is unchanged, and a key or knob touched
+while SEQ is held cancels it. Entering SONG by any way locks the layer open, so SEQ need not be held: to leave, press
+SEQ again (or HOME, or any page button). **MENU > SYSTEM > BOOT** `SONG` opens SONG with the last song at power-on,
+stopped, on part A (`NORMAL`, the default, does not).
+
+**SONG's keys** (spec v0.6, FORGE ONE 0.15; 0.16: spec v0.7). The columns: the key alone, with D4 held, with FX held.
 
 | Key | Alone | D4 held | FX held |
 | --- | --- | --- | --- |
-| Black 1–4 (F#3 G#3 A#3 C#4) | Part A–D | Load FAV 1–4 (at the bar) | Part A–D (D4 + FX: store FAV 1–4) |
+| Black 1–4 (F#3 G#3 A#3 C#4) | Tap: part A–D (playing: at the next bar); **held 0.5 s: store FAV 1–4** (the part stays) | Load FAV 1–4 (at the bar) | Part A–D (D4 + FX: store FAV 1–4) |
 | Black 5–8 (D#4 F#4 G#4 A#4) | Lock T1–T4 | same | same |
 | Black 9 (C#5) | CLEAR: every effect, latch, mute and DUCK off | same | same |
 | Black 10 (D#5) | DUCK on / off (non-drum tracks pump on the kick) | same | same |
-| Black 11 (F#5) | SONG on / off | same | same |
+| Black 11 (F#5) | SONG on / off | **CHAIN on / off** | same |
 | F3 G3 A3 B3 | **FOCUS T1–T4** (the same key again: off) | Reroll T1 / T2 / T3 notes, T4 drum rhythm | Mute T1–T4 while held |
 | C4 | Reroll notes, every unlocked track | same | same |
 | D4 | ALT: held alone, K1–K4 are T1–T4 LEVEL, a mixer (a tap does nothing) | – | – |
 | E4 F4 G4 A4 B4 C5 | Held: REPEAT 1/16, LPF, HPF, TAPE STOP, REV THROW, ECHO THROW (no FX button needed) | same | same |
-| D5 / E5 | Recall SCENE 1 / 2 at the next 1/16 | – | Store SCENE 1 / 2 |
-| F5 | **TAP tempo** (the last 4 taps; 2 s starts over) | same | same |
+| D5 / E5 | Tap: recall SCENE 1 / 2 at the next 1/16; **held 0.5 s: store** | – | Store SCENE 1 / 2 |
+| F5 | **TAP tempo** (the last 4 taps; 2 s starts over); **held 0.5 s: CLICK on / off** | same | same |
 | G5 | Applies STARTER, leaves SONG | same | same |
 | SELECT | **Tempo** ±1 BPM | same | ±5 BPM |
-| ALGORITHM | **Key** ±1 semitone, at the next bar | same | **Scale**, at the next bar |
+| ALGORITHM | **Key** ±1 semitone, at the next bar | **CHAIN bars** of the part shown (1 2 4 8 16) | **Scale**, at the next bar |
+| OCT− | Cancel a change waiting; KEEP; cancel / done (0.35 s later) | – | – |
+| OCT− twice (within 0.35 s) | **UNDO** the last reroll, preset, favourite or KEY / SCALE change (one level) | – | – |
 | PRESETS | **The focus track's preset**, loaded at the next bar (OCT−: cancel) | same | nothing |
 | KNOB 1–4 | SEED DENSITY EVOLVE GENRE; FOCUS on: the track's four (below) | T1–T4 LEVEL (they stay when D4 is let go) | FX macros FILTER CRUSH THROW DEPTH (back to 0 when FX is let go) |
 
@@ -406,15 +414,24 @@ held, with FX held.
   go first); else D4 held, a reroll; else FOCUS. Pressing D4 or FX after the key changes nothing. Mutes are never saved and never change
   the chain: a track the chain row silences (`-`, as in INTRO and OUTRO) stays silent.
 - With MENU > FX LATCH ON the effects and mutes toggle and stay on across part changes and rerolls; CLEAR turns
-  them off. Leaving SONG (F#5, G5, letting go of SEQ) turns every effect, latch, mute and DUCK off.
+  them off. Leaving SONG (F#5, G5, pressing SEQ again) turns every effect, latch, mute and DUCK off.
+- **UNDO (0.16):** press OCT− twice quickly. It takes back the last reroll (C4 or one track), the last preset or
+  favourite loaded, or the last KEY / SCALE change (one level: then `NOTHING TO UNDO`). A single OCT− still does
+  what it did, 0.35 s later (it waits to see if a second press comes).
+- **CLICK (0.16):** hold F5 for 0.5 s. A visual metronome: `CLK` in the header and the BAR row flashes on every beat
+  (filled on beat 1, framed on the others). There is no audible click (the FM-1 has only the main output).
+- **CHAIN (0.16):** D4 + F#5 turns the auto-chain on: A → B → C → D → A… each part for its bars, changing at the bar,
+  forever. D4 + ALGORITHM sets the bars of the part shown (1, 2, 4, 8 or 16; 8 at first). The state line shows
+  `CHAIN 3/8` (the bar in the part / its bars). Tapping a part while it runs goes there at the bar and the chain
+  carries on from it. It plays the tracks as SONG shows them (not GLO > SONG's arrangement).
 
 **FOCUS, faders and scenes** (spec v0.5, v0.6):
 
 - **FOCUS:** tap F3 / G3 / A3 / B3 to put T1 BASS / T2 LEAD / T3 PAD / T4 DRUM on the knobs; the knob cards and the
   track row show it (`FOCUS`). Tap the same key again to turn it off. A locked track can be focused (a lock is for
   notes and rhythm).
-- **Levels (0.15):** hold D4 alone and turn K1–K4: T1–T4 LEVEL, a mixer, FOCUS on or off (the screen says
-  `MIXER: LEVELS (D4)`, the cards show the four levels). Let go: the levels stay, the knobs go back. FX held always
+- **Levels (0.15):** hold D4 alone and turn K1–K4: T1–T4 LEVEL, a mixer, FOCUS on or off (0.16: `MIXER` large across
+  the top while D4 is held, the cards show the four levels). Let go: the levels stay, the knobs go back. FX held always
   wins: its macros, which snap back.
 
 | Track | KNOB 1 | KNOB 2 | KNOB 3 | KNOB 4 |
@@ -427,7 +444,7 @@ held, with FX held.
   track's DIST). The knobs are encoders, so a value always moves on from where it is: nothing jumps when you change
   track or recall a scene. These are the tracks' real settings: they stay across parts, rerolls and CLEAR, and are
   saved with a part like any sound edit.
-- **Scenes:** FX + D5 / E5 stores the knob settings of all four tracks; tapping D5 / E5 brings them back on the next
+- **Scenes:** hold D5 / E5 for 0.5 s (or FX + D5 / E5) to store the knob settings of all four tracks; tapping D5 / E5 brings them back on the next
   1/16 (stopped: at once). An empty one says `SCENE 2 EMPTY`. Scenes live until power-off and are not saved with the
   song.
   A track whose sound changed since (engine, preset) is skipped: the box says `T2 SKIPPED (SOUND)`.
@@ -443,8 +460,14 @@ preset, or the user preset it plays; kept in the settings), D4 + black 1–4 loa
 **SONG's screen** (spec v0.6): read at arm's length. At the top the tempo and the key; the parts A–D (the one playing
 filled); `BAR 3/8` and `STEP 09/16`; a bar for where the part (or GLO > SONG's chain) is; 16 cells with the playhead;
 the four tracks with a dot that lights on each note, a level meter, `M` for a mute, `L` for a lock and `FOCUS`; the
-two scenes and the state or the last message; the four knob cards as the knobs are now. A tempo, key, preset,
-scene or favourite change shows large in a box for about a second.
+two scenes and the state or the last message; the four knob cards as the knobs are now.
+
+**Every action shows (0.16, spec v0.7 §A):** each key, knob or encoder in SONG opens a box in the middle of the
+screen for about a second: what it is small (`T1 BASS`, `PART`, `FAV 2 SAVED`, `TEMPO`), what happened large
+(`CUT 74`, `B`, the preset's name, `126 BPM`), and a bar for a value or `@ NEXT BAR` for a change that waits. The next
+action replaces it at once. Something refused (`BPM LOCKED`, `EXT CLOCK`, `T3 LOCKED`, `FAV 2 EMPTY`) has a red
+frame. A part that differs from its saved slot has an orange dot on its block (all four until the song is written;
+`SAVE A-D` or `SAVE X?` clears them).
 
 ## 8. What FORGE writes, and what it leaves alone
 
