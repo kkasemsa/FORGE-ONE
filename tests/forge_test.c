@@ -1236,7 +1236,7 @@ static void sg_leave(void)
     btn_up(B_SEQ); frame();
     if (ui.lock == LAYER_SEQ) { btn_down(B_SEQ); frame(); btn_up(B_SEQ); frame(); }
 }
-static void sg_close(void) { if (fs.on) sg_leave(); song_off(); fs.on = 0; ui.lock = 0; }
+static void sg_close(void) { if (fs.on || ui.lock == LAYER_SEQ) sg_leave(); song_off(); fs.on = 0; ui.lock = 0; }
 /* 0.16 (spec v0.7 §3): OCT- in SONG acts SG_OCT2_MS later (a second tap would be UNDO) */
 static void sg_back(void) { oct_back(); frames(400); }
 static int sg_genre(const char *name)
@@ -2735,7 +2735,38 @@ static int test_song_v07(void)
             ok &= ENGINES[i]->npresets <= 64u;          /* (the last song's bytes: engines 2..4's bits of 64..191) */
         bad += check("  59. MENU > SYSTEM > BOOT NORMAL / SONG: SONG on with the last song, stopped, part A, locked", ok);
     }
-    sg_close();
+    /* (review of 0.16) leaving SONG while a single OCT- waits its 350 ms: nothing left to fire, by SEQ, F#5 or G5 */
+    {
+        uint32_t way;
+        ok = 1;
+        for (way = 0; way < 3u; way++) {
+            uint8_t sd;
+            sg_open((uint32_t)sg_genre("TRANCE"), 42);
+            oct_fwd();                                  /* OVERWRITE A-D? -> a single OCT- here is at once: */
+            sg_back();                                  /* (back to SONG, nothing written) */
+            if (!sg.on) { sg_close(); sg_open((uint32_t)sg_genre("TRANCE"), 42); }
+            sd = fg.seed;
+            oct_back();                                 /* a single OCT-: waiting */
+            ok &= sg.octpend == 1u;
+            frames(96);
+            if (way == 0u) sg_leave();
+            else if (way == 1u) sg_tap(10);             /* F#5: back to STARTER */
+            else tkey(TL_STARTER);                      /* G5: STARTER applied */
+            ok &= !sg.on && !sg.octpend && !sg.hk && !sg.qpart && !sg.kpend && !sg.ppend && !sg.fpend;
+            ui.msg_t = 0;
+            frames(SG_OCT2_MS + 200u);
+            ok &= !sg.on && !ui.msg_t && fg.seed == sd;  /* (nothing fired: no message, no cancel) */
+            if (way == 1u) ok &= fs.on;                 /* (F#5: STARTER still open, not closed by a late OCT-) */
+            sg_close();
+            btn_down(B_SEQ); frame(); frames(SG_HOLD_SEQ_MS + 50u);   /* in again: no stale OCT- */
+            ok &= sg.on && !sg.octpend;
+            frames(SG_OCT2_MS + 100u);
+            ok &= sg.on && fs.on;
+            sg_close();
+            btn_up(B_SEQ); frame();
+        }
+        bad += check("  (review) SONG left by SEQ, F#5 or G5 while one OCT- waits: nothing fires later; in again: none pending", ok);
+    }
     return bad;
 }
 

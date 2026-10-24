@@ -1497,12 +1497,11 @@ static const khint_t SONG_FOOT[4][3] = {
 static const char H_SONG[] = "[KEYS]F3-B3 FOCUS D4+ REROLL";
 static const khint_t *song_foot(void) { return SONG_FOOT[sg.pend ? 3u : sg.stage]; }
 
-/* the SONG screen: the four parts (black keys 1..4, the one shown selected), then a row a track: T1..T4, its role
- * (LOCK at the right when locked), the part's first 16 steps; under them what is written. The confirm: the four
- * slots' names as they are now ("--" an empty one) */
+/* SONG's map, only at the confirm now (0.16; else ui_song_view.c draws): the four parts, then OVERWRITE A-D? and the
+ * four slots' names as they are now ("--" an empty one) */
 static void layer_song(void)
 {
-    uint32_t i, j;
+    uint32_t i;
     for (i = 0; i < SG_N; i++) {
         int32_t x = 1 + 60 * (int32_t)i;               /* (58 wide: "B CHORUS" is) */
         char b[12] = {(char)('A' + i), ' ', 0};
@@ -1526,49 +1525,8 @@ static void layer_song(void)
         }
         GFX_HOOK_ALIGN(0, 100, 240, 118, AL_HV, "song confirm note centred");
         cv_text_in(0, 100 + CAP_IN(S, 18), 240, &AF_S, "THE CHAIN TOO (GLO > SONG)", T_MID, T_SURF);
-        return;
-    }
-    for (i = 0; i < FP_N; i++) {
-        const track_t *t = &trk[i];
-        int32_t y = 24 + 19 * (int32_t)i;
-        char n[3] = {'T', (char)('1' + i), 0};
-        GFX_HOOK_ALIGN(0, y, 0, y + 17, AL_V, "song row text on its middle");
-        cv_text_on(8, y + CAP_IN(S, 17), &AF_S, n, T_MID, T_SURF);
-        GFX_HOOK_ALIGN(0, y, 0, y + 17, AL_V, "song row text on its middle");
-        cv_text_on(26, y + CAP_IN(S, 17), &AF_S, FP_ROLE[i],
-                   (sg.flash == i + 1u && fm1_ms - sg.flash_ms < 300u) || ((sg.focus || song_d4()) && song_ftrack() == i) ? T_THEME : T_TEXT,
-                   T_SURF);                             /* (a reroll; 0.14: the focus track) */
-        if ((sg.lock >> i) & 1u) {
-            GFX_HOOK_ALIGN(0, y, 0, y + 17, AL_V, "song row text on its middle");
-            cv_text_r(116, y + CAP_IN(S, 17), &AF_S, "LOCK", T_THEME, T_SURF);
-        }
-        for (j = 0; j < 16u; j++) {
-            const step_t *s = &t->step[j];
-            int on = drum_track(t) ? step_lanes(s) != 0u : s->time == ST_NOTE && s->n;
-            int32_t x = 122 + 7 * (int32_t)j;
-            uint16_t c = j >= tl_len(t) ? T_SURF : on ? T_THEME : s->time == ST_TIE ? T_MID : T_RAISE;
-            cv_rect(x, y + 2, 6, 13, c);
-        }
-    }
-    {
-        char q[16] = "SAVE X? OCT+";
-        q[5] = (char)('A' + (sg.pend ? sg.pend - 1u : 0u));
-        GFX_HOOK_ALIGN(0, 100, 0, 118, AL_V, "song state on its middle");
-        cv_text_on(10, 100 + CAP_IN(S, 18), &AF_S, sg.pend ? q : sg.stage == SG_WRITTEN ? "SAVED A-D" : "NOT SAVED YET",
-                   sg.pend ? T_THEME : sg.stage == SG_WRITTEN ? T_TEXT : T_MID, T_SURF);
-        GFX_HOOK_ALIGN(0, 100, 0, 118, AL_V, "song state on its middle");
-        if (sg.focus || song_d4()) {            /* 0.14: "FOCUS T2" / "FADER T1" (D4 held); the cards show its four */
-            char f[12] = "FOCUS T1";
-            if (song_d4())
-                memcpy(f, "FADER", 5);
-            f[7] = (char)('1' + song_ftrack());
-            GFX_HOOK_ALIGN(0, 100, 0, 118, AL_V, "song state on its middle");
-            cv_text_r(230, 100 + CAP_IN(S, 18), &AF_S, f, song_d4() ? T_TEXT : T_THEME, T_SURF);
-        } else {
-            GFX_HOOK_ALIGN(0, 100, 0, 118, AL_V, "song state on its middle");
-            cv_text_r(230, 100 + CAP_IN(S, 18), &AF_S, "C4 REROLL", T_MID, T_SURF);
-        }
-    }
+    }                                                   /* (0.16: else SONG's own screen, ui_song_view.c; the 0.14
+                                                         * rows and FOCUS / FADER state removed) */
 }
 /* the LEDs of the black keys in SONG: the part shown lit (the others breathe), a lock lit (free: breathes), F#5 lit */
 static void song_led(uint32_t p, uint32_t *on, uint32_t *can)

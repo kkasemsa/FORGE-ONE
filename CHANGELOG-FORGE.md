@@ -61,6 +61,10 @@ T1–T4 LEVEL mixer of 0.15 (the spec's `FADER Tn` became `MIXER`, as decided af
   The SONG tracks only (GLO > SONG's chain is not touched).
 - **Dots** (§5): an orange dot on each part block not as its slot (all four until written; a reroll, a key, a sound
   load or a SONG knob marks them; SAVE A-D and SAVE X clear); `NOT SAVED YET` removed.
+- Review: the 0.14 SONG map's rows and `FOCUS` / `FADER` state line removed from `layer_song` (only the confirm draws
+  there now; SONG's own screen does the rest). Leaving SONG (SEQ, F#5, G5, the layer) while a single OCT− waits its
+  350 ms clears it with the other waiting changes (`song_off`, `song_toggle`), and its poll runs only while SONG is on:
+  nothing fires late (tested for all three exits and re-entry).
 - Tests (forge_test, `test_song_v07`, the host halves of 59–77): the lock and constants; the box for knob, FOCUS, LOCK,
   DUCK, CLEAR, TEMPO, FX, replaced at once and gone after 1 s; red boxes; OP2 tap / hold / D4 recall; UNDO of a reroll,
   a preset, a key, then `NOTHING TO UNDO`, a single OCT− 350 ms later; F5 hold CLICK and its flashes; D5 hold / tap;
