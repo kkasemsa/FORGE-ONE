@@ -421,7 +421,9 @@ stopped, on part A (`NORMAL`, the default, does not).
 - **FILL (0.17):** hold D4 and press C4 for a drum fill on T4, never written into the pattern. Held, the fill plays
   from the next 1/16 until you let go, then the beat comes back at the next 1/16 and a crash lands on the next
   downbeat. A short press (under 0.5 s) plays a few 16ths, then arms a full-bar fill for the bar end (`FILL @ BAR END`;
-  with a part waiting, the fill takes the bar before it, `@ PART B`; with CHAIN on, the part's last bar). C4 again while
+  with a part waiting, the fill plays the rest of the current bar and the part still changes on time, `@ PART B`;
+  with CHAIN on, the part's last bar). The crash is the kit's cymbal, or an accented open hat on a kit without one
+  (80, 66, TIGHT, PERC); a kit without toms (66, PERC, MP: congas) plays the tom runs on the snare. C4 again while
   armed: `FILL OFF`. Four kinds from the SEED, the part and the bar: SNARE ROLL, TOM RUN, KICK BUILD, CRASH (that one
   ends on a crash); DENSITY makes them busier. It plays with T4 locked; refused (red) when stopped (`PLAY FIRST`), when
   T4 is not a DRUM sound (`NO DRUM`), muted with FX (`T4 MUTED`) or silent in the chain's row (`T4 OFF`). The steps'

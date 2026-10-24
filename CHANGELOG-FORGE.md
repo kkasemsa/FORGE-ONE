@@ -42,6 +42,12 @@ SONG to the Song Mode spec v0.8-r2.
   waiting: the bar before it, the part after the fill; CHAIN: the part's last bar, in it already: the next part's), C4
   again `FILL OFF`. Refused (red): `PLAY FIRST`, `NO DRUM`, `T4 MUTED` (armed then muted: dropped), `T4 OFF`, `ANSWER
   FIRST`. The type: a hash of SEED, part and fill.
+- **FILL review** (of dfb7d01): the crash is the kit's own (GM 49 only where the kit's BELL lane is a cymbal: STD 10
+  55 77 DEEP 90 MP SD; else the open hat, accented: 80 66 TIGHT PERC); toms only where the kit's TOM lane is one, else
+  the snare (GM 40 / 38: 66 PERC MP, congas there); the 1/16 of the bar from the clock (`sgf_pos`: clk_step and the
+  block), not T4's step, so any LEN or DIV; a part waiting (tapped before or after the fill): the fill plays the rest
+  of the bar and the part comes on time (it was a bar late); CHAIN, tapped in the part's last bar: the next part's last
+  bar by its own bar count (was the current part's count).
 - **Bar lines once** (fix of 0.16): SONG's bar line fired on every pass in the bar's last half 1/16, so CHAIN counted a
   bar three or four times (its bars ran short). Now once a bar.
 - **PRESETS by category** (§2b): every sound of the focus track's category (`track_cat`; an OTHER sound: the role's),

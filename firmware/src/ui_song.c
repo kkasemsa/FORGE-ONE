@@ -427,6 +427,7 @@ static void song_d4_poll(uint32_t on);
 static void song_poll(void);
 static void song_hold_poll(void);
 static void song_fill_down(uint32_t k);
+static void song_fill_set(uint32_t salt);
 static void song_fill_refuse(const char *r);
 static uint32_t song_pack_of(const track_t *t);
 static void song_snd_put(void);
@@ -1843,6 +1844,11 @@ static void song_part_tap(uint32_t x)
     sg.cbar = 0;                                        /* (the chain goes on from it) */
     if (song.playing) {
         sg.qpart = (uint8_t)((x & 3u) + 1u);
+        if (sg.farm && sg.fwait == 1u) {                /* (0.17 review: a fill armed for the next bar: this bar's */
+            sg.farm = 0;                                /* rest instead, the part on time) */
+            song_fill_set(++sg.fbars);
+            sgf.bar = 1;
+        }
         song_pop(SOV_POP, "PART", b, "@ NEXT BAR", -1, 0);
         return;
     }
@@ -1978,10 +1984,16 @@ static void song_fill_arm(void)
         song_fill_refuse(r);
         return;
     }
-    sg.farm = 1;                                        /* (the chain: the part's last bar; in it already: the next's) */
-    sg.fwait = (uint8_t)(sg.chain && !sg.qpart ? (sg.cbar + 1u < n ? n - 1u - sg.cbar : n) : 1u);
     b[7] = (char)('A' + (sg.qpart ? sg.qpart - 1u : 0u));
     song_pop(SOV_POP, "FILL", sg.qpart ? b : "@ BAR END", "", -1, 0);
+    if (sg.qpart) {                                     /* (0.17 review: a part waits for this bar line: the fill is */
+        song_fill_set(++sg.fbars);                      /* this bar's rest, the part on time) */
+        sgf.bar = 1;
+        return;
+    }
+    sg.farm = 1;                                        /* (the chain: the part's last bar; in it already: the next */
+    sg.fwait = (uint8_t)(!sg.chain ? 1u : sg.cbar + 1u < n ? n - 1u - sg.cbar :   /* part's last, its own bars) */
+                         SG_CBARS[sg.cbars[(sg.part + 1u) % SG_N] % NELEM(SG_CBARS)]);
 }
 static void song_fill_down(uint32_t k)                  /* D4 held, C4 down */
 {

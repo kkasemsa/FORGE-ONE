@@ -2892,7 +2892,7 @@ static int test_song_v08(void)
         ok &= trk[3].seq_idx == at || trk[3].seq_idx == at + 1u;   /* (not moved: the next 1/16 the first) */
         for (steps = 0; steps < 8u; steps++) {
             nn_n = sg_next_t4(&idx, nn);
-            fill_step(sgf.type & 3u, sgf.dens & 3u, idx & 15u, &was4[idx % NSTEP], &f);
+            fill_step(sgf.type & 3u, sgf.dens & 3u, clk_step, &was4[idx % NSTEP], &f, fill_kit(&trk[3]));
             n = sg_step_notes(&f, ex);
             fills++;
             good += sg_same_notes(nn, nn_n, ex, n);
@@ -2905,8 +2905,8 @@ static int test_song_v08(void)
             nn_n = sg_next_t4(&idx, nn);
             if (!sgf.crash) {
                 uint32_t j, c = 0;
-                for (j = 0; j < nn_n; j++) c += nn[j] == 49u;
-                ok &= (idx & 15u) == 0u && c == 1u;
+                for (j = 0; j < nn_n; j++) c += nn[j] == ((fill_kit(&trk[3]) & FILL_HAS_CYM) ? 49u : 46u);
+                ok &= clk_step == 0u && c == 1u;
             }
         }
         ok &= !memcmp(was4, trk[3].step, sizeof was4);
@@ -2933,20 +2933,23 @@ static int test_song_v08(void)
     sg_run_ms(4000);
     ok &= !sgf.bar;
     bad += check("  88. D4 + C4 tapped twice: FILL OFF, no fill", ok);
-    /* 86. a part queued, then a fill: the fill on the part's last bar, B from the bar after it */
-    sg_to_step(4);
-    sg_tap(1);
-    sg_c4_tap();
-    ok = sg.farm && str_eq(sg_pop.big, "@ PART B");
-    for (n = 0; n < 60u && !sgf.bar; n++) sg_next_t4(&idx, nn);
-    ok &= sgf.bar && sg.part == SG_A && sg.qpart == 2u;
-    for (n = 0; n < 40u && sgf.bar; n++) sg_next_t4(&idx, nn);
-    frame();
-    ok &= sg.part == SG_B;
-    sg_tap(0);
-    for (n = 0; n < 40u && sg.qpart; n++) sg_next_t4(&idx, nn);
-    frame();
-    bad += check("  86. part B queued, then a fill: the fill on A's last bar, B after it", ok);
+    /* 86 (review of dfb7d01). a part queued, then a fill: the fill is the rest of this (A's last) bar, B on time at the
+     * bar line; a fill armed first, then a part: the same */
+    for (n = 0; n < 4u; n++) {
+        uint32_t way = n & 1u, steps = 0;
+        sg_to_step(4);
+        if (!way) { sg_tap(1); sg_c4_tap(); } else { sg_c4_tap(); sg_tap(1); }
+        ok = sgf.bar && !sg.farm && sg.part == SG_A && sg.qpart == 2u && (way || str_eq(sg_pop.big, "@ PART B"));
+        for (i = 0; i < 40u && sg.part == SG_A; i++) { sg_next_t4(&idx, nn); steps++; }
+        frame();
+        ok &= sg.part == SG_B && !sgf.bar && steps <= 13u;   /* (from step 5: B at the bar line, not a bar later) */
+        if (!ok) printf("    part + fill (%s first): %u steps to B, bar %u\n", way ? "fill" : "part", (unsigned)steps, sgf.bar);
+        sg_tap(0);
+        for (i = 0; i < 40u && sg.qpart; i++) sg_next_t4(&idx, nn);
+        frame();
+        if (!ok) break;
+    }
+    bad += check("  86. part B queued and a fill (either first): the fill on the rest of A's bar, B on time at the bar line", ok);
     /* 87. the chain: the fill on the last bar before it changes part */
     sg.chain = 1; sg.cbar = 0;
     for (i = 0; i < SG_N; i++) sg.cbars[i] = 2;         /* (4 bars a part) */
@@ -2963,6 +2966,27 @@ static int test_song_v08(void)
         frame();
         ok &= sg.part == (part0 + 1u) % SG_N;
         if (!ok) printf("    chain fill: fwait %u cbar %u part %u (was %u)\n", sg.fwait, sg.cbar, sg.part, (unsigned)part0);
+    }
+    {   /* (review) tapped in the part's last bar: the next part's last bar, by its own bars (A 2, B 4) */
+        uint32_t p0, steps = 0;
+        sg_tap(0);
+        for (n = 0; n < 40u && sg.qpart; n++) sg_next_t4(&idx, nn);
+        frame();
+        for (i = 0; i < SG_N; i++) sg.cbars[i] = 2;
+        sg.cbars[SG_A] = 1;                             /* (A 2 bars, B 4) */
+        sg.cbars[SG_B] = 2;
+        sg.cbar = 0;
+        for (n = 0; n < 400u && !(sg.part == SG_A && sg.cbar == 1u && clk_step == 3u); n++) sg_next_t4(&idx, nn);
+        frame();
+        p0 = sg.part;
+        sg_c4_tap();
+        ok &= p0 == SG_A && sg.cbar == 1u && sg.farm && sg.fwait == 4u;
+        for (n = 0; n < 400u && !sgf.bar; n++) sg_next_t4(&idx, nn);
+        ok &= sgf.bar && sg.part == SG_B && sg.cbar == 3u;
+        for (n = 0; n < 40u && sgf.bar; n++) { sg_next_t4(&idx, nn); steps++; }
+        frame();
+        ok &= sg.part == SG_C && steps >= 15u && steps <= 17u;
+        if (!ok) printf("    chain last bar: part %u cbar %u fwait %u steps %u\n", sg.part, sg.cbar, sg.fwait, (unsigned)steps);
     }
     sg.chain = 0;
     bad += check("  87. CHAIN on: a tapped fill lands on the part's last bar, the next part after it", ok);
@@ -3041,11 +3065,11 @@ static int test_song_v08(void)
         memset(&o, 0, sizeof o); o.time = ST_NOTE; o.hit = 1u << 3;
         for (ty = 0; ty < 4u; ty++)
             for (d = 0; d < 2u; d++)
-                for (i = 0; i < 16u; i++) { fill_step(ty, d ? 3u : 0u, i, &o, &f); cnt[ty][d] += sg_step_notes(&f, nn); }
+                for (i = 0; i < 16u; i++) { fill_step(ty, d ? 3u : 0u, i, &o, &f, FILL_HAS_TOM | FILL_HAS_CYM); cnt[ty][d] += sg_step_notes(&f, nn); }
         ok = cnt[FILL_ROLL][1] > cnt[FILL_ROLL][0] && cnt[FILL_TOMS][1] > cnt[FILL_TOMS][0] && cnt[FILL_KICK][1] > cnt[FILL_KICK][0];
         for (ty = 0; ty < 4u; ty++)
             for (i = 0; i < 16u; i++) {
-                fill_step(ty, 1, i, &o, &f);
+                fill_step(ty, 1, i, &o, &f, FILL_HAS_TOM | FILL_HAS_CYM);
                 n = sg_step_notes(&f, nn);
                 for (j = 0; j < n; j++) sig[ty] = sig[ty] * 131u + nn[j] + i * 7u;
             }
@@ -3054,6 +3078,58 @@ static int test_song_v08(void)
         ok &= seen == 15u;
     }
     bad += check("  92. four fill types (SNARE ROLL TOM RUN KICK BUILD CRASH), all reached; low and high DENSITY differ", ok);
+    /* (review of dfb7d01) the kit: a crash where it has a cymbal, else the open hat accented; toms where it has them,
+     * else the snare (40 / 38); the bar's place from the clock (T4 at LEN 12, DIV 1/8 too) */
+    {
+        static const struct { uint8_t k1, tom, cym; } K[6] = {{0, 1, 1}, {4, 1, 0}, {6, 0, 0}, {12, 1, 1}, {13, 0, 1}, {11, 0, 0}};   /* STD 80 66 90 MP PERC */
+        step_t f, o;
+        int16_t k0 = trk[3].p[P_E0];
+        memset(&o, 0, sizeof o); o.time = ST_NOTE;
+        ok = 1;
+        for (i = 0; i < 6u; i++) {
+            uint32_t kit, j, toms = 0, sn = 0;
+            trk[3].p[P_E0] = K[i].k1;
+            kit = fill_kit(&trk[3]);
+            ok &= ((kit & FILL_HAS_TOM) != 0u) == K[i].tom && ((kit & FILL_HAS_CYM) != 0u) == K[i].cym;
+            memset(&f, 0, sizeof f); f.time = ST_NOTE;
+            fill_crash(&f, kit);
+            ok &= K[i].cym ? f.n == 1u && f.note[0] == 49u : !f.n && (f.hit & f.acc & (1u << 4));
+            for (j = 1; j < 16u; j++) {
+                uint32_t m;
+                fill_step(FILL_TOMS, 3, j, &o, &f, kit);
+                for (m = 0; m < f.n; m++) { toms += f.note[m] >= 41u && f.note[m] <= 50u && f.note[m] != 42u && f.note[m] != 44u && f.note[m] != 46u && f.note[m] != 49u; sn += f.note[m] == 38u || f.note[m] == 40u; }
+            }
+            ok &= K[i].tom ? toms > 0u && !sn : !toms && sn > 0u;
+        }
+        trk[3].p[P_E0] = k0;
+    }
+    bad += check("  (review) fill voices by kit: crash or accented open hat (80 66 PERC: no cymbal); toms or the snare (66 MP PERC: no toms)", ok);
+    {   /* T4 at LEN 12 and DIV 1/8: the fill's notes follow the clock's 1/16 of the bar, the crash on its downbeat */
+        int16_t len0 = trk[3].p[P_SLEN], div0 = trk[3].p[P_SDIV];
+        uint32_t good = 0, cnt = 0;
+        uint8_t ex[12];
+        step_t f;
+        trk[3].p[P_SLEN] = 12; trk[3].p[P_SDIV] = 1;
+        memcpy(was4, trk[3].step, sizeof was4);
+        sg_play();
+        sg_to_step(2);
+        sg_c4_down();
+        for (n = 0; n < 10u; n++) {
+            nn_n = sg_next_t4(&idx, nn);
+            fill_step(sgf.type & 3u, sgf.dens & 3u, clk_step, &was4[idx % NSTEP], &f, fill_kit(&trk[3]));
+            cnt++;
+            good += sg_same_notes(nn, nn_n, ex, sg_step_notes(&f, ex));
+        }
+        frames(SG_HOLD_MS);
+        sg_c4_up();
+        ok = good == cnt && sgf.crash;
+        for (n = 0; n < 20u && sgf.crash; n++) sg_next_t4(&idx, nn);
+        ok &= !sgf.crash && clk_step == 0u;
+        sg_stop();
+        trk[3].p[P_SLEN] = len0; trk[3].p[P_SDIV] = div0;
+        if (!ok) printf("    LEN 12 DIV 1/8: %u/%u steps as the clock's\n", (unsigned)good, (unsigned)cnt);
+    }
+    bad += check("  (review) T4 at LEN 12, DIV 1/8: the fill by the bar's 1/16 (the clock), the crash on the downbeat", ok);
     /* 112-113 / 98 / 121. PRESETS by category: T1 BASS n/N, engines mixed, the pack, round; T2 LEAD, T3 PAD their own */
     {
         static const uint8_t C[3] = {CAT_BASS, CAT_LEAD, CAT_PAD};
