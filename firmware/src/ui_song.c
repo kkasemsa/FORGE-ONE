@@ -529,7 +529,10 @@ static const char *song_fname(uint32_t i, uint32_t k)   /* KNOB k's name on trac
     return m[k & 3u][0] == SG_NONE ? "-" : (k & 3u) == 0u && i == FP_DRUM ? "KICK" : track_desc(&trk[i % NTRK], m[k & 3u][0])->label;
 }
 static uint32_t song_ftrack(void) { return sg.focus ? sg.focus - 1u : sg.lastf; }
-static uint32_t song_d4(void) { return sg.on && sg.d4 && ((kb_layer >> SG_KD4) & 1u); }
+/* D4 held: from its down (song_wkey) to a real key-up, the key as the ISR (kb_layer) or the scan (fm1_in.notes) sees it
+ * (0.15 on the device: the pass could see the down before the ISR had put D4 in kb_layer, and dropped the hold) */
+static uint32_t song_d4_down(void) { return ((kb_layer | fm1_in.notes) >> SG_KD4) & 1u; }
+static uint32_t song_d4(void) { return sg.on && sg.d4; }
 /* KNOB k (s detents) on the focus track (D4 held alone: its faders); "T1 CUT 74" */
 static void song_focus_knob(uint32_t k, int32_t s)
 {
@@ -585,9 +588,10 @@ static void song_focus_pick(uint32_t i)                 /* 0.15 (spec v0.6 §H7)
     song_focus_say();
 }
 /* each pass (song_fx_poll): D4 let go. (0.15, spec v0.6: a D4 tap does nothing; v0.5's tap turned FOCUS off) */
+static uint32_t song_d4_down(void);
 static void song_d4_poll(uint32_t on)
 {
-    if (!sg.d4 || (on && ((kb_layer >> SG_KD4) & 1u)))
+    if (!sg.d4 || (on && song_d4_down()))
         return;
     sg.d4 = 0;
     ui.force = 1;

@@ -145,7 +145,10 @@ static void sv_bar(void)                                /* BAR 3/8 (large) and t
     }
     sv_num2(n, sv.step > 99u ? 99u : sv.step);
     if (sv_dirty(SV_STEPN, str_hash(sv.len, n) + ux.gen + 1u)) {   /* the digits alone: each 1/16 */
-        int32_t w = text_w(&AF_M, b);
+        int32_t w;
+        b[0] = '/';                                     /* (left of "/LEN": b held BAR n/n when its region did */
+        fmt_int(b + 1, sv.len);                         /* not change, so the digits landed on STEP: device 0.15) */
+        w = text_w(&AF_M, b);
         cv_begin(22, 30, T_BG);
         GFX_HOOK_ALIGN(0, 0, 0, 30, AL_V, "song view bar on its middle");
         cv_text_r(22, CAP_IN(M, 30), &AF_M, n, T_TEXT, T_BG);
@@ -287,13 +290,30 @@ static void sv_rows(void)
         }
     }
 }
+/* the scenes row's text: D4 held the faders' track ("FADER T1 (D4)"), else the last message, SAVE X?, the state */
+static const char *sv_state(char *b)                    /* (b: 16 bytes) */
+{
+    if (song_d4()) {
+        str_cpy(b, "FADER T1 (D4)", 16);
+        b[7] = (char)('1' + song_ftrack());
+        return b;
+    }
+    if (ui.msg_t && ui.msg[0])
+        return ui.msg;
+    if (sg.pend) {
+        str_cpy(b, "SAVE X? OCT+", 16);
+        b[5] = (char)('A' + sg.pend - 1u);
+        return b;
+    }
+    return sg.stage == SG_WRITTEN ? "SAVED A-D" : "NOT SAVED YET";
+}
 static void sv_scenes(void)                             /* SC [1] [2], then the state or the last message */
 {
-    char q[16] = "SAVE X? OCT+";
-    const char *s = ui.msg_t && ui.msg[0] ? ui.msg : sg.pend ? q : sg.stage == SG_WRITTEN ? "SAVED A-D" : "NOT SAVED YET";
+    char q[16];
+    uint32_t fad = song_d4();
+    const char *s = sv_state(q);
     uint32_t fl = sg.ov == SOV_SCENE || sg.ov == SOV_SCENE2 ? sg.ov - SOV_SCENE + 1u : 0u, i;
-    q[5] = (char)('A' + (sg.pend ? sg.pend - 1u : 0u));
-    if (!sv_dirty(SV_SCN, str_hash(sg.scenes + fl * 4u + ux.gen * 16u + (ui.msg_t && ui.msg[0]) * 64u, s)))
+    if (!sv_dirty(SV_SCN, str_hash(sg.scenes + fl * 4u + ux.gen * 16u + (ui.msg_t && ui.msg[0]) * 64u + fad * 128u, s)))
         return;
     cv_begin(240, 16, T_BG);
     GFX_HOOK_ALIGN(0, 0, 0, 16, AL_V, "song view scenes on their middle");
@@ -312,7 +332,8 @@ static void sv_scenes(void)                             /* SC [1] [2], then the 
     GFX_HOOK_ALIGN(0, 0, 0, 16, AL_V, "song view scenes on their middle");
     {
         int32_t w = text_w(&AF_S, s), x = 232 - (w < 150 ? w : 150);
-        cv_free_text(x, CAP_IN(S, 16), &AF_S, s, ui.msg_t && ui.msg[0] ? T_TEXT : sg.pend ? T_ACCENT : T_MID, T_BG, 150);
+        cv_free_text(x, CAP_IN(S, 16), &AF_S, s, fad || sg.pend ? T_ACCENT : ui.msg_t && ui.msg[0] ? T_TEXT : T_MID, T_BG,
+                     150);
     }
     cv_blit(0, 197);
 }

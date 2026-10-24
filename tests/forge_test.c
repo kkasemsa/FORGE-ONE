@@ -2347,6 +2347,16 @@ static int test_song_view(void)
         }
     }
     ok &= steps >= 40u && !sg_px_of(158, 176, T_REC);
+    {   /* (device 0.15) the STEP label stays as drawn: the digits right of it, never over it */
+        static uint16_t lab[30][40];
+        uint32_t r, c, same = 1;
+        sv.shown = 0;
+        frame();
+        for (r = 0; r < 30u; r++) for (c = 0; c < 40u; c++) lab[r][c] = host_screen[(62u + r) * 240u + 145u + c];
+        for (n = 0; n < 30u; n++) sg_run_ms(48);
+        for (r = 0; r < 30u; r++) for (c = 0; c < 40u; c++) same &= lab[r][c] == host_screen[(62u + r) * 240u + 145u + c];
+        ok &= same;
+    }
     btn_down(B_FX); frame(); sg_w(2, 1);                /* FX + A3: T3 muted */
     sg_run_ms(48);
     ok &= sv_muted(2) && sg_px_of(158, 176, T_REC) > 10u;
@@ -2385,6 +2395,37 @@ static int test_song_view(void)
     transport_req = 2;
     pm_blocks(2); frame();
     bad += check("  57. a T1 note lights its dot within a frame, dark again in 150 ms or less; a muted track's dot stays dark", ok);
+    /* (device 0.15) D4 held across passes, the pass seeing it before the ISR does: the hold kept, FADER T1 shown, K1 is
+     * T1's CUTOFF; let go: back to SEED */
+    {
+        uint8_t m[4][2];
+        uint32_t cut, k9 = 1u << 9, px;
+        int16_t c0;
+        song_fmap(0, m);
+        cut = m[0][0];
+        c0 = trk[0].p[cut];
+        ok = !sg.focus;
+        fm1_in.notes |= k9; host_notes |= k9;
+        frame();                                        /* (the pass first: kb_layer has no D4 yet) */
+        keyboard_block();
+        for (n = 0; n < 6u; n++) { frame(); ok &= song_d4() != 0u; }
+        {
+            char q[16];
+            ok &= str_eq(sv_state(q), "FADER T1 (D4)");
+            px = sg_px_of(197, 214, T_ACCENT);
+        }
+        kt(EN_K1, -3);
+        ok &= trk[0].p[cut] == c0 - 3 && song_d4() && px > 0u;
+        key_up(9u); frame(); frame();
+        ok &= !song_d4();
+        {
+            uint8_t seed = fg.seed;
+            kt(EN_K1, 1);
+            ok &= fg.seed == (uint8_t)(seed + 1u) && trk[0].p[cut] == c0 - 3;
+            kt(EN_K1, -1);
+        }
+        bad += check("  (device 0.15) D4 held over passes, seen by the pass before the ISR: the hold kept, FADER T1 shown, K1 T1's CUTOFF; let go: SEED", ok);
+    }
     {   /* the L face has every glyph SONG's screen sets in it: the keys, BAR n/n, the tempo */
         uint32_t r, k2;
         char b[16];

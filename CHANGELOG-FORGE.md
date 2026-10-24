@@ -58,6 +58,11 @@ SONG to the Song Mode spec v0.6 (usability and display): the common things one t
 - Review of 081a8ff: F5 TAP refuses under BPM LOCK (`BPM LOCKED`), as SELECT; a favourite stored from a track on a
   user preset keeps the user preset (`FAV 1 STORED (USER)`; its slot emptied since: `FAV 1: USER SOUND GONE`);
   seq.c seq_stop's two comments on one line separated.
+- Device test of 0.15: D4 held showed nothing on the new screen (the scenes row now says `FADER T1 (D4)` while it is
+  held), and the STEP digits were placed by a stale string when the BAR region had not changed, so they landed on
+  the STEP label (`S01`); fixed. D4's hold now lasts from its down to a real key-up as either the ISR (`kb_layer`) or
+  the scan (`fm1_in.notes`) sees it. Tests: D4 held over six passes with the pass seeing it before the ISR; the STEP
+  label's pixels unchanged over 30 steps.
 - Tests (forge_test): `test_song_perf` and the v0.4.1 tests on the new key map; `test_song_v06` 47–54;
   `test_song_view` 55–57 (56: 2,334 px a 1/16 on average at 140 BPM, the largest transfer 1,160 px; host pixel
   counter in ui_test.c's `lcd_fill` / `lcd_blit`), the L face's glyphs for every key and BAR. UI lint: 6 new
