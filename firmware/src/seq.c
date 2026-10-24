@@ -874,7 +874,8 @@ static void pq_apply(void)
 }
 
 /* 0.13 SONG spec v0.5 §H3: a scene recalled, its params put in (the ISR at the next 1/16, before its step plays). A
- * track whose engine is not the one stored with the scene is skipped; every value is held to its param's range now.
+ * track whose engine or sound (preset, user preset: 0.15) is not the one stored with the scene is skipped; every value
+ * is held to its param's range now.
  * No ramp: the params are read once a block as a knob's turn is, so a value steps at the next CTL block (32 samples,
  * 0.7 ms) for the engines (a filter's state carries over, its coefficients change) and at the mix block for LEVEL and
  * the sends (fx.c mix_part). A large LEVEL jump can click: a short ramp on recall is the fix if the device test hears one */
@@ -889,7 +890,7 @@ static void sc_apply(void)
         track_t *t = &trk[c->trk[i] % NTRK];
         uint32_t id = c->id[i] % P_COUNT;
         const param_desc_t *d;
-        if (t->eng_req != c->eng[c->trk[i] % NTRK])
+        if (sc_differs(c, c->trk[i]))
             continue;
         d = param_desc_of(eng_idx(t->eng_req), id);
         t->p[id] = (int16_t)clamp(c->v[i], d->min, d->max);

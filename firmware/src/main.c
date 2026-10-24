@@ -211,9 +211,15 @@ static void fm1_main(void)
         settings_save();
     }
     autosave_boot(boot_clean);                /* (1.2) the last session's music, under the splash */
-    for (ms = 0; ms < 400u; ms += 10u) {      /* the splash; the pot followed (MIDI IN plays under it) */
-        fm1_delay_ms(10);
-        master_poll();
+    {   /* the splash; the pot followed (MIDI IN plays under it). FORGE ONE 0.15: ~1.2 s (was 0.43 s) so the logo can be
+         * read; a key or a button pressed now ends it at once */
+        uint32_t b0 = fm1_in.buttons, n0 = fm1_in.notes;
+        for (ms = 0; ms < 1150u; ms += 10u) {
+            fm1_delay_ms(10);
+            master_poll();
+            if ((fm1_in.buttons & ~b0) || (fm1_in.notes & ~n0))
+                break;
+        }
     }
     kb_boot_hold = 0;
     lcd_fill(0, 0, 240, 240, T_BG);
