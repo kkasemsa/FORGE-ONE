@@ -464,8 +464,9 @@ static void song_track(uint32_t i)
  *   FOCUS   D4 held + F3..B3: T1..T4's sound on KNOB 1..4 (the same key again, or a D4 tap that picked nothing and
  *           turned nothing: off). The keys' choice is made at their down: FX held a mute, else D4 held the focus,
  *           else a reroll
- *   FADERS  D4 held alone: KNOB 1..4 the focus track's (none: the last one, T1 at first); let go: the values stay
- *   Knobs, first match: FX held the macros (back to 0 when FX is let go), D4 held the faders, FOCUS the track's,
+ *   FADERS  D4 held alone: KNOB 1..4 the focus track's (none: the last one, T1 at first); let go: the values stay.
+ *           0.15 (after the device test): D4 held is the mixer instead, KNOB 1..4 T1..T4 LEVEL (song_mix_knob)
+ *   Knobs, first match: FX held the macros (back to 0 when FX is let go), D4 held the levels, FOCUS the track's,
  *           else SEED DENSITY EVOLVE GENRE. The knobs are encoders: a turn moves a value from where it is, so none
  *           jumps after a change of mode or a scene (spec §H1's pickup holds by itself)
  *   Per track: T1 BASS CUTOFF RESO ENV-MOD DECAY, T2 LEAD and T3 PAD FILTER, A/R (ATK and REL together), SEND (REV and
@@ -562,6 +563,22 @@ static void song_focus_knob(uint32_t k, int32_t s)
     str_cpy(b + 3, song_fname(i, k), sizeof b - 3u);
     str_cpy(b + str_len(b), " ", sizeof b - str_len(b));
     param_format(d, t->p[m[k][0]], val, &unit);
+    str_cpy(b + str_len(b), val, sizeof b - str_len(b));
+    str_cpy(b + str_len(b), unit, sizeof b - str_len(b));
+    ui_message(b);
+}
+/* 0.15 (Ong, after the device test): D4 held, KNOB 1..4 are T1..T4 LEVEL, a mixer (FOCUS on or off); the values stay
+ * when D4 is let go. ("T3 LEVEL -6.0 dB") */
+static void song_mix_knob(uint32_t k, int32_t s)
+{
+    track_t *t = &trk[k & 3u];
+    const param_desc_t *d = &TP[P_LEVEL];
+    char b[24] = "T1 LEVEL ", val[8];
+    const char *unit;
+    t->p[P_LEVEL] = (int16_t)param_turn(d, t->p[P_LEVEL], accel(EN_K1 + k, s, d->max - d->min));
+    sg.d4_used = 1;
+    b[1] = (char)('1' + (k & 3u));
+    param_format(d, t->p[P_LEVEL], val, &unit);
     str_cpy(b + str_len(b), val, sizeof b - str_len(b));
     str_cpy(b + str_len(b), unit, sizeof b - str_len(b));
     ui_message(b);
@@ -902,7 +919,7 @@ static int song_cards(void)
 
 /* a white key in SONG (layer_key, at its down): 1 when SONG answered it. E4..C5 are the ISR's effects; F3..B3 the
  * focus (the same key again: off), the mutes when the ISR took them (kb_fx) or FX is held, the rerolls with D4 held;
- * D4 ALT (held alone: the faders); D5 E5 the scenes; F5 TAP (0.15, spec v0.6) */
+ * D4 ALT (held alone: KNOB 1..4 T1..T4 LEVEL); D5 E5 the scenes; F5 TAP (0.15, spec v0.6) */
 static int song_wkey(uint32_t k)
 {
     uint32_t p = key_place(k);
@@ -919,7 +936,7 @@ static int song_wkey(uint32_t k)
             song_focus_pick(p);                 /* (.. alone: FOCUS, the same key again: off) */
         return 1;
     }
-    if (p == TL_COOK) {                         /* D4: ALT (held alone: the faders; a tap: nothing, 0.15) */
+    if (p == TL_COOK) {                         /* D4: ALT (held alone: the levels; a tap: nothing, 0.15) */
         sg.d4 = 1;
         sg.d4_used = (kb_layer & 0x55u) != 0u;
         return 1;

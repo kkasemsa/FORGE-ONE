@@ -496,7 +496,7 @@ held, with FX held.
 | Black 11 (F#5) | SONG on / off | same | same |
 | F3 G3 A3 B3 | **FOCUS T1–T4** (the same key again: off) | Reroll T1 / T2 / T3 notes, T4 drum rhythm | Mute T1–T4 while held |
 | C4 | Reroll notes, every unlocked track | same | same |
-| D4 | ALT: held alone, the knobs are the focus track's faders (a tap does nothing) | – | – |
+| D4 | ALT: held alone, K1–K4 are T1–T4 LEVEL, a mixer (a tap does nothing) | – | – |
 | E4 F4 G4 A4 B4 C5 | Held: REPEAT 1/16, LPF, HPF, TAPE STOP, REV THROW, ECHO THROW (no FX button needed) | same | same |
 | D5 / E5 | Recall SCENE 1 / 2 at the next 1/16 | – | Store SCENE 1 / 2 |
 | F5 | **TAP tempo** (the last 4 taps; 2 s starts over) | same | same |
@@ -504,7 +504,7 @@ held, with FX held.
 | SELECT | **Tempo** ±1 BPM | same | ±5 BPM |
 | ALGORITHM | **Key** ±1 semitone, at the next bar | same | **Scale**, at the next bar |
 | PRESETS | **The focus track's preset**, loaded at the next bar (OCT−: cancel) | same | nothing |
-| KNOB 1–4 | SEED DENSITY EVOLVE GENRE; FOCUS on: the track's four (below) | the track's four (faders) | FX macros FILTER CRUSH THROW DEPTH (back to 0 when FX is let go) |
+| KNOB 1–4 | SEED DENSITY EVOLVE GENRE; FOCUS on: the track's four (below) | T1–T4 LEVEL (they stay when D4 is let go) | FX macros FILTER CRUSH THROW DEPTH (back to 0 when FX is let go) |
 
 - A locked track ignores its own reroll key (`T3 LOCKED`). Before the song is written a per-track reroll says
   `NEW T3`; after, it asks `SAVE X?` like C4. (0.13 / spec v0.5: D4's reroll of every track's rhythm is gone; D4 +
@@ -520,8 +520,9 @@ held, with FX held.
 - **FOCUS:** tap F3 / G3 / A3 / B3 to put T1 BASS / T2 LEAD / T3 PAD / T4 DRUM on the knobs; the knob cards and the
   track row show it (`FOCUS`). Tap the same key again to turn it off. A locked track can be focused (a lock is for
   notes and rhythm).
-- **Faders:** hold D4 alone and turn the knobs: the focus track's (with FOCUS off, the last focused, T1 at first).
-  Let go: the values stay, the knobs go back. FX held always wins: its macros, which snap back.
+- **Levels (0.15):** hold D4 alone and turn K1–K4: T1–T4 LEVEL, a mixer, FOCUS on or off (the screen says
+  `MIXER: LEVELS (D4)`, the cards show the four levels). Let go: the levels stay, the knobs go back. FX held always
+  wins: its macros, which snap back.
 
 | Track | KNOB 1 | KNOB 2 | KNOB 3 | KNOB 4 |
 | --- | --- | --- | --- | --- |

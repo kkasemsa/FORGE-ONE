@@ -139,7 +139,7 @@ LAYERS = {
         enter="In STARTER press F#5. F#5 again: back to STARTER. OCT+ GENERATE writes slots A-D and the chain.",
         white={"F3": ("trk", "FOCUS T1\nD4: reroll\nFX: mute"), "G3": ("trk", "FOCUS T2\nD4: reroll\nFX: mute"),
                "A3": ("trk", "FOCUS T3\nD4: reroll\nFX: mute"), "B3": ("trk", "FOCUS T4\nD4: reroll\nFX: mute"),
-               "C4": ("tool", "new NOTES\n(unlocked)"), "D4": ("set", "ALT\nheld: faders"),
+               "C4": ("tool", "new NOTES\n(unlocked)"), "D4": ("set", "ALT\nheld: LEVELS"),
                "E4": ("fx", "REPEAT\n1/16"), "F4": ("fx", "LPF"), "G4": ("fx", "HPF"), "A4": ("fx", "TAPE\nSTOP"),
                "B4": ("fx", "REV\nTHROW"), "C5": ("fx", "ECHO\nTHROW"), "D5": ("part", "SCENE 1\nFX: store"),
                "E5": ("part", "SCENE 2\nFX: store"), "F5": ("set", "TAP\ntempo"), "G5": ("part", "STARTER\nkeep")},
@@ -147,7 +147,7 @@ LAYERS = {
                "A#3": ("part", "PART C\nD4: FAV3"), "C#4": ("part", "PART D\nD4: FAV4"),
                "D#4": ("trk", "LOCK T1"), "F#4": ("trk", "LOCK T2"), "G#4": ("trk", "LOCK T3"), "A#4": ("trk", "LOCK T4"),
                "C#5": ("fx", "CLEAR"), "D#5": ("fx", "DUCK"), "F#5": ("part", "SONG\noff")},
-        knobs=["SEED / focus 1", "DENSITY / focus 2", "EVOLVE / focus 3", "GENRE / focus 4"],
+        knobs=["SEED / focus 1 / D4: T1 LVL", "DENSITY / focus 2 / D4: T2", "EVOLVE / focus 3 / D4: T3", "GENRE / focus 4 / D4: T4"],
         notes=["SELECT: tempo (FX: x5).  ALGORITHM: key (FX: scale), at the bar.  PRESETS: the focus track's sound, at",
                "the bar (OCT-: cancel).  D4 + FX + black 1-4: store FAV.  FX held: K1-K4 FILTER CRUSH THROW DEPTH."]),
     "rec": dict(

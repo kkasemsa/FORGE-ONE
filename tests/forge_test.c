@@ -1890,22 +1890,31 @@ static int test_song_perf(void)
     ok &= sg.rvar[SG_A][3] == rv[SG_A][3] + 1u && memcmp(was[3], trk[3].step, sizeof was[3]) &&
           sg_same((const step_t (*)[NSTEP])was, 3);
     bad += check("SONG spec v0.5 31 / v0.6 46. D4 tap: nothing, steps and rerolls byte for byte; D4 + B3 rerolls T4's rhythm", ok);
-    /* 37. (before any focus: the faders on T1) FOCUS off, D4 held, K1: T1's CUTOFF; let go: it stays, K1 is SEED */
-    song_fmap(0, m);
-    cut = m[0][0];
+    /* 37 (0.15, after the device test). D4 held: K1..K4 T1..T4 LEVEL, the rest as it was; let go: they stay, K1 SEED */
     sg_vals(pv);
     sg_w(SG_D4, 1);
     kt(EN_K1, -5);
-    ok = trk[0].p[cut] == pv[0][cut] - 5 && sg_vals_same((const int16_t (*)[P_COUNT])pv, 0, cut, 99) && !sg.focus;
+    kt(EN_K4, -2);
+    ok = trk[0].p[P_LEVEL] == pv[0][P_LEVEL] - 5 && trk[3].p[P_LEVEL] == pv[3][P_LEVEL] - 2 && !sg.focus;
+    for (j = 0; j < NTRK; j++)
+        ok &= j == 0u || j == 3u ? 1 : !memcmp(pv[j], trk[j].p, sizeof pv[j]);
     sg_w(SG_D4, 0);
     {
         uint8_t seed = fg.seed;
-        ok &= trk[0].p[cut] == pv[0][cut] - 5 && !sg.focus;   /* (a hold that turned a knob: no tap) */
+        ok &= trk[0].p[P_LEVEL] == pv[0][P_LEVEL] - 5 && !sg.focus;
         kt(EN_K1, 1);
-        ok &= fg.seed == (uint8_t)(seed + 1u) && trk[0].p[cut] == pv[0][cut] - 5;
+        ok &= fg.seed == (uint8_t)(seed + 1u) && trk[0].p[P_LEVEL] == pv[0][P_LEVEL] - 5;
         kt(EN_K1, -1);
     }
-    bad += check("  37. FOCUS off, D4 held: K1 is T1's CUTOFF; let go: the value stays, K1 SEED again, FOCUS still off", ok);
+    sg_wtap(1);                                         /* (FOCUS T2 on: D4 held is still the levels) */
+    sg_vals(pv);
+    sg_w(SG_D4, 1);
+    kt(EN_K2, 3);
+    sg_w(SG_D4, 0);
+    ok &= trk[1].p[P_LEVEL] == pv[1][P_LEVEL] + 3 && sg.focus == 2u;
+    sg_wtap(1);
+    trk[0].p[P_LEVEL] = pv[0][P_LEVEL] + 5; trk[1].p[P_LEVEL] = pv[1][P_LEVEL]; trk[3].p[P_LEVEL] = pv[3][P_LEVEL] + 2;
+    bad += check("  37. (0.15) D4 held: K1-K4 T1-T4 LEVEL, FOCUS on or off; let go: the levels stay, K1 SEED again", ok);
     /* 43. G3 tap: FOCUS T2, no reroll, no mute; G3 again: off */
     for (j = 0; j < NTRK; j++) memcpy(was[j], trk[j].step, sizeof was[j]);
     memcpy(nv, sg.nvar, sizeof nv);
@@ -2395,14 +2404,14 @@ static int test_song_view(void)
     transport_req = 2;
     pm_blocks(2); frame();
     bad += check("  57. a T1 note lights its dot within a frame, dark again in 150 ms or less; a muted track's dot stays dark", ok);
-    /* (device 0.15) D4 held across passes, the pass seeing it before the ISR does: the hold kept, FADER T1 shown, K1 is
-     * T1's CUTOFF; let go: back to SEED */
+    /* (device 0.15) D4 held across passes, the pass seeing it before the ISR does: the hold kept, the MIXER shown, K1
+     * T1's LEVEL; let go: back to SEED */
     {
         uint8_t m[4][2];
         uint32_t cut, k9 = 1u << 9, px;
         int16_t c0;
-        song_fmap(0, m);
-        cut = m[0][0];
+        (void)m;
+        cut = P_LEVEL;
         c0 = trk[0].p[cut];
         ok = !sg.focus;
         fm1_in.notes |= k9; host_notes |= k9;
@@ -2410,8 +2419,8 @@ static int test_song_view(void)
         keyboard_block();
         for (n = 0; n < 6u; n++) { frame(); ok &= song_d4() != 0u; }
         {
-            char q[16];
-            ok &= str_eq(sv_state(q), "FADER T1 (D4)");
+            char q[20];
+            ok &= str_eq(sv_state(q), "MIXER: LEVELS (D4)");
             px = sg_px_of(197, 214, T_ACCENT);
         }
         kt(EN_K1, -3);
@@ -2424,7 +2433,7 @@ static int test_song_view(void)
             ok &= fg.seed == (uint8_t)(seed + 1u) && trk[0].p[cut] == c0 - 3;
             kt(EN_K1, -1);
         }
-        bad += check("  (device 0.15) D4 held over passes, seen by the pass before the ISR: the hold kept, FADER T1 shown, K1 T1's CUTOFF; let go: SEED", ok);
+        bad += check("  (device 0.15) D4 held over passes, seen by the pass before the ISR: the hold kept, MIXER shown, K1 T1's LEVEL; let go: SEED", ok);
     }
     {   /* the L face has every glyph SONG's screen sets in it: the keys, BAR n/n, the tempo */
         uint32_t r, k2;

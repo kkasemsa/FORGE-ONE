@@ -835,8 +835,10 @@ static void layer_knob(uint32_t k, int32_t s)
         if (k == 3u && !perf_harm_on())
             s = -s;
         perf_k[k] = (int8_t)clamp(perf_k[k] + accel(EN_K1 + k, s, k ? 100 : 200), k ? 0 : -100, 100);
-    } else if (l == LAYER_SEQ && fs.on && sg.on && sg.stage != SG_CONFIRM && (song_d4() || sg.focus)) {
-        song_focus_knob(k, s);                          /* 0.14 SONG (spec v0.5): D4 held the faders, FOCUS the track's */
+    } else if (l == LAYER_SEQ && fs.on && sg.on && sg.stage != SG_CONFIRM && song_d4()) {
+        song_mix_knob(k, s);                            /* 0.15 SONG: D4 held, T1..T4 LEVEL */
+    } else if (l == LAYER_SEQ && fs.on && sg.on && sg.stage != SG_CONFIRM && sg.focus) {
+        song_focus_knob(k, s);                          /* 0.14 SONG (spec v0.5): FOCUS, the track's sound */
     } else if (l == LAYER_SEQ && fs.on && sg.on) {      /* 0.13 SONG: the same, then the part shown */
         if (sg.stage != SG_CONFIRM)
             song_knob(k, s);

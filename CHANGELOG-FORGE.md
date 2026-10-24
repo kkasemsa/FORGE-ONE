@@ -63,6 +63,9 @@ SONG to the Song Mode spec v0.6 (usability and display): the common things one t
   the STEP label (`S01`); fixed. D4's hold now lasts from its down to a real key-up as either the ISR (`kb_layer`) or
   the scan (`fm1_in.notes`) sees it. Tests: D4 held over six passes with the pass seeing it before the ISR; the STEP
   label's pixels unchanged over 30 steps.
+- After the device test (Ong): D4 held is a mixer, K1–K4 T1–T4 LEVEL, FOCUS on or off (was the focus track's sound,
+  the same four as FOCUS); the screen says `MIXER: LEVELS (D4)` and the cards show the levels; let go, they stay.
+  Test 37 rewritten for it.
 - Tests (forge_test): `test_song_perf` and the v0.4.1 tests on the new key map; `test_song_v06` 47–54;
   `test_song_view` 55–57 (56: 2,334 px a 1/16 on average at 140 BPM, the largest transfer 1,160 px; host pixel
   counter in ui_test.c's `lcd_fill` / `lcd_blit`), the L face's glyphs for every key and BAR. UI lint: 6 new

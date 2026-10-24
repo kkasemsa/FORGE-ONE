@@ -291,11 +291,10 @@ static void sv_rows(void)
     }
 }
 /* the scenes row's text: D4 held the faders' track ("FADER T1 (D4)"), else the last message, SAVE X?, the state */
-static const char *sv_state(char *b)                    /* (b: 16 bytes) */
+static const char *sv_state(char *b)                    /* (b: 20 bytes) */
 {
     if (song_d4()) {
-        str_cpy(b, "FADER T1 (D4)", 16);
-        b[7] = (char)('1' + song_ftrack());
+        str_cpy(b, "MIXER: LEVELS (D4)", 20);
         return b;
     }
     if (ui.msg_t && ui.msg[0])
@@ -309,7 +308,7 @@ static const char *sv_state(char *b)                    /* (b: 16 bytes) */
 }
 static void sv_scenes(void)                             /* SC [1] [2], then the state or the last message */
 {
-    char q[16];
+    char q[20];
     uint32_t fad = song_d4();
     const char *s = sv_state(q);
     uint32_t fl = sg.ov == SOV_SCENE || sg.ov == SOV_SCENE2 ? sg.ov - SOV_SCENE + 1u : 0u, i;
@@ -351,7 +350,15 @@ static void sv_card_txt(uint32_t k, const char **l, char *v, int32_t *r)
             *r = (100 - x) * 10;
         return;
     }
-    if (sg.focus || song_d4()) {                        /* D4 held or FOCUS: the track's */
+    if (song_d4()) {                                    /* D4 held: the mixer, T1..T4 LEVEL */
+        const char *u;
+        static const char *const T[4] = {"T1", "T2", "T3", "T4"};
+        *l = T[k];
+        param_format(&TP[P_LEVEL], trk[k].p[P_LEVEL], v, &u);
+        *r = trk[k].p[P_LEVEL] * 1000 / (TP[P_LEVEL].max ? TP[P_LEVEL].max : 1);
+        return;
+    }
+    if (sg.focus) {                                     /* FOCUS: the track's */
         uint32_t i = song_ftrack();
         uint8_t m[4][2];
         song_fmap(i, m);
