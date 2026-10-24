@@ -224,6 +224,8 @@ static void fm1_main(void)
     kb_boot_hold = 0;
     lcd_fill(0, 0, 240, 240, T_BG);
     scrn.idle = fm1_ms;                        /* (MENU > SCREEN OFF: from here) */
+    if (fg_prefs & FGP_BOOT_SONG)              /* FORGE ONE 0.16: MENU > SYSTEM > BOOT SONG: SONG with the last song, stopped */
+        song_boot(fm1_ticks());
 
     for (;;) {
         uint32_t m = fm1_ms;

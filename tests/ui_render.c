@@ -778,7 +778,7 @@ enum { S_HOME, S_HOME_IDLE, S_MESSAGE, S_MESSAGE_KEY, S_MESSAGE_NOFILE, S_PRESET
        S_DETAIL_COND, S_DETAIL_FILL, S_AUTO_COND, S_GLO_FILL, S_SEQ_EUCLID, S_SEQ_EUCLID_DRUM, S_SEQ_EUCLID_64,
        S_MENU_SELECT, S_PROJECT_ERASE, S_CONFIRM_ERASE_PROJ, S_TOOLS_CLEAN, S_CONFIRM_CLEAN,
        S_MENU_MIDI_TRACK, S_MENU_MIDI_TCH_UNUSED, S_MENU_MIDI_AUTO, S_HOME_TRACKS_MIDI, S_MIXER_MIDI, S_EDIT_PHASE_FOLD,
-       S_SEQ_FORGE, S_SEQ_FORGE_DUB, S_SEQ_FORGE_AMBIENT, S_SEQ_FORGE_64, S_SEQ_FORGE_DRUM, S_SEQ_FORGE_DRUM_64, S_SEQ_STARTER, S_SEQ_STARTER_AMBIENT, S_PERFORM, S_PERFORM_FX, S_SEQ_SONG, S_SEQ_SONG_CONFIRM, S_SEQ_SONG_SAVE, S_SEQ_SONG_FOCUS, S_SEQ_SONG_FOCUS_DRUM, S_SEQ_SONG_OV_TEMPO, S_SEQ_SONG_OV_KEY, S_SEQ_SONG_OV_PRESET, S_SEQ_SONG_OV_SCENE, S_SEQ_SONG_OV_FAV, S_SEQ_SONG_PLAY, S_SEQ_SONG_MIX, S_COUNT };
+       S_SEQ_FORGE, S_SEQ_FORGE_DUB, S_SEQ_FORGE_AMBIENT, S_SEQ_FORGE_64, S_SEQ_FORGE_DRUM, S_SEQ_FORGE_DRUM_64, S_SEQ_STARTER, S_SEQ_STARTER_AMBIENT, S_PERFORM, S_PERFORM_FX, S_SEQ_SONG, S_SEQ_SONG_CONFIRM, S_SEQ_SONG_SAVE, S_SEQ_SONG_FOCUS, S_SEQ_SONG_FOCUS_DRUM, S_SEQ_SONG_OV_TEMPO, S_SEQ_SONG_OV_KEY, S_SEQ_SONG_OV_PRESET, S_SEQ_SONG_OV_SCENE, S_SEQ_SONG_OV_FAV, S_SEQ_SONG_PLAY, S_SEQ_SONG_MIX, S_SEQ_SONG_POP_KNOB, S_SEQ_SONG_POP_PART, S_SEQ_SONG_POP_RED, S_SEQ_SONG_CLICK, S_SEQ_SONG_FILL, S_SEQ_SONG_KIT, S_SEQ_SONG_CAT, S_COUNT };
 static const char *const S_NAME[S_COUNT] = {"home", "home_idle", "message", "message_key", "message_nofile", "presets", "presets_nofav", "user",
     "phrases", "project", "tools", "song_empty", "song", "step", "auto_steps", "auto_add_chance", "automation", "drum",
     "drum_hand", "drum_cym", "mixer", "mixer_from_home", "mixer_pan", "env", "env_dest", "lfo", "mod", "fx", "slicer", "dly", "scl", "chord", "chord_wide", "chord_off", "chord_kit", "arp",
@@ -812,7 +812,7 @@ static const char *const S_NAME[S_COUNT] = {"home", "home_idle", "message", "mes
     "menu_midi_track", "menu_midi_channels_unused", "menu_midi_auto_select", "home_tracks_midi", "mixer_midi", "edit_phase_fold",
     "layer_seq_forge", "layer_seq_forge_dub", "layer_seq_forge_ambient", "layer_seq_forge_64", "layer_seq_forge_drum",
     "layer_seq_forge_drum_64", "layer_seq_starter", "layer_seq_starter_ambient", "layer_perform", "layer_perform_fx", "layer_seq_song",
-    "layer_seq_song_confirm", "layer_seq_song_save", "layer_seq_song_focus", "layer_seq_song_focus_drum", "song_ov_tempo", "song_ov_key", "song_ov_preset", "song_ov_scene", "song_ov_fav", "song_play", "song_mix"};
+    "layer_seq_song_confirm", "layer_seq_song_save", "layer_seq_song_focus", "layer_seq_song_focus_drum", "song_ov_tempo", "song_ov_key", "song_ov_preset", "song_ov_scene", "song_ov_fav", "song_play", "song_mix", "song_pop_knob", "song_pop_part", "song_pop_red", "song_click", "song_fill", "song_kit", "song_cat"};
 
 /* the STEP page's piano roll (ui_graph.c graph_roll) on track 1, stopped unless said: an empty pattern; ACID in
  * A minor; POLY chords (Am7 F C G, tied); a line with ties, slides and accents in C major; LEN 32 on its second
@@ -1575,7 +1575,8 @@ static void setup(int s)
         break;
     case S_SEQ_SONG: case S_SEQ_SONG_CONFIRM: case S_SEQ_SONG_SAVE: case S_SEQ_SONG_FOCUS: case S_SEQ_SONG_FOCUS_DRUM:
     case S_SEQ_SONG_OV_TEMPO: case S_SEQ_SONG_OV_KEY: case S_SEQ_SONG_OV_PRESET: case S_SEQ_SONG_OV_SCENE: case S_SEQ_SONG_OV_FAV:
-    case S_SEQ_SONG_PLAY: case S_SEQ_SONG_MIX:
+    case S_SEQ_SONG_PLAY: case S_SEQ_SONG_MIX: case S_SEQ_SONG_POP_KNOB: case S_SEQ_SONG_POP_PART: case S_SEQ_SONG_POP_RED:
+    case S_SEQ_SONG_CLICK: case S_SEQ_SONG_FILL: case S_SEQ_SONG_KIT: case S_SEQ_SONG_CAT:
         /* 0.13 SONG: SYNTHWAVE 42 part B, T3 locked
                                                    * (HELP ON); the confirm, slots A and C named, B and D empty; TRANCE
                                                    * 99 written, part D (BREAK), SAVE D? asked */
@@ -1587,6 +1588,8 @@ static void setup(int s)
         fs.var = 0;
         fs_open();
         song_toggle();
+        sg.ov = 0;                                      /* (0.16: entering SONG's box; CLICK off) */
+        sg.click = 0;
         if (s == S_SEQ_SONG) { song_part(SG_B); sg.lock = 4u; }
         if (s == S_SEQ_SONG_CONFIRM) {
             memset(proj_slot, 0, sizeof proj_slot);
@@ -1605,6 +1608,18 @@ static void setup(int s)
         if (s == S_SEQ_SONG_OV_FAV) { sg.fpend = 3; sg.ftrk = 0; song_ov(SOV_FAV); }
         sv.shown = 0;                                   /* (a scene: SONG's screen drawn whole) */
         if (s == S_SEQ_SONG_MIX) { sg.d4 = 1; trk[2].p[P_LEVEL] = 80; }   /* (0.15: D4 held, the levels) */
+        /* 0.16 (spec v0.7 §A): the action box (a knob, a part at the bar, refused); CLICK on beat 1, CHAIN, two dots */
+        if (s == S_SEQ_SONG_POP_KNOB) { sg.focus = 1; song_focus_knob(0, -1); }
+        if (s == S_SEQ_SONG_POP_PART) { song.playing = 1; song_part_tap(SG_C); }
+        if (s == S_SEQ_SONG_POP_RED) { ui_prefs |= PREF_BPM_LOCK; song_bpm(1); ui_prefs &= ~PREF_BPM_LOCK; }
+        /* 0.17 (spec v0.8): a held FILL, T4's drum list (a KIT model at the bar), FX + PRESETS (a category) */
+        if (s == S_SEQ_SONG_FILL) { song.playing = 1; sgf.type = FILL_TOMS; song_pop(SOV_POP, "FILL", FILL_N[FILL_TOMS], "", -1, 0); }
+        if (s == S_SEQ_SONG_KIT) { song.playing = 1; sg.focus = 4; sg.ppend = 4; sg.pdrum = 1; sg.pcat = CAT_DRUM; sg.pjump = 0; sg.pkind = SR_KIT; sg.pe = 0; sg.pk = 12; sg.pms = fm1_ms; song_ov(SOV_PRESET); }
+        if (s == S_SEQ_SONG_CAT) { sg.focus = 2; sg.ppend = 2; sg.pdrum = 0; sg.pcat = CAT_PAD; sg.pjump = 1; { sref_t r; uint32_t g; sg_list(0, CAT_PAD, 0, &r, &g); sg.pkind = r.kind; sg.pe = r.e; sg.pk = r.k; } sg.pms = fm1_ms; song_ov(SOV_PRESET); }
+        if (s == S_SEQ_SONG_CLICK) {
+            song.playing = 1; trk[0].seq_idx = 16; sg.click = 1; sg.chain = 1; sg.cbar = 2; sg.dirty = 6u;
+            sv.fl_ms = fm1_ms; sv.strong = 1; sv.beat = 17;
+        }
         if (s == S_SEQ_SONG_PLAY) {
             sg.focus = 1; sg.lock = 8u; sg.scenes = 1; trk[0].p[P_SLEN] = 64;
             perf_latched = PF_BIT(PF_M1 + 2u); perf_kill = 0;

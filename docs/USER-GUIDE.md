@@ -843,10 +843,12 @@ the value. Press HOME to close. The web editor's Settings tab can change all of 
 | **CONTROL** | HOLD (layer hold time), KNOB ACCEL, FX LATCH, BPM LOCK, SCALE LEDS, STEP PREVIEW, CHORD ENTRY (HOLD, ADD), SELECT (BPM, PAGE, MODW, VEL) |
 | **AUDIO** | SPEAKER EQ (FLAT, LOWCUT, BASS+), USB LEVEL (MASTER, FIXED), CLICK, CLICK LEVEL, COUNT-IN, TUNE (±50 cents) |
 | **MIDI** | MIDI IN, T1–T4 CHANNEL, AUTO SELECT, SCREEN WAKE (+MIDI, PANEL), LEARN CLEAR |
-| **SYSTEM** | USB SERIAL, RESTORE LAST, HELP, 2ND CORE (beta), CALIBRATION, INFO, ABOUT |
+| **SYSTEM** | USB SERIAL, RESTORE LAST, HELP, BOOT (FORGE ONE 0.16), 2ND CORE (beta), CALIBRATION, INFO, ABOUT |
 
 - **SPEAKER EQ** also shapes the headphones and USB audio: keep it on FLAT when recording.
 - **HELP ON** shows a short hint when a page or layer opens.
+- **BOOT** (FORGE ONE 0.16): `NORMAL` (default) or `SONG`: power-on opens SONG with the last song, stopped, on part A
+  (see the FORGE ONE guide).
 - **2ND CORE** (new in 1.6.1, beta, OFF by default): ON renders some parts on the second core from the next power-on,
   with the same sound. A unit whose second core misreads goes back to one core and sets it OFF.
 - **INFO** shows the version, the USB link and the CPU load.
