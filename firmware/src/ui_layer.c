@@ -53,6 +53,7 @@
 #include "ui_forge.c"                                   /* FORGE ONE: SEQ TOOLS F5 */
 #include "ui_starter.c"                                 /* FORGE ONE 0.6: SEQ TOOLS G5 */
 #include "ui_song.c"                                    /* FORGE ONE 0.13: STARTER's SONG */
+#include "ui_song_view.c"                               /* FORGE ONE 0.15: SONG's own screen (spec v0.6 §J) */
 enum { LK_HOLD, LK_SET };
 typedef struct {
     uint8_t btn, kind, fam;            /* the button, HOLD / SET, the family whose first page KNOB 1..4 edit */

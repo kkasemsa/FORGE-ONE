@@ -2290,9 +2290,102 @@ static int test_song_v06(void)
     return bad;
 }
 
+/* 0.15 spec v0.6 §J (tests 55..57): SONG's screen says where the song is, draws by regions, the dots */
+static uint32_t sg_px_of(uint32_t y0, uint32_t y1, uint16_t c)   /* pixels of colour c in rows y0..y1-1 */
+{
+    uint32_t k, n = 0;
+    uint16_t sw = (uint16_t)((c >> 8) | (c << 8));
+    for (k = y0 * 240u; k < y1 * 240u; k++)
+        n += host_screen[k] == sw || host_screen[k] == c;
+    return n;
+}
+static int test_song_view(void)
+{
+    int bad = 0, ok;
+    uint32_t n, steps = 0, last, px0, ms;
+    sg_open((uint32_t)sg_genre("TRANCE"), 42);
+    fx_latch &= ~1u; perf_latch_on = 0;
+    sg_tap(1);                                          /* part B: all four play */
+    song.g[G_BPM] = 140;
+    transport_req = 1;
+    pm_blocks(2);
+    frame();
+    /* 55. each 1/16: BAR / STEP as the sequencer, the playhead its cell, the part block, the position bar; a mute: M */
+    ok = sv.shown;
+    last = trk[0].seq_idx;
+    for (n = 0; n < 2000u && steps < 40u; n++) {
+        sg_run_ms(16);
+        if (trk[0].seq_idx != last) {
+            uint32_t idx = trk[0].seq_idx % tl_len(&trk[0]);
+            last = trk[0].seq_idx;
+            steps++;
+            frame();
+            idx = trk[0].seq_idx % tl_len(&trk[0]);
+            ok &= sv.step == idx + 1u && sv.ph == idx % 16u && sv.bar == idx / 16u + 1u &&
+                  sv.bars == (tl_len(&trk[0]) + 15u) / 16u && sv.chain_px == (idx + 1u) * SV_CHW / tl_len(&trk[0]) &&
+                  sg.part == SG_B;
+        }
+    }
+    ok &= steps >= 40u && !sg_px_of(158, 176, T_REC);
+    btn_down(B_FX); frame(); sg_w(2, 1);                /* FX + A3: T3 muted */
+    sg_run_ms(48);
+    ok &= sv_muted(2) && sg_px_of(158, 176, T_REC) > 10u;
+    sg_w(2, 0); btn_up(B_FX); frame();
+    sg_run_ms(48);
+    ok &= !sv_muted(2) && !sg_px_of(158, 176, T_REC);
+    bad += check("SONG spec v0.6 55. each 1/16: BAR / STEP digits, playhead cell, part block and position bar as the sequencer; a mute shows M (red), gone after", ok);
+    /* 56. playing at 140 BPM, all four tracks: the pixels sent per 1/16 on average, the largest transfer */
+    sg_run_ms(160);
+    px0 = host_px_n;
+    host_px_max = 0;
+    steps = 0;
+    last = trk[0].seq_idx;
+    for (ms = 0; ms < 6000u; ms += 16u) {
+        sg_run_ms(16);
+        if (trk[0].seq_idx != last) { last = trk[0].seq_idx; steps++; }
+    }
+    n = steps ? (host_px_n - px0) / steps : 99999u;
+    ok = steps > 40u && n <= 3000u && host_px_max < 240u * 240u / 4u;
+    printf("    56: %u steps, %u px a 1/16 on average, the largest transfer %u px\n", (unsigned)steps, (unsigned)n,
+           (unsigned)host_px_max);
+    bad += check("  56. playing at 140 BPM, all four tracks: 3,000 px or fewer a 1/16 on average, never the whole screen", ok);
+    /* 57. a note on T1 lights its dot within a frame, dark again by 150 ms; a muted track's stays dark */
+    for (n = 0; n < 4000u && !(trk_act & 1u); n++) pm_blocks(1);
+    frame();
+    ok = (trk_act & 1u) == 0u && sv.dot[0] == 1u;
+    for (ms = 0; ms < 400u && sv.dot[0]; ms += 16u) { fm1_ms += 0; frame(); trk_act &= ~1u; }
+    ok &= ms <= 150u && !sv.dot[0];
+    fx_latch |= 1u; perf_latch_on = 1;
+    btn_down(B_FX); frame(); sg_wtap(1); btn_up(B_FX); frame();   /* T2 muted (latched) */
+    trk_act |= 2u;
+    frame();
+    ok &= sv_muted(1) && !sv.dot[1];
+    sg_tap(8);                                          /* CLEAR */
+    fx_latch &= ~1u; perf_latch_on = 0;
+    transport_req = 2;
+    pm_blocks(2); frame();
+    bad += check("  57. a T1 note lights its dot within a frame, dark again in 150 ms or less; a muted track's dot stays dark", ok);
+    {   /* the L face has every glyph SONG's screen sets in it: the keys, BAR n/n, the tempo */
+        uint32_t r, k2;
+        char b[16];
+        ok = 1;
+        for (r = 0; r < 12u; r++)
+            for (k2 = 0; k2 < NELEM(SG_SCALES); k2++) {
+                sg.kpend = 1; sg.kroot = (uint8_t)r; sg.kscale = SG_SCALES[k2];
+                song_key_name(b, sizeof b);
+                ok &= sv_large_ok(b);
+            }
+        sg.kpend = 0;
+        ok &= sv_large_ok("BAR 12/64") && sv_large_ok("0123456789");
+        bad += check("  the L face holds every glyph of SONG's large text (12 keys x 9 scales, BAR n/n, the tempo)", ok);
+    }
+    sg_close();
+    return bad;
+}
+
 int main(void)
 {
-    int bad = test_open() + test_styles() + test_evolve() + test_names() + test_chords() + test_reroll() + test_golden() + test_drum() + test_051() + test_starter() + test_perform() + test_roles() + test_song() + test_song_fix() + test_song_fx() + test_song_perf() + test_song_v06();
+    int bad = test_open() + test_styles() + test_evolve() + test_names() + test_chords() + test_reroll() + test_golden() + test_drum() + test_051() + test_starter() + test_perform() + test_roles() + test_song() + test_song_fix() + test_song_fx() + test_song_perf() + test_song_v06() + test_song_view();
     printf("%s\n", bad ? "FORGE TEST FAILED" : "forge tests passed");
     return bad != 0;
 }

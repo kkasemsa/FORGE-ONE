@@ -4,6 +4,7 @@ Newest first. FORGE is the SEQ TOOLS F5 motif generator in FORGE ONE (based on F
 
 | Version | Date | Theme |
 | --- | --- | --- |
+| 0.15 | 24 Oct 2026 | SONG spec v0.6: one-touch control, its own screen; a longer splash |
 | 0.14 | 24 Oct 2026 | Three classic drum kits: 90, MP, SD; 808 and 909 kits in the pack |
 | 0.13 | 23 Oct 2026 | SONG: four parts A–D and the arrangement from one seed |
 | 0.12 | 23 Oct 2026 | F5 follows the track's sound: bass lines on a bass, held chords on a pad |
@@ -22,6 +23,42 @@ Newest first. FORGE is the SEQ TOOLS F5 motif generator in FORGE ONE (based on F
 | 0.3 | 21 Oct 2026 | Safe live turns, chords in every scale, pinned seeds |
 | 0.2 | 21 Oct 2026 | The generator: SEED, DENSITY, EVOLVE, 8 styles |
 | 0.1 | 21 Oct 2026 | Scaffold: F5 FORGE cell, CI build |
+
+## 0.15
+
+SONG to the Song Mode spec v0.6 (usability and display): the common things one touch, the screen read at arm's length.
+
+- **Keys** (§H7): F3–B3 alone FOCUS a track (the same key again: off); D4 + F3–B3 rerolls it (a locked one: `T3
+  LOCKED`); FX + F3–B3 mutes, as before. Decided at the key's down. D4 is ALT: held alone the faders; a tap does
+  nothing (v0.5's tap turned FOCUS off). C4 as before.
+- **Encoders** (§H9, §H10), free in SONG: SELECT the tempo ±1 (FX ±5; BPM LOCK: `BPM LOCKED`, an external clock: `EXT
+  CLOCK`); F5 TAP tempo (GLO's: the last 4 taps, 2 s starts over); ALGORITHM the key ±1 semitone, FX the scale (MIN DOR
+  PHRY MPEN HARM MAJ LYD MIX PEN); PRESETS the focus track's engine's presets (FOCUS off: the last focused).
+- **At the bar:** a KEY / SCALE change, a preset and a favourite wait for the bar and go in on its last 1/16 (its
+  notes played, so the change sounds from the next bar's first; missed, on the first pass after); a preset only 0.6 s
+  after the last detent; OCT− before then cancels a preset or favourite (`PRESET CANCELLED`, SONG stays open).
+  Stopped: the key and a favourite at once, a preset 0.6 s after. The key re-renders the part shown in the new key
+  (STARTER's ROOT path); written, it asks `SAVE X?`.
+- **Favourites:** D4 + black 1–4 loads FAV 1–4 on the focus track at the bar, D4 + FX + black 1–4 stores its engine
+  and preset (`FAV 2 STORED`); empty: `FAV 2 EMPTY`; a kit only on T4 and only a kit there (`FAV 4: DRUM ONLY T4`).
+  Kept with the settings in `favorites.factory[0][24..31]` (ANALOG's favourite bits of presets 192..255, which no
+  engine has; a test checks every engine has 192 or fewer). The spec's `[15][13..20]` overlaps the FX layer's key map
+  (`[15][14..23]`).
+- **Scenes** (§H11): a track whose preset or user preset changed since the store is skipped too, as one whose engine
+  did (`SCENE 1 SKIP T2`, the box `T2 SKIPPED (SOUND)`); every value held to its range.
+- **The screen** (§J, `ui_song_view.c`): tempo and key large (the key in the accent while it waits), the parts,
+  `BAR 3/8` and `STEP 09/16`, the position bar (the part's loop, or the chain's while GLO > SONG plays), 16 cells
+  with the playhead, the four tracks (a dot lit ~120 ms by each note, a level meter, `M` struck through, `L`,
+  `FOCUS` tinted), the scenes and the state or last message, the knob cards as the knobs are now. A box for 1.2 s
+  after a tempo, key, preset, scene or favourite change (while one waits for its bar, until then). Drawn by regions,
+  each with its own signature; playing, never the whole screen: per 1/16 the STEP digits and the two playhead cells,
+  the meters at ~30 Hz by the pixels that moved, the dots on a note and when they fade. One OR per note in the audio
+  path (`trk_act`, voice.c). The confirm (`OVERWRITE A-D?`) keeps the layer's screen.
+- **Splash:** about 1.2 s (was 0.43 s); a key or a button ends it at once.
+- Tests (forge_test): `test_song_perf` and the v0.4.1 tests on the new key map; `test_song_v06` 47–54;
+  `test_song_view` 55–57 (56: 2,334 px a 1/16 on average at 140 BPM, the largest transfer 1,160 px; host pixel
+  counter in ui_test.c's `lcd_fill` / `lcd_blit`), the L face's glyphs for every key and BAR. UI lint: 6 new
+  screens (the five boxes, playing). Test 58 is the device test.
 
 ## 0.14
 

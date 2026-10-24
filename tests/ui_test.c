@@ -107,9 +107,12 @@ static uint32_t host_fl_end(uint32_t y0, uint32_t y1)   /* the rows y0..y1-1: pi
         n += host_fl_n[k] == 2u && host_fl_mid[k] != host_screen[k];
     return n;
 }
+static uint32_t host_px_n, host_px_max;           /* (FORGE ONE 0.15: pixels sent to the panel, the largest transfer) */
 static void lcd_fill(uint32_t x, uint32_t y, uint32_t w, uint32_t h, uint16_t c)
 {
     uint32_t i, j;
+    host_px_n += w * h;
+    if (w * h > host_px_max) host_px_max = w * h;
 #ifdef UI_FILL_HOOK
     UI_FILL_HOOK(x, y, w, h);                     /* (tests/ui_render.c: what a fill covers is gone) */
 #endif
@@ -137,6 +140,8 @@ static void lcd_blit(uint32_t x, uint32_t y, uint32_t w, uint32_t h, const uint1
 {
     uint32_t i, j;
     host_blit_rows += h;
+    host_px_n += w * h;
+    if (w * h > host_px_max) host_px_max = w * h;
     for (j = 0; j < h && y + j < 240u; j++)
         for (i = 0; i < w && x + i < 240u; i++) host_put((y + j) * 240u + x + i, p[j * w + i]);
 }

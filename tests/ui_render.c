@@ -778,7 +778,7 @@ enum { S_HOME, S_HOME_IDLE, S_MESSAGE, S_MESSAGE_KEY, S_MESSAGE_NOFILE, S_PRESET
        S_DETAIL_COND, S_DETAIL_FILL, S_AUTO_COND, S_GLO_FILL, S_SEQ_EUCLID, S_SEQ_EUCLID_DRUM, S_SEQ_EUCLID_64,
        S_MENU_SELECT, S_PROJECT_ERASE, S_CONFIRM_ERASE_PROJ, S_TOOLS_CLEAN, S_CONFIRM_CLEAN,
        S_MENU_MIDI_TRACK, S_MENU_MIDI_TCH_UNUSED, S_MENU_MIDI_AUTO, S_HOME_TRACKS_MIDI, S_MIXER_MIDI, S_EDIT_PHASE_FOLD,
-       S_SEQ_FORGE, S_SEQ_FORGE_DUB, S_SEQ_FORGE_AMBIENT, S_SEQ_FORGE_64, S_SEQ_FORGE_DRUM, S_SEQ_FORGE_DRUM_64, S_SEQ_STARTER, S_SEQ_STARTER_AMBIENT, S_PERFORM, S_PERFORM_FX, S_SEQ_SONG, S_SEQ_SONG_CONFIRM, S_SEQ_SONG_SAVE, S_SEQ_SONG_FOCUS, S_SEQ_SONG_FOCUS_DRUM, S_COUNT };
+       S_SEQ_FORGE, S_SEQ_FORGE_DUB, S_SEQ_FORGE_AMBIENT, S_SEQ_FORGE_64, S_SEQ_FORGE_DRUM, S_SEQ_FORGE_DRUM_64, S_SEQ_STARTER, S_SEQ_STARTER_AMBIENT, S_PERFORM, S_PERFORM_FX, S_SEQ_SONG, S_SEQ_SONG_CONFIRM, S_SEQ_SONG_SAVE, S_SEQ_SONG_FOCUS, S_SEQ_SONG_FOCUS_DRUM, S_SEQ_SONG_OV_TEMPO, S_SEQ_SONG_OV_KEY, S_SEQ_SONG_OV_PRESET, S_SEQ_SONG_OV_SCENE, S_SEQ_SONG_OV_FAV, S_SEQ_SONG_PLAY, S_COUNT };
 static const char *const S_NAME[S_COUNT] = {"home", "home_idle", "message", "message_key", "message_nofile", "presets", "presets_nofav", "user",
     "phrases", "project", "tools", "song_empty", "song", "step", "auto_steps", "auto_add_chance", "automation", "drum",
     "drum_hand", "drum_cym", "mixer", "mixer_from_home", "mixer_pan", "env", "env_dest", "lfo", "mod", "fx", "slicer", "dly", "scl", "chord", "chord_wide", "chord_off", "chord_kit", "arp",
@@ -812,7 +812,7 @@ static const char *const S_NAME[S_COUNT] = {"home", "home_idle", "message", "mes
     "menu_midi_track", "menu_midi_channels_unused", "menu_midi_auto_select", "home_tracks_midi", "mixer_midi", "edit_phase_fold",
     "layer_seq_forge", "layer_seq_forge_dub", "layer_seq_forge_ambient", "layer_seq_forge_64", "layer_seq_forge_drum",
     "layer_seq_forge_drum_64", "layer_seq_starter", "layer_seq_starter_ambient", "layer_perform", "layer_perform_fx", "layer_seq_song",
-    "layer_seq_song_confirm", "layer_seq_song_save", "layer_seq_song_focus", "layer_seq_song_focus_drum"};
+    "layer_seq_song_confirm", "layer_seq_song_save", "layer_seq_song_focus", "layer_seq_song_focus_drum", "song_ov_tempo", "song_ov_key", "song_ov_preset", "song_ov_scene", "song_ov_fav", "song_play"};
 
 /* the STEP page's piano roll (ui_graph.c graph_roll) on track 1, stopped unless said: an empty pattern; ACID in
  * A minor; POLY chords (Am7 F C G, tied); a line with ties, slides and accents in C major; LEN 32 on its second
@@ -1574,6 +1574,8 @@ static void setup(int s)
         ui.msg_t = 0;
         break;
     case S_SEQ_SONG: case S_SEQ_SONG_CONFIRM: case S_SEQ_SONG_SAVE: case S_SEQ_SONG_FOCUS: case S_SEQ_SONG_FOCUS_DRUM:
+    case S_SEQ_SONG_OV_TEMPO: case S_SEQ_SONG_OV_KEY: case S_SEQ_SONG_OV_PRESET: case S_SEQ_SONG_OV_SCENE: case S_SEQ_SONG_OV_FAV:
+    case S_SEQ_SONG_PLAY:
         /* 0.13 SONG: SYNTHWAVE 42 part B, T3 locked
                                                    * (HELP ON); the confirm, slots A and C named, B and D empty; TRANCE
                                                    * 99 written, part D (BREAK), SAVE D? asked */
@@ -1595,6 +1597,18 @@ static void setup(int s)
         if (s == S_SEQ_SONG_SAVE) { sg.stage = SG_WRITTEN; song_part(SG_D); sg.pend = SG_D + 1u; song_say(); }
         if (s == S_SEQ_SONG_FOCUS) { sg.focus = 2; sg.scenes = 1; }   /* (0.14: FOCUS T2 LEAD, SCENE 1 stored) */
         if (s == S_SEQ_SONG_FOCUS_DRUM) { sg.focus = 4; sg.lock = 1u; song_part(SG_C); }
+        /* 0.15 (spec v0.6 §J1): the boxes, and the screen playing (bar 2 of 4, T3 muted, T4 locked, FOCUS T1) */
+        if (s == S_SEQ_SONG_OV_TEMPO) song_ov(SOV_TEMPO);
+        if (s == S_SEQ_SONG_OV_KEY) { sg.kpend = 1; sg.kroot = 1; sg.kscale = 2; song_ov(SOV_KEY); }
+        if (s == S_SEQ_SONG_OV_PRESET) { sg.focus = 1; sg.ppend = 1; sg.pk = 3; sg.pms = fm1_ms; song_ov(SOV_PRESET); }
+        if (s == S_SEQ_SONG_OV_SCENE) { sg.scenes = 3; sg.ov_skip = 2; song_ov(SOV_SCENE2); }
+        if (s == S_SEQ_SONG_OV_FAV) { sg.fpend = 3; sg.ftrk = 0; song_ov(SOV_FAV); }
+        sv.shown = 0;                                   /* (a scene: SONG's screen drawn whole) */
+        if (s == S_SEQ_SONG_PLAY) {
+            sg.focus = 1; sg.lock = 8u; sg.scenes = 1; trk[0].p[P_SLEN] = 64;
+            perf_latched = PF_BIT(PF_M1 + 2u); perf_kill = 0;
+            song.playing = 1; trk[0].seq_idx = 20; trk[1].peak = 9000; trk[3].peak = 20000; trk_act = 9u;
+        }
         ui.msg_t = 0;
         break;
     case S_SEQ_FORGE_DRUM: case S_SEQ_FORGE_DRUM_64:   /* 0.5: on the DRUM track, ACID at LEN 16, TRANCE EVOLVE 3 at 64 */
