@@ -538,13 +538,13 @@ held, with FX held.
   song.
   A track whose sound changed since (engine, preset) is skipped: the box says `T2 SKIPPED (SOUND)`.
 
-**Tempo, key and sounds without a hold** (spec v0.6): **SELECT** sets the tempo (FX held: 5 at a time; BPM LOCK and
-an external clock refuse it), **F5** taps it. **ALGORITHM** moves the key a semitone, with FX the scale (MIN DOR
+**Tempo, key and sounds without a hold** (spec v0.6): **SELECT** sets the tempo (FX held: 5 at a time), **F5** taps
+it; BPM LOCK and an external clock refuse both. **ALGORITHM** moves the key a semitone, with FX the scale (MIN DOR
 PHRY MPEN HARM MAJ LYD MIX PEN); playing, it waits for the next bar (the key shows in the accent until then), then all
 four tracks are written again in it. **PRESETS** browses the focus track's presets (FOCUS off: the last focused, T1
 at first); the sound changes at the next bar at least 0.6 s after the last turn (stopped: 0.6 s after it), and OCT−
-before then cancels it. **Favourites:** D4 + FX + black 1–4 stores the focus track's sound in FAV 1–4 (kept in the
-settings), D4 + black 1–4 loads it at the next bar (a DRUM kit only on T4, and only a kit there).
+before then cancels it. **Favourites:** D4 + FX + black 1–4 stores the focus track's sound in FAV 1–4 (a factory
+preset, or the user preset it plays; kept in the settings), D4 + black 1–4 loads it at the next bar (a DRUM kit only on T4, and only a kit there).
 
 **SONG's screen** (spec v0.6): read at arm's length. At the top the tempo and the key; the parts A–D (the one playing
 filled); `BAR 3/8` and `STEP 09/16`; a bar for where the part (or GLO > SONG's chain) is; 16 cells with the playhead;

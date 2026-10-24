@@ -902,8 +902,8 @@ static void seq_stop(void)
 {
     uint32_t i;
     song.playing = 0;
-    pq_apply();
-    sc_apply();                                    /* (0.14: a scene waiting for its 1/16 too) */                                    /* (0.9.1: a queued PERFORM change does not survive the stop) */
+    pq_apply();                                    /* (0.9.1: a queued PERFORM change does not survive the stop) */
+    sc_apply();                                    /* (0.13 SONG: a scene waiting for its 1/16 too) */
     cin_left = 0;                                  /* (a count-in: cancelled, nothing recorded) */
     cin_flush = 0;
     memset(cin_n, 0, sizeof cin_n);

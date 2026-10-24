@@ -55,6 +55,9 @@ SONG to the Song Mode spec v0.6 (usability and display): the common things one t
   the meters at ~30 Hz by the pixels that moved, the dots on a note and when they fade. One OR per note in the audio
   path (`trk_act`, voice.c). The confirm (`OVERWRITE A-D?`) keeps the layer's screen.
 - **Splash:** about 1.2 s (was 0.43 s); a key or a button ends it at once.
+- Review of 081a8ff: F5 TAP refuses under BPM LOCK (`BPM LOCKED`), as SELECT; a favourite stored from a track on a
+  user preset keeps the user preset (`FAV 1 STORED (USER)`; its slot emptied since: `FAV 1: USER SOUND GONE`);
+  seq.c seq_stop's two comments on one line separated.
 - Tests (forge_test): `test_song_perf` and the v0.4.1 tests on the new key map; `test_song_v06` 47–54;
   `test_song_view` 55–57 (56: 2,334 px a 1/16 on average at 140 BPM, the largest transfer 1,160 px; host pixel
   counter in ui_test.c's `lcd_fill` / `lcd_blit`), the L face's glyphs for every key and BAR. UI lint: 6 new

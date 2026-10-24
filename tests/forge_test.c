@@ -2151,8 +2151,14 @@ static int test_song_v06(void)
     ok &= song.g[G_BPM] >= 119 && song.g[G_BPM] <= 121;   /* (two taps of a new count: no tempo yet) */
     sg_wtap(14);
     ok &= song.g[G_BPM] >= 238 && song.g[G_BPM] <= 242;
+    ui_prefs |= PREF_BPM_LOCK;                          /* (review of 081a8ff: TAP refused as SELECT) */
+    bpm = song.g[G_BPM];
+    frames(2500u);
+    for (i = 0; i < 4u; i++) { sg_wtap(14); frames(300u); }
+    ok &= song.g[G_BPM] == bpm && msg_is("BPM LOCKED");
+    ui_prefs &= ~PREF_BPM_LOCK;
     song.g[G_BPM] = 128;
-    bad += check("  48. F5 TAP: 4 taps 500 ms apart: 120 BPM; after a 2.5 s gap the count starts over (250 ms: 240)", ok);
+    bad += check("  48. F5 TAP: 4 taps 500 ms apart: 120 BPM; after a 2.5 s gap the count starts over (250 ms: 240); BPM LOCK: BPM LOCKED", ok);
     /* 49. KEY: ALGORITHM +2 playing at step 5: the root as it was until the bar, then +2 on all four; stopped: at once */
     r0 = fs.root;
     transport_req = 1;
@@ -2243,7 +2249,21 @@ static int test_song_v06(void)
         ok &= msg_is("FAV 4: DRUM ONLY T4") && trk[0].preset == k && trk[0].eng_req == e1 && ENGINES[0]->npresets <= 192u;
         for (i = 0; i < NENGINES; i++)
             ok &= ENGINES[i]->npresets <= 192u;          /* (the favourites' bytes: ANALOG's bits of presets 192..255) */
-        bad += check("  52. favourites: D4+FX+black 2 stores, D4+black 2 loads it (kept in the settings); FAV 3 EMPTY; a DRUM one on T1 refused", ok);
+        {   /* (review of 081a8ff) T1 on a user preset: FAV 1 keeps the user preset, D4 + black 1 loads it back */
+            uint8_t sel = song.sel;
+            song.sel = 0;
+            up_store(5, "FAV USER");
+            (void)up_load(5);
+            song.sel = sel;
+            ok &= user_of(&trk[0]) == 5u;
+            sg_d4_black(0, 1);
+            ok &= msg_is("FAV 1 STORED (USER)") && sg_fav[0] == SG_FAV_USER && sg_fav[1] == 5u;
+            apply_preset_to(&trk[0], 2);
+            ok &= user_of(&trk[0]) == UP_SLOTS;
+            sg_d4_black(0, 0);
+            ok &= user_of(&trk[0]) == 5u && song.sel == sel;
+        }
+        bad += check("  52. favourites: D4+FX+black 2 stores, D4+black 2 loads it (kept in the settings); FAV 3 EMPTY; a DRUM one on T1 refused; a user preset kept as one", ok);
     }
     /* 53. black 1..4 alone: the parts, no favourite */
     k = trk[0].preset;

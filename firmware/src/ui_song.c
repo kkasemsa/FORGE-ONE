@@ -676,6 +676,10 @@ static void song_tap(void)                              /* F5: TAP tempo (GLO's:
         ui_message("EXT CLOCK");
         return;
     }
+    if (ui_prefs & PREF_BPM_LOCK) {                     /* (review of 081a8ff: as SELECT) */
+        ui_message("BPM LOCKED");
+        return;
+    }
     glo_tap();
     if (song.g[G_BPM] != b)
         song_ov(SOV_TEMPO);
@@ -752,29 +756,50 @@ static void song_load(uint32_t i, uint32_t e, uint32_t k)   /* track i: engine e
     apply_preset_to(t, k);
     ui.force = 1;
 }
-/* 0.15 §H10: four favourites, D4 + black 1..4 (FX: store), the focus track's engine and preset, in the settings: engine
- * + 1, preset (0 empty) in favorites.factory[0][24..31], ANALOG's favourite bits of presets 192..255, which no engine
- * has (tests/forge_test.c checks). (The spec's [15][13..20] is taken: [15][14..23] hold the FX layer's key map) */
+/* 0.15 §H10: four favourites, D4 + black 1..4 (FX: store), the focus track's sound, in the settings: engine + 1 and
+ * preset (0 empty), or SG_FAV_USER and a user preset's slot (the sound the track plays is a user preset's), in
+ * favorites.factory[0][24..31], ANALOG's favourite bits of presets 192..255, which no engine has (tests/forge_test.c
+ * checks). (The spec's [15][13..20] is taken: [15][14..23] hold the FX layer's key map) */
 #define sg_fav (&favorites.factory[0][24])
+#define SG_FAV_USER 0x80u
+static void song_fav_load(uint32_t i, uint32_t x)       /* favourite x into track i */
+{
+    uint32_t e = sg_fav[2u * (x & 3u)], k = sg_fav[2u * (x & 3u) + 1u];
+    if (e == SG_FAV_USER) {                             /* (up_load loads into the selected track: i, for the call) */
+        uint8_t sel = song.sel;
+        song.sel = (uint8_t)(i % NTRK);
+        (void)up_load(k);
+        song.sel = sel;
+        ui.force = 1;
+    } else {
+        song_load(i, e - 1u, k);
+    }
+}
 static void song_fav(uint32_t x, uint32_t store)
 {
-    uint32_t i = song_ftrack(), e = sg_fav[2u * (x & 3u)], dr;
+    uint32_t i = song_ftrack(), e = sg_fav[2u * (x & 3u)], dr, u;
     char b[28] = "FAV 1 ";
     b[4] = (char)('1' + (x & 3u));
     if (store) {
-        sg_fav[2u * (x & 3u)] = (uint8_t)(trk[i].eng_req + 1u);
-        sg_fav[2u * (x & 3u) + 1u] = trk[i].preset;
+        u = user_of(&trk[i]);
+        sg_fav[2u * (x & 3u)] = (uint8_t)(u < UP_SLOTS ? SG_FAV_USER : trk[i].eng_req + 1u);
+        sg_fav[2u * (x & 3u) + 1u] = (uint8_t)(u < UP_SLOTS ? u : trk[i].preset);
         settings_later();
-        str_cpy(b + 6, "STORED", sizeof b - 6u);
+        str_cpy(b + 6, u < UP_SLOTS ? "STORED (USER)" : "STORED", sizeof b - 6u);
         ui_message(b);
         return;
     }
-    if (!e || e > NENGINES) {
+    if (e == SG_FAV_USER && !up_used(sg_fav[2u * (x & 3u) + 1u])) {
+        str_cpy(b + 5, ": USER SOUND GONE", sizeof b - 5u);   /* (its slot erased or overwritten empty since) */
+        ui_message(b);
+        return;
+    }
+    if (!e || (e > NENGINES && e != SG_FAV_USER)) {
         str_cpy(b + 6, "EMPTY", sizeof b - 6u);
         ui_message(b);
         return;
     }
-    dr = ENGINES[e - 1u] == &ENG_DRUM;
+    dr = ENGINES[e == SG_FAV_USER ? up_engine(sg_fav[2u * (x & 3u) + 1u]) : e - 1u] == &ENG_DRUM;
     if (dr != (i == FP_DRUM && drum_track(&trk[i]))) {   /* (a kit on T4 only, and only a kit there) */
         b[5] = ':';
         str_cpy(b + 6, dr ? " DRUM ONLY T4" : " NOT ON DRUM", sizeof b - 6u);
@@ -784,7 +809,7 @@ static void song_fav(uint32_t x, uint32_t store)
     sg.fpend = (uint8_t)((x & 3u) + 1u);
     sg.ftrk = (uint8_t)i;
     if (!song.playing) {
-        song_load(i, e - 1u, sg_fav[2u * (x & 3u) + 1u]);
+        song_fav_load(i, x);
         sg.fpend = 0;
     }
     song_ov(SOV_FAV);
@@ -812,7 +837,7 @@ static void song_poll(void)
     if (sg.fpend && (bar || !song.playing)) {
         uint32_t x = sg.fpend - 1u;
         sg.fpend = 0;
-        song_load(sg.ftrk, sg_fav[2u * x] - 1u, sg_fav[2u * x + 1u]);
+        song_fav_load(sg.ftrk, x);
     }
     if (sg.ppend && fm1_ms - sg.pms >= 600u && (bar || !song.playing)) {
         uint32_t i = sg.ppend - 1u;
