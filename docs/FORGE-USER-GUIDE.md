@@ -379,7 +379,8 @@ them too. Edit a part as usual: load its slot, change it, save it back to the sa
 
 **Into SONG in one step (0.16, spec v0.7):** hold **SEQ for 0.6 s** (from anywhere, stopped or playing): SONG opens
 straight away with the last song (its SEED, genre, key, scale, tempo, part, locks and rerolls; kept in the settings
-when SONG is left or written), skipping the STARTER screen. A short SEQ tap is unchanged, and a key or knob touched
+when SONG is left or written), skipping the STARTER screen. A key set outside SONG since (SCL ROOT / SCALE) is taken instead of the song's (0.17);
+the box on entry says the key (`KEY D MIN`). A short SEQ tap is unchanged, and a key or knob touched
 while SEQ is held cancels it. Entering SONG by any way locks the layer open, so SEQ need not be held: to leave, press
 SEQ again (or HOME, or any page button). **MENU > SYSTEM > BOOT** `SONG` opens SONG with the last song at power-on,
 stopped, on part A (`NORMAL`, the default, does not).

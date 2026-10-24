@@ -48,6 +48,10 @@ SONG to the Song Mode spec v0.8-r2.
   block), not T4's step, so any LEN or DIV; a part waiting (tapped before or after the fill): the fill plays the rest
   of the bar and the part comes on time (it was a bar late); CHAIN, tapped in the part's last bar: the next part's last
   bar by its own bar count (was the current part's count).
+- **Key on SEQ held** (bug since 0.16): SONG opened with the last song's key even when ROOT / SCALE had been set
+  outside it (SCL), so it looked stuck (at C by default). The selected track's key is kept with the last song as SONG is
+  left (`SL_OUTKEY`); changed since, it wins, else the song's own key (as ALGORITHM left it). The entry box says it
+  (`KEY D MIN`).
 - **Bar lines once** (fix of 0.16): SONG's bar line fired on every pass in the bar's last half 1/16, so CHAIN counted a
   bar three or four times (its bars ran short). Now once a bar.
 - **PRESETS by category** (§2b): every sound of the focus track's category (`track_cat`; an OTHER sound: the role's),

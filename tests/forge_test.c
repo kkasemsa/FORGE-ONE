@@ -3380,6 +3380,30 @@ static int test_song_v08(void)
         ok = trk[1].eng_req == e1 && trk[1].preset == k1 && !fs.on;
     }
     bad += check("  109. out by SEQ again: the tracks keep the part and sounds shown (as 0.16)", ok);
+    /* (bug report on eef024e) the key set outside SONG since it was left wins on SEQ held; unchanged: the song's own
+     * (ALGORITHM's in SONG kept); the entry box says the key */
+    {
+        char k[16];
+        sg_hold_in();
+        kt(EN_ALGO, 3);                                 /* (in SONG: 3 up, stopped: at once) */
+        {
+            uint32_t r = fs.root;
+            sg_leave();
+            sg_hold_in();                               /* (nothing changed outside: the song's key) */
+            ok = fs.root == r && trk[0].p[P_ROOT] == (int16_t)r;
+        }
+        sg_leave();
+        btn_down(B_SCL); frame(); key_down(9); frame(); key_up(9); frame(); btn_up(B_SCL); frame();   /* SCL: ROOT D */
+        TSEL->p[P_SCALE] = 2;                           /* MIN */
+        ok &= TSEL->p[P_ROOT] == 2;
+        sg_hold_in();
+        song_key_name(k, sizeof k);
+        ok &= sg.on && fs.root == 2u && str_eq(k, "D MIN") && trk[0].p[P_ROOT] == 2 && trk[3].p[P_ROOT] == 2 &&
+              str_eq(sg_pop.note, "KEY D MIN");
+        if (!ok) printf("    key on entry: root %u key %s note %s\n", fs.root, k, sg_pop.note);
+        sg_leave();
+    }
+    bad += check("  (bug, eef024e) ROOT D set on SCL, SEQ held: SONG in D MIN (KEY D MIN in its box); unchanged: the song's key", ok);
     sg_close();
     sg_snd.valid = 0;
     return bad;

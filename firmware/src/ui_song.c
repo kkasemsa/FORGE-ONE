@@ -1752,7 +1752,8 @@ static void song_snd_ids(void)
 #define sg_last_nvar (&favorites.factory[3][8])
 #define sg_last_rvar (&favorites.factory[4][8])
 enum { SL_MAGIC, SL_SEED, SL_GENRE, SL_VAR, SL_ROOT, SL_SCALE, SL_BPM0, SL_BPM1, SL_LOCKPART, SL_DENS, SL_EVOL, SL_CB0,
-       SL_CB1, SL_FLAGS, SL_DIRTY, SL_N };
+       SL_CB1, SL_FLAGS, SL_DIRTY, SL_OUTKEY, SL_N };   /* (SL_OUTKEY 0.17: the selected track's ROOT | SCALE << 4 as
+                                                          * SONG was left; SL_FLAGS bit 3: it is set) */
 typedef char sg_last_fits[SL_N <= 16 ? 1 : -1];
 static uint8_t song_on(void) { return sg.on; }
 static void song_remember(void)
@@ -1775,7 +1776,8 @@ static void song_remember(void)
     h[SL_CB0] = (uint8_t)(sg.cbars[0] | sg.cbars[1] << 4);
     h[SL_CB1] = (uint8_t)(sg.cbars[2] | sg.cbars[3] << 4);
     h[SL_FLAGS] = (uint8_t)((sg.stage == SG_WRITTEN ? 1u : 0u) | (sg.chain ? 2u : 0u) |
-                            (song_snd_same() ? 4u : 0u));   /* (0.17: sg_ids are this song's) */
+                            (song_snd_same() ? 4u : 0u) | 8u);   /* (0.17: sg_ids are this song's; SL_OUTKEY set) */
+    h[SL_OUTKEY] = (uint8_t)((TSEL->p[P_ROOT] % 12) | (TSEL->p[P_SCALE] & 15) << 4);
     h[SL_DIRTY] = sg.dirty;
     for (x = 0; x < SG_N; x++)
         for (i = 0; i < NTRK; i++) {
@@ -1797,10 +1799,13 @@ static int song_restore(void)
         fs.dens = (uint8_t)clamp(h[SL_DENS], 50, 150);
         fg.evolve = (uint8_t)(h[SL_EVOL] > 4u ? 4u : h[SL_EVOL]);
     }
-    fs_open();
-    if (ok) {
-        fs.root = (uint8_t)(h[SL_ROOT] % 12u);
+    fs_open();                                          /* (fs.root, fs.scale: the selected track's key now) */
+    if (ok && (!(h[SL_FLAGS] & 8u) ||                   /* (0.17: the key set outside SONG since it was left wins, */
+               h[SL_OUTKEY] == (uint8_t)((TSEL->p[P_ROOT] % 12) | (TSEL->p[P_SCALE] & 15) << 4))) {   /* SCL or */
+        fs.root = (uint8_t)(h[SL_ROOT] % 12u);          /* STARTER ROOT; unchanged: the song's own) */
         fs.scale = (uint8_t)(h[SL_SCALE] % NELEM(N_SCALE));
+    }
+    if (ok) {
         if (!song_ext_clock())
             song.g[G_BPM] = (int16_t)clamp((int32_t)(h[SL_BPM0] | h[SL_BPM1] << 8), GP[G_BPM].min, GP[G_BPM].max);
     }
@@ -1832,7 +1837,9 @@ static int song_restore(void)
     {
         char b[SG_NAME_LEN + 1u];
         song_name(sg.part, b);
-        song_pop(SOV_POP, ok ? "LAST SONG" : "SONG", b, "", -1, 0);
+        char k[16] = "KEY ";
+        song_key_name(k + 4, sizeof k - 4u);
+        song_pop(SOV_POP, ok ? "LAST SONG" : "SONG", b, k, -1, 0);   /* (0.17: the key it opens in, ALGORITHM moves it) */
     }
     return (int)ok;
 }
