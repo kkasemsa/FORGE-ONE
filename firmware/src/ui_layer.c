@@ -53,6 +53,7 @@
 #include "ui_forge.c"                                   /* FORGE ONE: SEQ TOOLS F5 */
 #include "ui_starter.c"                                 /* FORGE ONE 0.6: SEQ TOOLS G5 */
 #include "ui_song.c"                                    /* FORGE ONE 0.13: STARTER's SONG */
+#include "ui_song_view.c"                               /* FORGE ONE 0.15: SONG's own screen (spec v0.6 §J) */
 enum { LK_HOLD, LK_SET };
 typedef struct {
     uint8_t btn, kind, fam;            /* the button, HOLD / SET, the family whose first page KNOB 1..4 edit */
@@ -160,6 +161,8 @@ static void layer_masks(void)
     }
 }
 
+static void song_seq_hold(uint32_t now, uint32_t combo);
+static uint8_t seq_used;                               /* FORGE ONE 0.16: a key or knob since SEQ was pressed (no SONG) */
 /* a layer button pressed (its edge) while none is armed: it is now, a dead one where no layer opens */
 static void layer_arm(uint32_t pressed, uint32_t now)
 {
@@ -172,6 +175,7 @@ static void layer_arm(uint32_t pressed, uint32_t now)
             ui.ly_t0 = (now & ~15u) | 1u | (layer_allowed() ? 0u : LY_DEAD);
             lys.dtap = lys.dt_l == l && fm1_ms - lys.dt_ms <= LY_DTAP_MS;   /* (#83: the second tap of a double tap?) */
             lys.dt_l = 0;
+            seq_used = 0;
             return;
         }
 }
@@ -210,6 +214,8 @@ static void layer_lock_input(uint32_t pressed)
     uint32_t keep = 1u << panel.btn[B_PLAY] | 1u << panel.btn[B_REC] | 1u << panel.btn[B_OCTDN] | 1u << panel.btn[B_OCTUP];
     if (ui.lock == LAYER_FX && fx_key_held())           /* (FX's lock, a key held: EDIT puts its default back) */
         keep |= 1u << panel.btn[B_EDIT];
+    if (ui.lock == LAYER_SEQ && fs.on && sg.on)         /* (FORGE ONE 0.16: SONG locked, FX its modifier) */
+        keep |= 1u << panel.btn[B_FX];
     if (lys.dt_l && (pressed & ~ly_bit(lys.dt_l)))
         lys.dt_l = 0;
     if (!ui.lock)
@@ -290,6 +296,7 @@ static uint32_t layer_gesture(uint32_t now, uint32_t combo)
         ui.lock = 0;                                    /* (the menu, a dialog, NAME: the lock closes) */
     }
     if (ly_down(l)) {
+        song_seq_hold(now, combo);
         if (!(*t0 & (LY_OPEN | LY_DEAD)) &&
             (combo || now - (*t0 & ~15u) >= (uint32_t)HOLD_MS[settings_hold % 4u] * 1000u * FM1_TICKS_PER_US)) {
             *t0 |= LY_OPEN | (combo ? LY_COMBO : 0u);
@@ -401,6 +408,54 @@ static void glo_tap(void)
         ui.bpm_t = 40;
     }
 }
+static void glo_tap_drop(void)                          /* FORGE ONE 0.16: the last tap was a hold (F5 CLICK), not a tap */
+{
+    if (lys.ntap)
+        lys.ntap--;
+}
+
+/* FORGE ONE 0.16 (spec v0.7 §1): SONG keeps the SEQ layer open (locked) with no button held; SEQ again leaves */
+static void song_autolock(void)
+{
+    if (ui.ly == LAYER_SEQ && !ui.lock && layer_allowed()) {
+        ui.lock = LAYER_SEQ;
+        ui.ly_t0 |= LY_OPEN;
+        ui.force = 1;
+    }
+}
+/* SEQ held SG_HOLD_SEQ_MS, nothing else touched: STARTER and SONG at once, with the last song (and locked) */
+static void song_seq_hold(uint32_t now, uint32_t combo)
+{
+    uint32_t *t0 = &ui.ly_t0;
+    if (ui.ly != LAYER_SEQ || ui.lock || (*t0 & (LY_DEAD | LY_COMBO)))
+        return;
+    if (combo || kb_layer || fm1_in.notes)
+        seq_used = 1;
+    if (seq_used || fs.on || fg.on || eu.on || !(fm1_in.buttons & ly_bit(LAYER_SEQ)) ||
+        now - (*t0 & ~15u) < SG_HOLD_SEQ_MS * 1000u * FM1_TICKS_PER_US)
+        return;
+    if (!(*t0 & LY_OPEN)) {
+        *t0 |= LY_OPEN;
+        layer_opened(LAYER_SEQ);
+    }
+    song_restore();                                     /* (song_toggle locks it) */
+    ui.force = 1;
+}
+/* BOOT = SONG (MENU SYSTEM): from the splash, SONG with the last song, stopped, part A */
+static void song_boot(uint32_t now)
+{
+    if (!layer_allowed())
+        return;
+    ui.ly = LAYER_SEQ;
+    ui.ly_t0 = (now & ~15u) | 1u | LY_OPEN;
+    layer_opened(LAYER_SEQ);
+    song_restore();
+    sg.part = SG_A;
+    sg.qpart = 0;
+    song_render(SG_A);
+    layer_show();
+    ui.force = 1;
+}
 
 /* SEQ TOOLS: white key place p's action on the selected track (ui_tools.c), "STOP TO EDIT" while a song plays */
 static void tools_key(uint32_t p)
@@ -420,8 +475,21 @@ static void tools_key(uint32_t p)
             return;
         }
     }
-    if (fs.on && sg.on && sg.stage == SG_CONFIRM)       /* (0.13 SONG's confirm: only OCT+ / OCT- answer it) */
+    if (fs.on && sg.on && sg.stage == SG_CONFIRM) {     /* (0.13 SONG's confirm: only OCT+ / OCT- answer it) */
+        if (p == TL_STARTER)
+            song_refuse("ANSWER FIRST", "OCT+ / OCT-");  /* (0.17, spec v0.8 §1; D4 + C4 FILL too) */
+        else if (p == TL_RANDOM && song_d4_down())
+            song_refuse("ANSWER FIRST", "OCT+ / OCT-");
         return;
+    }
+    if (fs.on && sg.on && p == TL_STARTER) {            /* 0.17 (spec v0.8 §1): G5 in SONG, one press: STARTER applied, */
+        fs_close(1);                                    /* SONG left (everything waiting dropped: song_off), the SEQ */
+        song_off();                                     /* lock released and the layer closed: the play screen. The */
+        layer_let_go(0);                                /* transport as it was */
+        ui_message("STARTER APPLIED");
+        ui.force = 1;
+        return;
+    }
     if (fs.on && sg.on && (p == TL_RANDOM || p == TL_COOK)) {   /* (0.13 SONG: the part shown, not the locked; 0.14: */
         if (p == TL_RANDOM)                             /* D4 is FOCUS, song_wkey's) */
             song_reroll();
@@ -550,6 +618,7 @@ static const char *const PF_NAME[PF_NFX + 1] = {"REPEAT 1/8", "REPEAT 1/16", "RE
 static const char *const PF_CELL[PF_NFX] = {"1/8", "1/16", "1/32", "REV", "LPF", "HPF", "STOP", "FRZ", "OCT+", "OCT-",
     "FLNG", "PHSR", "VERB", "ECHO", "CUT", "DIST", "DUCK"};
 static const char W_NOTE[16] = {'F', 'G', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'A', 'B', 'C', 'D', 'E', 'F', 'G'};
+static const char *song_fx_name(uint32_t e) { return PF_NAME[e < PF_NFX ? e : PF_NFX]; }   /* (FORGE ONE 0.16 SONG) */
 /* each pass: the map from the settings to the ISR (a change: seq.c makes a key held take its new effect) */
 static void fx_map_sync(void)
 {
@@ -747,17 +816,25 @@ static void layer_key(uint32_t l, uint32_t k)
             ui.force = 1;                               /* (0.13 SONG: effects, per-track rerolls, mutes) */
         else if (!key_black(k))
             tools_key(p);
-        else if (fs.on && p == 10u) {                   /* (0.13: F#5 SONG on / off) */
+        else if (fs.on && p == 10u && sg.on && song_d4()) {   /* (0.16: D4 + F#5 the auto-chain) */
+            sg.d4_used = 1;
+            song_chain_toggle();
+            ui.force = 1;
+        } else if (fs.on && p == 10u) {                 /* (0.13: F#5 SONG on / off) */
             song_toggle();
             ui.force = 1;
         } else if (fs.on && sg.on) {                    /* (SONG: black 1..4 a part, 5..8 a track's lock, 9 CLEAR, */
-            if (sg.stage != SG_CONFIRM && p < SG_N)     /* 10 DUCK) */
-                song_part(p);
+            if (sg.stage != SG_CONFIRM && p < SG_N && song_d4()) {   /* 10 DUCK; 0.15: D4 + 1..4 a favourite, */
+                sg.d4_used = 1;                         /* FX too: stored) */
+                song_fav(p, song_fx_btn());
+            } else if (sg.stage != SG_CONFIRM && p < SG_N)
+                song_hold_start(k, SH_PART, p);         /* (0.16: a tap the part at the bar, held FAV STORE) */
             else if (sg.stage != SG_CONFIRM && p >= 4u && p < 8u)
                 song_lock(p - 4u);
             else if (p == 8u) {
                 song_fx_clear();
                 ui_message("CLEAR: ALL OFF");
+                song_pop(SOV_POP, "CLEAR", "ALL OFF", "", -1, 0);
             } else if (p == 9u)
                 song_duck();
             ui.force = 1;
@@ -783,8 +860,8 @@ static void layer_keys(uint32_t keys)
         pm_poll();                                      /* (0.7 PERFORM: the scene keys' taps and holds) */
     lys.solo &= kb_layer;
     lys.fill &= kb_layer;
-    if (seq_fill != (lys.fill != 0u)) {                 /* (1.5.5: the steps' FILL / !FILL from the next step) */
-        seq_fill = (uint8_t)(lys.fill != 0u);
+    if (seq_fill != (lys.fill || sgf.live || sgf.bar)) {   /* (1.5.5: the steps' FILL / !FILL from the next step; */
+        seq_fill = (uint8_t)(lys.fill || sgf.live || sgf.bar);   /* FORGE ONE 0.17: SONG's FILL too) */
         ui.force = 1;
     }
     for (k = 0; k < 27u; k++)
@@ -831,8 +908,11 @@ static void layer_knob(uint32_t k, int32_t s)
         if (k == 3u && !perf_harm_on())
             s = -s;
         perf_k[k] = (int8_t)clamp(perf_k[k] + accel(EN_K1 + k, s, k ? 100 : 200), k ? 0 : -100, 100);
-    } else if (l == LAYER_SEQ && fs.on && sg.on && sg.stage != SG_CONFIRM && (song_d4() || sg.focus)) {
-        song_focus_knob(k, s);                          /* 0.14 SONG (spec v0.5): D4 held the faders, FOCUS the track's */
+        song_macro_pop(k);                              /* (0.16: its box) */
+    } else if (l == LAYER_SEQ && fs.on && sg.on && sg.stage != SG_CONFIRM && song_d4()) {
+        song_mix_knob(k, s);                            /* 0.15 SONG: D4 held, T1..T4 LEVEL */
+    } else if (l == LAYER_SEQ && fs.on && sg.on && sg.stage != SG_CONFIRM && sg.focus) {
+        song_focus_knob(k, s);                          /* 0.14 SONG (spec v0.5): FOCUS, the track's sound */
     } else if (l == LAYER_SEQ && fs.on && sg.on) {      /* 0.13 SONG: the same, then the part shown */
         if (sg.stage != SG_CONFIRM)
             song_knob(k, s);

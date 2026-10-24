@@ -186,10 +186,12 @@ are not touched.
 | SYNTH | 1 and 7, a push on 12 | Snare on 2 and 4 | 8ths | Open hat, tom | 70 % |
 | AMBIENT | 1 only | None | Sparse | Open hat, tom, rim, a bell | 45 % |
 
-Pick the kit first (PRESETS, or EDIT > K1 KIT): the same beat sounds very different on 80, DEEP or PERC. The beat is
+Pick the kit first (PRESETS, or tap **EDIT** on the DRUM track for EDIT 1, then K1 KIT: STD 80 10 66 55 77 DEEP TIGHT PERC 90 MP SD, the 0.14 kits 90 MP SD at the end; PRESETS has no new presets for them): the same beat sounds very different on 80, DEEP or PERC. The beat is
 ordinary drum-grid steps once applied, so edit it on the grid, mute lanes in the EDIT layer, or run the lane tools over it.
 
 ## 7. STARTER: a song start on all four tracks
+
+![STARTER keyboard map](keymaps/starter.png)
 
 **STARTER** (SEQ TOOLS **G5**, from 0.6) is FORGE for the whole song. One press loads a sound on each of the four
 tracks and writes a pattern for each, all from one seed:
@@ -373,40 +375,91 @@ parts:
 The parts are ordinary projects and the arrangement an ordinary SONG chain, so stock Felucca 1.6.1 loads and plays
 them too. Edit a part as usual: load its slot, change it, save it back to the same slot.
 
-**SONG's keys** (spec v0.5). With FX held only F3–B3, D5 / E5 and the knobs change:
+![SONG keyboard map](keymaps/song.png)
 
-| Key | In SONG | With FX held |
-| --- | --- | --- |
-| Black 1–4 (F#3 G#3 A#3 C#4) | Part A–D | same |
-| Black 5–8 (D#4 F#4 G#4 A#4) | Lock T1–T4 | same |
-| Black 9 (C#5) | CLEAR: every effect, latch, mute and DUCK off | same |
-| Black 10 (D#5) | DUCK on / off (non-drum tracks pump on the kick) | same |
-| Black 11 (F#5) | SONG on / off | same |
-| F3 G3 A3 B3 | Reroll T1 / T2 / T3 notes, T4 drum rhythm (the part shown, that track only); **with D4 held: FOCUS T1–T4** | Mute T1–T4 while held |
-| C4 | Reroll notes, every unlocked track | same |
-| D4 | FOCUS: hold + F3–B3 picks a track; hold alone: the focus track's faders; tap: FOCUS off | (FX wins on the knobs) |
-| E4 F4 G4 A4 B4 C5 | Held: REPEAT 1/16, LPF, HPF, TAPE STOP, REV THROW, ECHO THROW (no FX button needed) | same |
-| D5 / E5 | Recall SCENE 1 / 2 at the next 1/16 | Store SCENE 1 / 2 |
-| F5 | Nothing (`NOT IN SONG`) | same |
-| G5 | Applies STARTER, leaves SONG | same |
-| KNOB 1–4 | SEED DENSITY EVOLVE GENRE; FOCUS on or D4 held: the track's four (below) | FX macros FILTER CRUSH THROW DEPTH (back to 0 when FX is let go) |
+**Into SONG in one step (0.16, spec v0.7):** hold **SEQ for 0.6 s** (from anywhere, stopped or playing): SONG opens
+straight away with the last song (its SEED, genre, key, scale, tempo, part, locks and rerolls; kept in the settings
+when SONG is left or written), skipping the STARTER screen. A key set outside SONG since (SCL ROOT / SCALE) is taken instead of the song's (0.17);
+the box on entry says the key (`KEY D MIN`). A short SEQ tap is unchanged, and a key or knob touched
+while SEQ is held cancels it. Entering SONG by any way locks the layer open, so SEQ need not be held: to leave, press
+SEQ again (or HOME, or any page button). **MENU > SYSTEM > BOOT** `SONG` opens SONG with the last song at power-on,
+stopped, on part A (`NORMAL`, the default, does not).
+
+**SONG's keys** (spec v0.6, FORGE ONE 0.15; 0.16: spec v0.7). The columns: the key alone, with D4 held, with FX held.
+
+| Key | Alone | D4 held | FX held |
+| --- | --- | --- | --- |
+| Black 1–4 (F#3 G#3 A#3 C#4) | Tap: part A–D (playing: at the next bar); **held 0.5 s: store FAV 1–4** (the part stays) | Load FAV 1–4 (at the bar) | Part A–D (D4 + FX: store FAV 1–4) |
+| Black 5–8 (D#4 F#4 G#4 A#4) | Lock T1–T4 | same | same |
+| Black 9 (C#5) | CLEAR: every effect, latch, mute and DUCK off | same | same |
+| Black 10 (D#5) | DUCK on / off (non-drum tracks pump on the kick) | same | same |
+| Black 11 (F#5) | SONG on / off | **CHAIN on / off** | same |
+| F3 G3 A3 B3 | **FOCUS T1–T4** (the same key again: off) | Reroll T1 / T2 / T3 notes, T4 drum rhythm | Mute T1–T4 while held |
+| C4 | Reroll notes, every unlocked track | **FILL on T4** (0.17: held a live fill, tapped a full bar at the bar end) | same |
+| D4 | ALT: held alone, K1–K4 are T1–T4 LEVEL, a mixer (a tap does nothing) | – | – |
+| E4 F4 G4 A4 B4 C5 | Held: REPEAT 1/16, LPF, HPF, TAPE STOP, REV THROW, ECHO THROW (no FX button needed) | same | same |
+| D5 / E5 | Tap: recall SCENE 1 / 2 at the next 1/16; **held 0.5 s: store** | – | Store SCENE 1 / 2 |
+| F5 | **TAP tempo** (the last 4 taps; 2 s starts over); **held 0.5 s: CLICK on / off** | same | same |
+| G5 | Applies STARTER, leaves SONG (0.17: back to the play screen in one press) | same | same |
+| SELECT | **Tempo** ±1 BPM | same | ±5 BPM |
+| ALGORITHM | **Key** ±1 semitone, at the next bar | **CHAIN bars** of the part shown (1 2 4 8 16) | **Scale**, at the next bar |
+| OCT− | Cancel a change waiting; KEEP; cancel / done (0.35 s later) | – | – |
+| OCT− twice (within 0.35 s) | **UNDO** the last reroll, preset, favourite or KEY / SCALE change (one level) | – | – |
+| PRESETS | **Every sound of the focus track's category** (0.17; T4 on drums: the drum list), loaded at the next bar (OCT−: cancel) | same | **the next / previous category** (T4 drums: the next group) |
+| KNOB 1–4 | SEED DENSITY EVOLVE GENRE; FOCUS on: the track's four (below) | T1–T4 LEVEL (they stay when D4 is let go) | FX macros FILTER CRUSH THROW DEPTH (back to 0 when FX is let go) |
 
 - A locked track ignores its own reroll key (`T3 LOCKED`). Before the song is written a per-track reroll says
-  `NEW T3`; after, it asks `SAVE X?` like C4. (0.13 / spec v0.5: D4's reroll of every track's rhythm is gone; B3
-  rerolls T4's.)
-- Whether F3–B3 mute or reroll is decided when the key goes down: FX held then, it mutes until the key is let go
-  (even if FX is let go first); FX pressed after the key, it was a reroll. Mutes are never saved and never change
+  `NEW T3`; after, it asks `SAVE X?` like C4. (0.13 / spec v0.5: D4's reroll of every track's rhythm is gone; D4 +
+  B3 rerolls T4's.)
+- What F3–B3 do is decided when the key goes down: FX held then, a mute until the key is let go (even if FX is let
+  go first); else D4 held, a reroll; else FOCUS. Pressing D4 or FX after the key changes nothing. Mutes are never saved and never change
   the chain: a track the chain row silences (`-`, as in INTRO and OUTRO) stays silent.
 - With MENU > FX LATCH ON the effects and mutes toggle and stay on across part changes and rerolls; CLEAR turns
-  them off. Leaving SONG (F#5, G5, letting go of SEQ) turns every effect, latch, mute and DUCK off.
+  them off. Leaving SONG (F#5, G5, pressing SEQ again) turns every effect, latch, mute and DUCK off.
+- **G5 (0.17):** applies STARTER (the four tracks keep the part shown), leaves SONG and closes the SEQ layer: the
+  normal play screen in one press (`STARTER APPLIED`), the transport as it was. At the `OVERWRITE A-D?` question it
+  says `ANSWER FIRST` (OCT+ or OCT−). Anything waiting (a part, a key, a preset, a fill, a single OCT−) is dropped.
+- **FILL (0.17):** hold D4 and press C4 for a drum fill on T4, never written into the pattern. Held, the fill plays
+  from the next 1/16 until you let go, then the beat comes back at the next 1/16 and a crash lands on the next
+  downbeat. A short press (under 0.5 s) plays a few 16ths, then arms a full-bar fill for the bar end (`FILL @ BAR END`;
+  with a part waiting, the fill plays the rest of the current bar and the part still changes on time, `@ PART B`;
+  with CHAIN on, the part's last bar). The crash is the kit's cymbal, or an accented open hat on a kit without one
+  (80, 66, TIGHT, PERC); a kit without toms (66, PERC, MP: congas) plays the tom runs on the snare. C4 again while
+  armed: `FILL OFF`. Four kinds from the SEED, the part and the bar: SNARE ROLL, TOM RUN, KICK BUILD, CRASH (that one
+  ends on a crash); DENSITY makes them busier. It plays with T4 locked; refused (red) when stopped (`PLAY FIRST`), when
+  T4 is not a DRUM sound (`NO DRUM`), muted with FX (`T4 MUTED`) or silent in the chain's row (`T4 OFF`). The steps'
+  FILL conditions play while it does. C4 alone still rerolls.
+- **Sounds by category (0.17):** PRESETS steps through every sound of the focus track's category: the factory presets
+  of every engine (in the PRESETS list's order), the FORGE PACK sounds (a pack sound's category is its base preset's)
+  and your user presets; the box says `T1 BASS 5/18` and `FM6 FM BASS` (`PACK DEEP BASS`, `USER ...`). FX + PRESETS
+  jumps to the next category (BASS LEAD PAD PLUCK KEYS FX DRUM, right next, left back) on its first sound
+  (`T2 CATEGORY` `PAD 1/21`). T4 on a drum sound has the drum list: the 12 DRUM KIT models (STD 80 10 66 55 77 DEEP
+  TIGHT PERC 90 MP SD: a model changes only the KIT, your TUNE and other values stay), the pack's 8 kits, the other drum
+  sounds, then user drum presets; FX + PRESETS jumps between those groups and never leaves the drums. All of it loads at
+  the next bar, OCT− before then cancels, OCT− twice undoes. Favourites keep a KIT model and a pack sound as they are.
+  (Outside SONG, PRESETS is unchanged.)
+- **Sounds stay (0.17):** the sounds you pick in SONG (presets, kits, knob edits) stay when you leave SONG and come back
+  (SEQ held, F#5, BOOT = SONG), and across parts and rerolls. A song's own sounds come back only when the song changes
+  (SEED, GENRE, variation). After a power-off, BOOT = SONG and SEQ held load the presets and kits you last picked; knob
+  edits of a song never saved are not kept over a power-off (the orange dots say it is unsaved).
+- **UNDO (0.16):** press OCT− twice quickly. It takes back the last reroll (C4 or one track), the last preset or
+  favourite loaded, or the last KEY / SCALE change (one level: then `NOTHING TO UNDO`). A single OCT− still does
+  what it did, 0.35 s later (it waits to see if a second press comes).
+- **CLICK (0.16):** hold F5 for 0.5 s. A visual metronome: `CLK` in the header and the BAR row flashes on every beat
+  (filled on beat 1, framed on the others). There is no audible click (the FM-1 has only the main output).
+- **CHAIN (0.16):** D4 + F#5 turns the auto-chain on: A → B → C → D → A… each part for its bars, changing at the bar,
+  forever. D4 + ALGORITHM sets the bars of the part shown (1, 2, 4, 8 or 16; 8 at first). The state line shows
+  `CHAIN 3/8` (the bar in the part / its bars). Tapping a part while it runs goes there at the bar and the chain
+  carries on from it. It plays the tracks as SONG shows them (not GLO > SONG's arrangement).
 
-**FOCUS, faders and scenes** (spec v0.5, the performance layer):
+**FOCUS, faders and scenes** (spec v0.5, v0.6):
 
-- **FOCUS:** hold D4 and press F3 / G3 / A3 / B3 to put T1 BASS / T2 LEAD / T3 PAD / T4 DRUM on the knobs; the knob
-  cards and the track row show it (`FOCUS T2`). It stays after D4 is let go. D4 + the same key, or a D4 tap, turns it
-  off. A locked track can be focused (a lock is for notes and rhythm).
-- **Faders:** hold D4 alone and turn the knobs: the focus track's (with FOCUS off, the last focused, T1 at first).
-  Let go: the values stay, the knobs go back. FX held always wins: its macros, which snap back.
+- **FOCUS:** tap F3 / G3 / A3 / B3 to put T1 BASS / T2 LEAD / T3 PAD / T4 DRUM on the knobs; the knob cards and the
+  track row show it (`FOCUS`). Tap the same key again to turn it off. A locked track can be focused (a lock is for
+  notes and rhythm).
+- **Levels (0.15):** hold D4 alone and turn K1–K4: T1–T4 LEVEL, a mixer, FOCUS on or off (0.16: `MIXER` large across
+  the top while D4 is held, the cards show the four levels). Let go: the levels stay, the knobs go back. FX held always
+  wins: its macros, which snap back.
 
 | Track | KNOB 1 | KNOB 2 | KNOB 3 | KNOB 4 |
 | --- | --- | --- | --- | --- |
@@ -418,9 +471,30 @@ them too. Edit a part as usual: load its slot, change it, save it back to the sa
   track's DIST). The knobs are encoders, so a value always moves on from where it is: nothing jumps when you change
   track or recall a scene. These are the tracks' real settings: they stay across parts, rerolls and CLEAR, and are
   saved with a part like any sound edit.
-- **Scenes:** FX + D5 / E5 stores the knob settings of all four tracks; tapping D5 / E5 brings them back on the next
+- **Scenes:** hold D5 / E5 for 0.5 s (or FX + D5 / E5) to store the knob settings of all four tracks; tapping D5 / E5 brings them back on the next
   1/16 (stopped: at once). An empty one says `SCENE 2 EMPTY`. Scenes live until power-off and are not saved with the
   song.
+  A track whose sound changed since (engine, preset) is skipped: the box says `T2 SKIPPED (SOUND)`.
+
+**Tempo, key and sounds without a hold** (spec v0.6): **SELECT** sets the tempo (FX held: 5 at a time), **F5** taps
+it; BPM LOCK and an external clock refuse both. **ALGORITHM** moves the key a semitone, with FX the scale (MIN DOR
+PHRY MPEN HARM MAJ LYD MIX PEN); playing, it waits for the next bar (the key shows in the accent until then), then all
+four tracks are written again in it. **PRESETS** browses the focus track's presets (FOCUS off: the last focused, T1
+at first); the sound changes at the next bar at least 0.6 s after the last turn (stopped: 0.6 s after it), and OCT−
+before then cancels it. **Favourites:** D4 + FX + black 1–4 stores the focus track's sound in FAV 1–4 (a factory
+preset, or the user preset it plays; kept in the settings), D4 + black 1–4 loads it at the next bar (a DRUM kit only on T4, and only a kit there).
+
+**SONG's screen** (spec v0.6): read at arm's length. At the top the tempo and the key; the parts A–D (the one playing
+filled); `BAR 3/8` and `STEP 09/16`; a bar for where the part (or GLO > SONG's chain) is; 16 cells with the playhead;
+the four tracks with a dot that lights on each note, a level meter, `M` for a mute, `L` for a lock and `FOCUS`; the
+two scenes and the state or the last message; the four knob cards as the knobs are now.
+
+**Every action shows (0.16, spec v0.7 §A):** each key, knob or encoder in SONG opens a box in the middle of the
+screen for about a second: what it is small (`T1 BASS`, `PART`, `FAV 2 SAVED`, `TEMPO`), what happened large
+(`CUT 74`, `B`, the preset's name, `126 BPM`), and a bar for a value or `@ NEXT BAR` for a change that waits. The next
+action replaces it at once. Something refused (`BPM LOCKED`, `EXT CLOCK`, `T3 LOCKED`, `FAV 2 EMPTY`) has a red
+frame. A part that differs from its saved slot has an orange dot on its block (all four until the song is written;
+`SAVE A-D` or `SAVE X?` clears them).
 
 ## 8. What FORGE writes, and what it leaves alone
 

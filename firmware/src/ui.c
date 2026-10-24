@@ -73,6 +73,8 @@ static uint32_t up_gen;                      /* bumped on every user bank change
  * only the panel wakes SCREEN OFF, as up to 1.5.1; 0, every older setting, = +MIDI, the default: a note-on too).
  * 1.5.6: bit 6 SELECT's second bit (#84: sel_mode). Bit 7 free */
 #define ui_prefs2 (favorites.factory[15][24])
+#define fg_prefs (favorites.factory[15][13])           /* FORGE ONE 0.16: its own settings (bit 0 MENU > SYSTEM > BOOT SONG) */
+#define FGP_BOOT_SONG 1u
 #define PREF_X 0xFF0000u                       /* (menu_items.c MENU_FLAGS: a bit of ui_prefs2, << 16) */
 #define PREF_SCOPE_MIX (0x01u << 16)
 #define PREF_PREVIEW (0x02u << 16)

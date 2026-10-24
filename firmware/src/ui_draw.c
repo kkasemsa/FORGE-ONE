@@ -1552,6 +1552,7 @@ static void style_apply(void)
 }
 
 static void ui_draw_page(uint32_t counting);
+static int song_view(void);                             /* (FORGE ONE 0.15: ui_song_view.c) */
 static void ui_draw(void)
 {
     static uint8_t counting;
@@ -1593,6 +1594,19 @@ static void ui_draw_page(uint32_t counting)
     }
     if (name_on()) {                                    /* NAME: a user preset's or a project's (ui_name.c) */
         name_draw();
+        return;
+    }
+    if (ui.layer && song_view()) {                      /* FORGE ONE 0.15: SONG's own screen, by regions */
+        if (ui.msg_t && !--ui.msg_t && ui.msg2[0]) {
+            str_cpy(ui.msg, ui.msg2, sizeof ui.msg);
+            ui.msg2[0] = 0;
+            ui.msg_t = 60;
+        }
+        if (ui.hot_t)
+            ui.hot_t--;
+        if (ui.bpm_t)
+            ui.bpm_t--;
+        ui.force = 0;
         return;
     }
     if (ui.layer) {                                     /* a layer's map over the page (ui_layer.c) */

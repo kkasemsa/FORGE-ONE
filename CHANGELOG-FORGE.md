@@ -4,6 +4,9 @@ Newest first. FORGE is the SEQ TOOLS F5 motif generator in FORGE ONE (based on F
 
 | Version | Date | Theme |
 | --- | --- | --- |
+| 0.17 | 24 Oct 2026 | SONG spec v0.8: G5 one-press exit, FILL on D4 + C4, PRESETS by category, sounds kept |
+| 0.16 | 24 Oct 2026 | SONG spec v0.7: SEQ held opens SONG, every action on screen, holds, UNDO, CLICK, CHAIN |
+| 0.15 | 24 Oct 2026 | SONG spec v0.6: one-touch control, its own screen; a longer splash |
 | 0.14 | 24 Oct 2026 | Three classic drum kits: 90, MP, SD; 808 and 909 kits in the pack |
 | 0.13 | 23 Oct 2026 | SONG: four parts A–D and the arrangement from one seed |
 | 0.12 | 23 Oct 2026 | F5 follows the track's sound: bass lines on a bass, held chords on a pad |
@@ -22,6 +25,147 @@ Newest first. FORGE is the SEQ TOOLS F5 motif generator in FORGE ONE (based on F
 | 0.3 | 21 Oct 2026 | Safe live turns, chords in every scale, pinned seeds |
 | 0.2 | 21 Oct 2026 | The generator: SEED, DENSITY, EVOLVE, 8 styles |
 | 0.1 | 21 Oct 2026 | Scaffold: F5 FORGE cell, CI build |
+
+## 0.17
+
+SONG to the Song Mode spec v0.8-r2.
+
+- **G5** (§1): in SONG, STARTER applied, SONG left (everything waiting dropped: a part, a key, a preset, a fill, a
+  single OCT−), the SEQ lock released and the layer closed (`layer_let_go`): the play screen in one press, the transport
+  as it was (SEQ held, F#5 + SONG or BOOT alike). At the confirm: red `ANSWER FIRST`. The message is the play screen's
+  `STARTER APPLIED` (the action box is SONG's screen's).
+- **FILL** (§2, D4 + C4; C4 alone rerolls as before): generated a step at a time (`seq.c` `fill_step`: SNARE ROLL,
+  TOM RUN, KICK BUILD, CRASH END; DENSITY 0..3 from STARTER's; toms and the crash as GM notes 50..41 and 49), played by
+  the sequencer in place of T4's step (`sgf`, read once a step: never written, saved or undone, played with T4 locked;
+  the steps' FILL conditions with it). Held: from the next 1/16; let go after 0.5 s: the beat at the next 1/16, a crash
+  on the next downbeat. Tapped: the live 16ths stop at the next 1/16, a full bar armed for the next bar line (a part
+  waiting: the bar before it, the part after the fill; CHAIN: the part's last bar, in it already: the next part's), C4
+  again `FILL OFF`. Refused (red): `PLAY FIRST`, `NO DRUM`, `T4 MUTED` (armed then muted: dropped), `T4 OFF`, `ANSWER
+  FIRST`. The type: a hash of SEED, part and fill.
+- **FILL review** (of dfb7d01): the crash is the kit's own (GM 49 only where the kit's BELL lane is a cymbal: STD 10
+  55 77 DEEP 90 MP SD; else the open hat, accented: 80 66 TIGHT PERC); toms only where the kit's TOM lane is one, else
+  the snare (GM 40 / 38: 66 PERC MP, congas there); the 1/16 of the bar from the clock (`sgf_pos`: clk_step and the
+  block), not T4's step, so any LEN or DIV; a part waiting (tapped before or after the fill): the fill plays the rest
+  of the bar and the part comes on time (it was a bar late); CHAIN, tapped in the part's last bar: the next part's last
+  bar by its own bar count (was the current part's count).
+- **Key on SEQ held** (bug since 0.16): SONG opened with the last song's key even when ROOT / SCALE had been set
+  outside it (SCL), so it looked stuck (at C by default). The selected track's key is kept with the last song as SONG is
+  left (`SL_OUTKEY`); changed since, it wins, else the song's own key (as ALGORITHM left it). The entry box says it
+  (`KEY D MIN`).
+- **Bar lines once** (fix of 0.16): SONG's bar line fired on every pass in the bar's last half 1/16, so CHAIN counted a
+  bar three or four times (its bars ran short). Now once a bar.
+- **PRESETS by category** (§2b): every sound of the focus track's category (`track_cat`; an OTHER sound: the role's),
+  factory presets in PRESETS order, then the FORGE PACK (a pack sound's category its base preset's: HOUSE ORGAN, on
+  WHEEL's JAZZ PERC, is KEYS), then user presets; from the sound playing, round; box `T1 BASS 5/18` `FM6 FM BASS`
+  (`PACK ..`, `USER ..`). FX + PRESETS: the next / previous category, the empty skipped, on its first sound (`T2
+  CATEGORY` `PAD 1/21`). T4 on a drum sound: the drum list, 12 KIT models (K1 only; from a pack or user sound: DRUM
+  KIT, then K1), the pack's 8 kits (pack order), other DRUM-category sounds, user drum presets; FX: its groups, never
+  out of DRUM (a non-drum T4 jumping to DRUM gets it). At the bar 600 ms after the last detent, OCT− cancels, OCT− twice
+  undoes (the pack sound too), the dot. Lists built as they are read (no table; the pack's categories cached, 43 B).
+  Outside SONG: unchanged (decided: SONG only). Favourites keep a pack sound (`SG_FAV_PACK`) and a DRUM sound's KIT
+  model (preset | (K1 + 1) << 2; 0.16's favourites load as before).
+- **Sounds kept** (§2c, bug): leaving SONG kept nothing and coming back loaded the song's defaults. Now `sg_snd`
+  (in the pool, ~1.4 KB: engine, preset, user, pack, FM6 patch and slot, every value of T1..T4, with the song's SEED /
+  genre / variation) is taken when SONG is left (STARTER closing, F#5, SAVE) and put back when the same song opens (SEQ
+  held, F#5, BOOT); the ids (engine, preset or preset + KIT model, user, pack) in the settings beside the last song
+  (`favorites.factory[5][8..23]`) for a power-off. Only another song (SEED, GENRE, variation) loads its defaults (SEED
+  in SONG now does too).
+- Tests (forge_test `test_song_v08`, the host halves of 78–128; 101 / 117 / 109 noted in the PR), 3 ui_render
+  screens, keymap, guides, H_SONG.
+
+## 0.16
+
+SONG to the Song Mode spec v0.7 r3 (usability: one-step entry, one play screen, fewer combos). D4 held stays the
+T1–T4 LEVEL mixer of 0.15 (the spec's `FADER Tn` became `MIXER`, as decided after the 0.15 hardware test).
+
+- **Entry** (§1): SEQ held 0.6 s (`SG_HOLD_SEQ_MS`), nothing else touched, opens STARTER and SONG at once with the
+  last song: SEED, genre and variation, DENSITY, EVOLVE, ROOT, SCALE, BPM (not on an external clock), the part, the
+  locks, the per-part rerolls, the chain's bars, written or not. A tap of SEQ, or a key or knob while it is held, is
+  as before. Kept with the settings when SONG is left (any way) or writes its slots: 16 bytes in
+  `favorites.factory[2][8..23]`, the rerolls in `[3][8..23]` and `[4][8..23]` (engines 2..4's favourite bits of
+  presets 64..191, which no engine has; the test checks). The parts are rendered again from the seed and rerolls.
+- **Auto-lock:** entering SONG (SEQ held, F#5 in STARTER, BOOT) locks the SEQ layer open; FX stays a modifier (it does
+  not close the lock); SEQ again (or HOME, a page button) leaves.
+- **MENU > SYSTEM > BOOT** `NORMAL` / `SONG` (`favorites.factory[15][13]` bit 0; not in the editor's MENU): power-on
+  opens SONG with the last song, stopped, part A.
+- **Action box** (§A): every key, knob and encoder in SONG opens a 200×110 box over the middle for `SG_POPUP_MS`
+  (1 s): the context small (AF_M), the action large (AF_L, AF_M when it has lowercase or is too wide), a value bar or
+  `@ NEXT BAR`; refused: framed red (`BPM LOCKED`, `EXT CLOCK`, `T3 LOCKED`, `FAV 2 EMPTY`, `SCENE 2` `EMPTY`,
+  `NOTHING TO UNDO`). The next action replaces it at once; drawn as its own region, the rows under it drawn again when
+  it closes (the parts and T4's row stay drawn beside it). One struct (`sg_pop`), no new fonts.
+- **D4 held:** `MIXER` large across the head (the tempo and key back when it is let go); the state line
+  `K1-K4: T1-T4 LEVEL`.
+- **Holds** (`SG_HOLD_MS` 500 ms, one engine: `song_hold_*`): black 1–4 tap = the part (playing: at the next bar;
+  stopped: at once), held = store FAV 1–4 (the focus track's sound; the part not changed); D5 / E5 tap = recall, held =
+  store (FX + D5 / E5 still stores at once); F5 tap = TAP, held = CLICK on / off (the hold's tap taken back).
+- **UNDO** (§3): OCT− twice within 350 ms (`SG_OCT2_MS`): one level, the last reroll (C4 or a track: the part's
+  reroll counters back and the part rendered again), the last preset or favourite loaded (engine, preset, user slot and
+  the track's values), the last KEY / SCALE change. A single OCT− acts 350 ms later (at the confirm `OVERWRITE A-D?`:
+  at once).
+- **CLICK** (§4): visual only (the FM-1 has one audio out): `CLK` in the head; the BAR row filled on beat 1 and framed
+  on beats 2–4 for 80 ms.
+- **CHAIN** (§4): D4 + F#5 on / off; D4 + ALGORITHM the bars of the part shown (1 2 4 8 16, 8 at first); A → B → C → D
+  → A at the bar, forever; `CHAIN 3/8` on the state line; a part tapped while it runs: at the bar, the chain on from it.
+  The SONG tracks only (GLO > SONG's chain is not touched).
+- **Dots** (§5): an orange dot on each part block not as its slot (all four until written; a reroll, a key, a sound
+  load or a SONG knob marks them; SAVE A-D and SAVE X clear); `NOT SAVED YET` removed.
+- Review: the 0.14 SONG map's rows and `FOCUS` / `FADER` state line removed from `layer_song` (only the confirm draws
+  there now; SONG's own screen does the rest). Leaving SONG (SEQ, F#5, G5, the layer) while a single OCT− waits its
+  350 ms clears it with the other waiting changes (`song_off`, `song_toggle`), and its poll runs only while SONG is on:
+  nothing fires late (tested for all three exits and re-entry).
+- Tests (forge_test, `test_song_v07`, the host halves of 59–77): the lock and constants; the box for knob, FOCUS, LOCK,
+  DUCK, CLEAR, TEMPO, FX, replaced at once and gone after 1 s; red boxes; OP2 tap / hold / D4 recall; UNDO of a reroll,
+  a preset, a key, then `NOTHING TO UNDO`, a single OCT− 350 ms later; F5 hold CLICK and its flashes; D5 hold / tap;
+  CHAIN order, bars, a part tapped; the dots; SEQ held (last song from the settings), a tap, a key while held; BOOT.
+  Older SONG tests now leave by SEQ again and wait for OCT−'s 350 ms. ui_test: SYSTEM has 8 rows; SEQ held 0.8 s opens
+  SONG. ui_render: four new screens (the knob box, a part at the bar, a red box, CLICK + CHAIN + dots).
+
+## 0.15
+
+SONG to the Song Mode spec v0.6 (usability and display): the common things one touch, the screen read at arm's length.
+
+- **Keys** (§H7): F3–B3 alone FOCUS a track (the same key again: off); D4 + F3–B3 rerolls it (a locked one: `T3
+  LOCKED`); FX + F3–B3 mutes, as before. Decided at the key's down. D4 is ALT: held alone the faders; a tap does
+  nothing (v0.5's tap turned FOCUS off). C4 as before.
+- **Encoders** (§H9, §H10), free in SONG: SELECT the tempo ±1 (FX ±5; BPM LOCK: `BPM LOCKED`, an external clock: `EXT
+  CLOCK`); F5 TAP tempo (GLO's: the last 4 taps, 2 s starts over); ALGORITHM the key ±1 semitone, FX the scale (MIN DOR
+  PHRY MPEN HARM MAJ LYD MIX PEN); PRESETS the focus track's engine's presets (FOCUS off: the last focused).
+- **At the bar:** a KEY / SCALE change, a preset and a favourite wait for the bar and go in on its last 1/16 (its
+  notes played, so the change sounds from the next bar's first; missed, on the first pass after); a preset only 0.6 s
+  after the last detent; OCT− before then cancels a preset or favourite (`PRESET CANCELLED`, SONG stays open).
+  Stopped: the key and a favourite at once, a preset 0.6 s after. The key re-renders the part shown in the new key
+  (STARTER's ROOT path); written, it asks `SAVE X?`.
+- **Favourites:** D4 + black 1–4 loads FAV 1–4 on the focus track at the bar, D4 + FX + black 1–4 stores its engine
+  and preset (`FAV 2 STORED`); empty: `FAV 2 EMPTY`; a kit only on T4 and only a kit there (`FAV 4: DRUM ONLY T4`).
+  Kept with the settings in `favorites.factory[0][24..31]` (ANALOG's favourite bits of presets 192..255, which no
+  engine has; a test checks every engine has 192 or fewer). The spec's `[15][13..20]` overlaps the FX layer's key map
+  (`[15][14..23]`).
+- **Scenes** (§H11): a track whose preset or user preset changed since the store is skipped too, as one whose engine
+  did (`SCENE 1 SKIP T2`, the box `T2 SKIPPED (SOUND)`); every value held to its range.
+- **The screen** (§J, `ui_song_view.c`): tempo and key large (the key in the accent while it waits), the parts,
+  `BAR 3/8` and `STEP 09/16`, the position bar (the part's loop, or the chain's while GLO > SONG plays), 16 cells
+  with the playhead, the four tracks (a dot lit ~120 ms by each note, a level meter, `M` struck through, `L`,
+  `FOCUS` tinted), the scenes and the state or last message, the knob cards as the knobs are now. A box for 1.2 s
+  after a tempo, key, preset, scene or favourite change (while one waits for its bar, until then). Drawn by regions,
+  each with its own signature; playing, never the whole screen: per 1/16 the STEP digits and the two playhead cells,
+  the meters at ~30 Hz by the pixels that moved, the dots on a note and when they fade. One OR per note in the audio
+  path (`trk_act`, voice.c). The confirm (`OVERWRITE A-D?`) keeps the layer's screen.
+- **Splash:** about 1.2 s (was 0.43 s); a key or a button ends it at once.
+- Review of 081a8ff: F5 TAP refuses under BPM LOCK (`BPM LOCKED`), as SELECT; a favourite stored from a track on a
+  user preset keeps the user preset (`FAV 1 STORED (USER)`; its slot emptied since: `FAV 1: USER SOUND GONE`);
+  seq.c seq_stop's two comments on one line separated.
+- Device test of 0.15: D4 held showed nothing on the new screen (the scenes row now says `FADER T1 (D4)` while it is
+  held), and the STEP digits were placed by a stale string when the BAR region had not changed, so they landed on
+  the STEP label (`S01`); fixed. D4's hold now lasts from its down to a real key-up as either the ISR (`kb_layer`) or
+  the scan (`fm1_in.notes`) sees it. Tests: D4 held over six passes with the pass seeing it before the ISR; the STEP
+  label's pixels unchanged over 30 steps.
+- After the device test (Ong): D4 held is a mixer, K1–K4 T1–T4 LEVEL, FOCUS on or off (was the focus track's sound,
+  the same four as FOCUS); the screen says `MIXER: LEVELS (D4)` and the cards show the levels; let go, they stay.
+  Test 37 rewritten for it.
+- Tests (forge_test): `test_song_perf` and the v0.4.1 tests on the new key map; `test_song_v06` 47–54;
+  `test_song_view` 55–57 (56: 2,334 px a 1/16 on average at 140 BPM, the largest transfer 1,160 px; host pixel
+  counter in ui_test.c's `lcd_fill` / `lcd_blit`), the L face's glyphs for every key and BAR. UI lint: 6 new
+  screens (the five boxes, playing). Test 58 is the device test.
 
 ## 0.14
 
