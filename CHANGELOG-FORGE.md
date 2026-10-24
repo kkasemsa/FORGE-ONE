@@ -4,6 +4,7 @@ Newest first. FORGE is the SEQ TOOLS F5 motif generator in FORGE ONE (based on F
 
 | Version | Date | Theme |
 | --- | --- | --- |
+| 0.13 | 23 Oct 2026 | SONG: four parts A–D and the arrangement from one seed |
 | 0.12 | 23 Oct 2026 | F5 follows the track's sound: bass lines on a bass, held chords on a pad |
 | 0.11 | 23 Oct 2026 | A logo on the splash: one flame on an anvil |
 | 0.10 | 23 Oct 2026 | The FORGE palette: FORGE ONE's own look, the default |
@@ -20,6 +21,89 @@ Newest first. FORGE is the SEQ TOOLS F5 motif generator in FORGE ONE (based on F
 | 0.3 | 21 Oct 2026 | Safe live turns, chords in every scale, pinned seeds |
 | 0.2 | 21 Oct 2026 | The generator: SEED, DENSITY, EVOLVE, 8 styles |
 | 0.1 | 21 Oct 2026 | Scaffold: F5 FORGE cell, CI build |
+
+## 0.13
+
+SONG, built to the Song Mode spec v0.3 (MVP, §9), then v0.4.1 and v0.5 on the same branch.
+
+**Spec v0.5, the performance layer (24 Oct 2026).**
+
+- **D4 is FOCUS** (its reroll of every track's rhythm is removed; B3 rerolls T4's, C4 every unlocked track's notes,
+  F3–B3 one track's). D4 held + F3 / G3 / A3 / B3 puts T1 BASS / T2 LEAD / T3 PAD / T4 DRUM on KNOB 1–4
+  (`FOCUS T2 LEAD`); it stays after D4 is let go; D4 + the same key, or a D4 tap that picked nothing and turned
+  nothing, turns it off. F3–B3 still decide at the key's down: FX held a mute, else D4 held the focus, else a reroll.
+- **Faders:** D4 held alone, KNOB 1–4 are the focus track's (FOCUS off: the last focused, T1 at first); let go, the
+  values stay. Knob priority: FX held (the macros, snapping back) > D4 held > FOCUS > SEED DENSITY EVOLVE GENRE.
+- Params: T1 CUTOFF RESO ENV-MOD (`P_ED_FLT`) DECAY (`P_DEC`); T2 / T3 FILTER, A/R (`P_ATK` and `P_REL` by the same
+  turn), SEND (`P_REV` and `P_DLY`), LEVEL; T4 KICK level (`P_LN0`), the kit's TUNE and DECY, DRV. Nearest where the
+  spec's is missing: the filter by the engine (CUT FREQ TONE DCW BRIT MLVL, as BREAK's sweep), RESO as RES or Q,
+  else FB (FM6) FOLD (PHASE) DUTY (LOFI), else DIST; DRUM has no per-lane tune or decay, so SNARE TUNE and HAT DECAY
+  are the kit's TUNE and DECY; DECAY rather than ACCENT on T1 (no bass engine of the starters has an ACCENT edit;
+  open question G2). The knob cards show the four with their values; the bottom line `FOCUS T2` / `FADER T1`.
+- **Pickup** (§H1): the FM-1's knobs are endless encoders, so a turn always moves a value from where it is and none
+  ever jumps; no pickup state or ▲ / ▼ hint is needed (test 35 checks this instead).
+- **Scenes:** D5 / E5 recall SCENE 1 / 2, applied by the audio ISR at the next 1/16 before its step plays (`sc_apply`,
+  seq.c; stopped: at once); FX + D5 / E5 stores the 20 focus params of T1–T4 and each track's engine (no PF_*
+  effect). RAM only (`sg_scene`, 2 × 85 B), kept to power-off, not saved (v0.6). Review of 10456b0: a track whose
+  engine changed since the store is skipped (`SCENE 1 SKIP T2`), every value is held to its param's range. No ramp:
+  as with a knob turn, the engines read a param once a 32-sample block (0.7 ms) and the mix reads LEVEL and the sends
+  once a block, so a value steps there (the 0.13 text that said the engines smooth it was wrong; only pitch bend
+  is smoothed, voice.c). A short ramp on recall follows if test 42 hears a click.
+- CLEAR keeps FOCUS, its values and the scenes; leaving SONG turns FOCUS off and keeps the params and scenes.
+- Tests (forge_test `test_song_perf`, labelled 31–41; 42 is the device test): D4 tap does nothing to steps or
+  rerolls, B3 still rerolls T4; focus select without reroll or mute; key-down priority in every order; T1's CUTOFF /
+  RESO only; relative turns after a track change and a scene; FX over FOCUS snaps back; faders latch; FOCUS off by
+  tap and by the same key; scene store / recall at the 1/16 boundary, `SCENE 2 EMPTY`; FX + D5 stores only; CLEAR and
+  leaving SONG. Test 29 now covers F5 only. UI lint: 2 new screens (FOCUS T2, FOCUS T4 on part C).
+
+**Spec v0.3 (23 Oct 2026).**
+
+- **F#5 in STARTER opens SONG**: four related parts from one song seed, A VERSE, B CHORUS, C BRIDGE and D, which is
+  LIFT (a bigger last chorus) in BERLIN, DEEP HOUSE, SYNTHWAVE, AMBIENT and JARRE and BREAK (a breakdown) in the
+  other eight genres (`FS_GENRE_D`, next to `FS_GENRE`). Shared: the sounds, ROOT, SCALE, tempo, SWING, genre, seed.
+- **GENERATE** (OCT+) asks `OVERWRITE A-D?` with the four slots' current names; OCT+ writes slots A–D (`S42 VERSE`,
+  `S42 CHORUS`, `S42 BRIDGE`, `S42 LIFT` / `S42 BREAK`) and the 8-row default chain for D's type; OCT- writes nothing
+  and puts the four tracks back.
+- Black keys 1–4 play a part, 5–8 lock a track, C4 / D4 reroll the part shown (locked tracks byte-identical);
+  after writing, a reroll asks `SAVE B?`: OCT+ saves that slot only, OCT- keeps it unsaved.
+- No format change: parts are FUN10 projects, the arrangement the existing chain, labels the project names; stock
+  Felucca 1.6.1 loads and plays them. Factory presets and every existing pinned render are unchanged.
+- Choices the spec left to the build: entry key **F#5** (free in STARTER); reroll on **C4 / D4** for the part shown,
+  with the part picked on black keys 1–4 (A3–D4 white keys are other tools, and C4 / D4 are the reroll keys); locks on
+  black keys 5–8 (the FM-1 has no track keys). The kits have no crash, so CHORUS / LIFT accent step 1 with an open
+  hat. Fills use the b:b condition of the section's last loop, or sit in a pattern as long as the section (up to 64
+  steps), rather than `COND_FILL`, which only plays while FILL is held. BREAK's pad sweep uses automation events
+  (they hold between steps; a step lock lasts one step) on the pad engine's cutoff (else FREQ, TONE, DCW, BRIT,
+  MLVL; else LEVEL).
+- Tests (forge_test, `test_song`): the D table; each part rendered twice byte-identical; each slot loads back as its
+  part; the chain of §3b for SYNTHWAVE and TRANCE; B denser than A in all 13 genres; C a new motif; LIFT's lead
+  ≥ 12 semitones over A's, denser than B, a fill; BREAK's empty T1, no kick / clap, the roll, the pad filter down
+  then open; the chain played on stock code row by row; confirm OCT- leaves all slots and tracks byte-identical;
+  SAVE X? writes only that slot; a locked track survives a reroll; labels fit 12 characters. UI lint: 3 new screens.
+- Spec v0.4.1 (keymap final): **F3 G3 A3 B3 reroll one track** of the part shown (T1–T3 notes, T4 the drum
+  rhythm; a locked track: `T3 LOCKED`; written: `SAVE X?`); **E4–C5 are punch-in effects held with no FX
+  button**: REPEAT 1/16, LPF, HPF, TAPE STOP, REV THROW, ECHO THROW; **FX held + F3–B3 mute T1–T4** while held
+  (decided at the key's down); **C#5 CLEAR**, **D#5 DUCK**; FX LATCH toggles them; K1–K4 with FX held are the FX
+  macros; D5–F5 do nothing; leaving SONG turns everything off. Routed through perform.c's `perf_key_press` with a
+  SONG map (`perf_song`, `sg_fxmask`, seq.c `SG_FX`): no new DSP, buffers or storage. Held mutes are master-side
+  (never `P_MUTE`, never saved) and never unmute a chain `-` track or change the chain or its clock. Tests 19–29.
+  Host CPU proxy for test 30 (`tests/song_cpu_probe.c`: a TRANCE 42 BREAK song played through its 8-row chain on
+  the host, cc -O2 x86-64, best of 5 runs, a relative figure, not the FM-1's): no effect 174.7 ns/sample, REPEAT
+  1/16 alone 195.7, REPEAT 1/16 + ECHO THROW + DUCK 213.2 (a later rerun: 179.0 / 195.0 / 206.1); the same DSP
+  path as PERFORM; no sample at full scale. The device's CPU / PEAK / LATE (test 30) are measured on hardware.
+- After review of 52fe595: in SONG, K1–K4 with FX held are the FX macros and snap back to 0 when FX is let go,
+  as in the FX layer (FX LATCH: they stay until CLEAR). Test 28 now holds the mutes through the keys (the ISR's
+  path, FX held at the key's down) in INTRO and OUTRO: T3, which the row plays, is silenced while held and back
+  on release; T1, which the row silences, never sounds, held, released or untouched; the chain and its rows'
+  timing match a run without mutes.
+- Test map (tests/forge_test.c `check` labels carry the spec's numbers): spec v0.3 tests 1–11 in `test_song`
+  (labelled 1–11); spec v0.4.1 15–18 in `test_song_fix`; 19–29 in `test_song_fx`, plus the FX-knob check; 30 is the
+  device test, with `tests/song_cpu_probe.c` as its host proxy.
+- Review of PR #1, before merge: GENERATE checks the save can happen before writing anything, and if a slot is
+  refused halfway it puts the chain back and says `SAVE FAILED X`; turning DENSITY or EVOLVE keeps the song written
+  (only SEED or GENRE make a new one), so a reroll still asks `SAVE X?`; a refused `SAVE X?` (playing: `STOP TO
+  SAVE`) keeps the prompt up; BREAK's pad is one loop per section (past 64 steps: 1/8 at half the steps), so its
+  filter opens only in the section's last bar, with patterns of a bar or less opening over their second half.
 
 ## 0.12
 

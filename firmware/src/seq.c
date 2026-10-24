@@ -651,9 +651,15 @@ static void input_off(track_t *t, uint32_t note)
 
 /* the effect of key k in the FX layer (PF_N none): the white keys F3 .. G5 the map's (perf_map: the settings,
  * ui_layer.c; by default 1.1.5's ten, FLANGER, PHASER, REV / ECHO THROW), black keys 1..4 the track mutes */
+/* 0.13 SONG (spec v0.4.1 §B2): E4 F4 G4 A4 B4 C5, held with no FX button: REPEAT 1/16, LPF, HPF, TAPE STOP,
+ * REV THROW, ECHO THROW; F3..B3 (with FX held at key-down): T1..T4 muted while held */
+static const uint8_t SG_FX[6] = {PF_R16, PF_LPF, PF_HPF, PF_TAPE, PF_RTHR, PF_ETHR};
+#define SG_FX_KEY0 6u                                   /* E4: SG_FX[0] (key_place) */
 static uint32_t perf_key(uint32_t k)
 {
     uint32_t p = key_place(k);
+    if (perf_song)                                      /* (0.13 SONG: its own map, black keys none) */
+        return key_black(k) ? PF_N : p >= SG_FX_KEY0 && p < SG_FX_KEY0 + 6u ? SG_FX[p - SG_FX_KEY0] : p < NTRK ? PF_M1 + p : PF_N;
     return !key_black(k) ? (p < PF_KEYS ? perf_map[p] : PF_N) : p < NTRK && !perf_pmode ? PF_M1 + p : PF_N;   /* (0.7:
                                                  * PERFORM's black keys are the UI's: ui_perform.c) */
 }
@@ -788,7 +794,7 @@ static void keyboard_block(void)
             if (lay) {                            /* a layer's button held (or locked): the key is the layer's */
                 kb_note[k] = KB_SILENT;           /* (ui_layer.c), with FX an effect (perform.c) */
                 kb_layer |= 1u << k;
-                if (fx)
+                if (fx || ((sg_fxmask >> k) & 1u))   /* (0.13 SONG: its effect keys, no FX layer) */
                     perf_key_press(k, 1);
                 continue;
             }
@@ -867,11 +873,36 @@ static void pq_apply(void)
     pq_pend = 0;
 }
 
+/* 0.13 SONG spec v0.5 §H3: a scene recalled, its params put in (the ISR at the next 1/16, before its step plays). A
+ * track whose engine is not the one stored with the scene is skipped; every value is held to its param's range now.
+ * No ramp: the params are read once a block as a knob's turn is, so a value steps at the next CTL block (32 samples,
+ * 0.7 ms) for the engines (a filter's state carries over, its coefficients change) and at the mix block for LEVEL and
+ * the sends (fx.c mix_part). A large LEVEL jump can click: a short ramp on recall is the fix if the device test hears one */
+static void sc_apply(void)
+{
+    const sg_scene_t *c;
+    uint32_t i;
+    if (!sc_pend)
+        return;
+    c = &sg_scene[(sc_pend - 1u) & 1u];
+    for (i = 0; i < c->n && i < SC_MAX; i++) {
+        track_t *t = &trk[c->trk[i] % NTRK];
+        uint32_t id = c->id[i] % P_COUNT;
+        const param_desc_t *d;
+        if (t->eng_req != c->eng[c->trk[i] % NTRK])
+            continue;
+        d = param_desc_of(eng_idx(t->eng_req), id);
+        t->p[id] = (int16_t)clamp(c->v[i], d->min, d->max);
+    }
+    sc_pend = 0;
+}
+
 static void seq_stop(void)
 {
     uint32_t i;
     song.playing = 0;
-    pq_apply();                                    /* (0.9.1: a queued PERFORM change does not survive the stop) */
+    pq_apply();
+    sc_apply();                                    /* (0.14: a scene waiting for its 1/16 too) */                                    /* (0.9.1: a queued PERFORM change does not survive the stop) */
     cin_left = 0;                                  /* (a count-in: cancelled, nothing recorded) */
     cin_flush = 0;
     memset(cin_n, 0, sizeof cin_n);
@@ -1417,6 +1448,8 @@ static void events_block(uint32_t n)
     if (pq_pend && song.playing &&                    /* FORGE ONE 0.7 PERFORM QUANT: at the bar, before its first */
         (clk_pos == CLK_START || (clk_step == 15u && clk_pos + seq_n >= div_samples(2))))     /* step plays */
         pq_apply();
+    if (sc_pend && song.playing && (clk_pos == CLK_START || clk_pos + seq_n >= div_samples(2)))
+        sc_apply();                                 /* (0.14 SONG: a scene at the next 1/16, before its step plays) */
     for (i = 0; i < NTRK; i++)
         seq_tick(&trk[i], seq_n);
     if (cin_flush)

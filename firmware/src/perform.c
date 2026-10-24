@@ -103,6 +103,19 @@ static volatile uint8_t kb_lock;      /* main: a layer locked open (#83, no butt
 static volatile uint8_t perf_solo;    /* main: tracks soloed in the GLO layer (the others muted as by a black key) */
 static volatile uint8_t perf_psolo;   /* main (0.7): tracks soloed in PERFORM, latched (as perf_solo) */
 static volatile uint8_t perf_pmode;   /* main (0.7): PERFORM (the FX layer locked): black keys are the UI's, not mutes */
+static volatile uint8_t perf_song;    /* main (0.13 SONG, ui_song.c): the white keys are SONG's map (SG_FX, the mutes) */
+static volatile uint32_t sg_fxmask;   /* main (0.13 SONG): the keys that take an effect at key-down with no FX layer:
+                                       * E4..C5 always, F3..B3 only while FX is held (then the T1..T4 mutes) */
+/* 0.13 SONG spec v0.5 §H3: the two scenes (ui_song.c stores them, main only); sc_pend: the one the ISR puts in at the
+ * next 1/16 (seq.c sc_apply; stopped: main at once), + 1, 0 none. RAM only, never saved. eng: each track's engine
+ * (eng_req) when stored: a track whose engine changed since is skipped (its params' indices mean other things now) */
+#define SC_MAX 20u                    /* (the focus params of T1..T4: 4 + 6 + 6 + 4) */
+typedef struct {
+    uint8_t n, trk[SC_MAX], id[SC_MAX], eng[NTRK];
+    int16_t v[SC_MAX];
+} sg_scene_t;
+static sg_scene_t sg_scene[2];
+static volatile uint8_t sc_pend;
 static volatile uint8_t pq_pend, pq_mute, pq_solo;   /* main (0.7): PERFORM's QUANT: mutes and solos the ISR puts in at
                                        * the next bar (seq.c events_block, before the bar's first step) */
 static volatile uint8_t perf_kill;    /* main: every effect off (the menu, a dialog, UBOOT) */

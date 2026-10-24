@@ -90,10 +90,13 @@ static uint8_t fg_role;
 static const forge_style_t *fg_ovr;
 static const forge_beat_t *fg_bovr;     /* 0.8: STARTER's beat (0: FORGE_BEAT), its VEL range fg_bvd */
 static uint8_t fg_bvd;
+/* 0.13 SONG (ui_song.c): a part's own streams, XORed into salts 1 (pitch) 2 (rhythm) 3 (evolution); 0 = as ever */
+static uint32_t fg_xsalt[4];
 static uint32_t fg_start(uint32_t salt)
 {
     uint32_t r = ((uint32_t)fg.seed + 1u) * 2654435761u ^ ((uint32_t)fg.style + 1u) * 40503u ^ salt * 0x9E3779B9u ^
-                 (salt == 1u ? fg.nvar * 0x85EBCA6Bu : salt == 2u ? fg.rvar * 0xC2B2AE35u : 0u) ^ fg_role * 0x27D4EB2Fu;
+                 (salt == 1u ? fg.nvar * 0x85EBCA6Bu : salt == 2u ? fg.rvar * 0xC2B2AE35u : 0u) ^ fg_role * 0x27D4EB2Fu ^
+                 (salt < 4u ? fg_xsalt[salt] : 0u);
     return r ? r : 0x1234567u;
 }
 static void fg_seed(uint32_t salt) { fg_r = fg_start(salt); }
