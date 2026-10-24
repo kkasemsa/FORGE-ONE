@@ -38,6 +38,7 @@ DOCS = [   # (source, output, cover kicker, cover subtitle)
 ]
 
 CSS = """
+img { max-width: 100%; height: auto; display: block; margin: 8px 0 14px; break-inside: avoid; }
 @font-face { font-family: 'Lora'; font-weight: 400; font-style: normal; src: url('FONTS/lora-latin-400-normal.woff2'); }
 @font-face { font-family: 'Lora'; font-weight: 400; font-style: italic; src: url('FONTS/lora-latin-400-italic.woff2'); }
 @font-face { font-family: 'Lora'; font-weight: 600; font-style: normal; src: url('FONTS/lora-latin-600-normal.woff2'); }
@@ -106,21 +107,25 @@ def absolute_links(md_text, src):
         full = (Path(base) / path).as_posix() if path else src
         full = re.sub(r"[^/]+/\.\./", "", full)
         return f"[{label}]({REPO}{full}{'#' + frag if frag else ''})"
-    return re.sub(r"\[([^\]]+)\]\(([^)\s]+)\)", fix, md_text)
+    return re.sub(r"(?<!!)\[([^\]]+)\]\(([^)\s]+)\)", fix, md_text)   # (not an image: ![alt](file) stays local)
+
+
+FORGE_VER = re.search(r'#define FORGE_VERSION "([^"]+)"', (ROOT / "firmware/src/core.h").read_text()).group(1)
 
 
 def page(src, kicker, sub):
     text = (ROOT / src).read_text()
     title = re.search(r"^# (.+)$", text, re.M).group(1).split(" — ")[0]
     body = markdown.markdown(absolute_links(text, src), extensions=["tables", "fenced_code", "attr_list", "sane_lists"])
-    body = re.sub(r'<img src="(?!https?:|file:)([^"]+)"', lambda m: f'<img src="{((ROOT / src).parent / m.group(1)).resolve().as_uri()}"', body)
+    body = re.sub(r'(<img[^>]*?\ssrc=")(?!https?:|file:)([^"]+)"',
+                  lambda m: f'{m.group(1)}{((ROOT / src).parent / m.group(2)).resolve().as_uri()}"', body)
     steps = "".join(f'<span class="{ {"1": "on", "2": "tie"}.get(s, "") }"></span>' for s in COVER_STEPS)
     today = datetime.date.today().strftime("%d %B %Y").lstrip("0")
     cover = f"""<section class="cover">
   <div class="top"><div class="kicker">{html.escape(kicker)}</div>
   <div class="title">{html.escape(title)}</div><div class="sub">{html.escape(sub)}</div></div>
   <div><div class="grid">{steps}</div>
-  <div class="meta"><b>FORGE ONE</b> · Felucca 1.6.1 + FORGE 0.13 · M-VAVE FM-1<br>
+  <div class="meta"><b>FORGE ONE</b> · Felucca 1.6.1 + FORGE {FORGE_VER} · M-VAVE FM-1<br>
   github.com/kkasemsa/FORGE-ONE (forge branch) · {today}<br>
   Felucca by Hügelton Instruments and contributors · GPL-3.0-only</div></div></section>"""
     css = CSS.replace("FONTS", FONTS.as_uri())

@@ -484,40 +484,45 @@ parts:
 The parts are ordinary projects and the arrangement an ordinary SONG chain, so stock Felucca 1.6.1 loads and plays
 them too. Edit a part as usual: load its slot, change it, save it back to the same slot.
 
-**SONG's keys** (spec v0.5). With FX held only F3–B3, D5 / E5 and the knobs change:
+**SONG's keys** (spec v0.6, FORGE ONE 0.15): one touch for the common things. The columns: the key alone, with D4
+held, with FX held.
 
-| Key | In SONG | With FX held |
-| --- | --- | --- |
-| Black 1–4 (F#3 G#3 A#3 C#4) | Part A–D | same |
-| Black 5–8 (D#4 F#4 G#4 A#4) | Lock T1–T4 | same |
-| Black 9 (C#5) | CLEAR: every effect, latch, mute and DUCK off | same |
-| Black 10 (D#5) | DUCK on / off (non-drum tracks pump on the kick) | same |
-| Black 11 (F#5) | SONG on / off | same |
-| F3 G3 A3 B3 | Reroll T1 / T2 / T3 notes, T4 drum rhythm (the part shown, that track only); **with D4 held: FOCUS T1–T4** | Mute T1–T4 while held |
-| C4 | Reroll notes, every unlocked track | same |
-| D4 | FOCUS: hold + F3–B3 picks a track; hold alone: the focus track's faders; tap: FOCUS off | (FX wins on the knobs) |
-| E4 F4 G4 A4 B4 C5 | Held: REPEAT 1/16, LPF, HPF, TAPE STOP, REV THROW, ECHO THROW (no FX button needed) | same |
-| D5 / E5 | Recall SCENE 1 / 2 at the next 1/16 | Store SCENE 1 / 2 |
-| F5 | Nothing (`NOT IN SONG`) | same |
-| G5 | Applies STARTER, leaves SONG | same |
-| KNOB 1–4 | SEED DENSITY EVOLVE GENRE; FOCUS on or D4 held: the track's four (below) | FX macros FILTER CRUSH THROW DEPTH (back to 0 when FX is let go) |
+| Key | Alone | D4 held | FX held |
+| --- | --- | --- | --- |
+| Black 1–4 (F#3 G#3 A#3 C#4) | Part A–D | Load FAV 1–4 (at the bar) | Part A–D (D4 + FX: store FAV 1–4) |
+| Black 5–8 (D#4 F#4 G#4 A#4) | Lock T1–T4 | same | same |
+| Black 9 (C#5) | CLEAR: every effect, latch, mute and DUCK off | same | same |
+| Black 10 (D#5) | DUCK on / off (non-drum tracks pump on the kick) | same | same |
+| Black 11 (F#5) | SONG on / off | same | same |
+| F3 G3 A3 B3 | **FOCUS T1–T4** (the same key again: off) | Reroll T1 / T2 / T3 notes, T4 drum rhythm | Mute T1–T4 while held |
+| C4 | Reroll notes, every unlocked track | same | same |
+| D4 | ALT: held alone, K1–K4 are T1–T4 LEVEL, a mixer (a tap does nothing) | – | – |
+| E4 F4 G4 A4 B4 C5 | Held: REPEAT 1/16, LPF, HPF, TAPE STOP, REV THROW, ECHO THROW (no FX button needed) | same | same |
+| D5 / E5 | Recall SCENE 1 / 2 at the next 1/16 | – | Store SCENE 1 / 2 |
+| F5 | **TAP tempo** (the last 4 taps; 2 s starts over) | same | same |
+| G5 | Applies STARTER, leaves SONG | same | same |
+| SELECT | **Tempo** ±1 BPM | same | ±5 BPM |
+| ALGORITHM | **Key** ±1 semitone, at the next bar | same | **Scale**, at the next bar |
+| PRESETS | **The focus track's preset**, loaded at the next bar (OCT−: cancel) | same | nothing |
+| KNOB 1–4 | SEED DENSITY EVOLVE GENRE; FOCUS on: the track's four (below) | T1–T4 LEVEL (they stay when D4 is let go) | FX macros FILTER CRUSH THROW DEPTH (back to 0 when FX is let go) |
 
 - A locked track ignores its own reroll key (`T3 LOCKED`). Before the song is written a per-track reroll says
-  `NEW T3`; after, it asks `SAVE X?` like C4. (0.13 / spec v0.5: D4's reroll of every track's rhythm is gone; B3
-  rerolls T4's.)
-- Whether F3–B3 mute or reroll is decided when the key goes down: FX held then, it mutes until the key is let go
-  (even if FX is let go first); FX pressed after the key, it was a reroll. Mutes are never saved and never change
+  `NEW T3`; after, it asks `SAVE X?` like C4. (0.13 / spec v0.5: D4's reroll of every track's rhythm is gone; D4 +
+  B3 rerolls T4's.)
+- What F3–B3 do is decided when the key goes down: FX held then, a mute until the key is let go (even if FX is let
+  go first); else D4 held, a reroll; else FOCUS. Pressing D4 or FX after the key changes nothing. Mutes are never saved and never change
   the chain: a track the chain row silences (`-`, as in INTRO and OUTRO) stays silent.
 - With MENU > FX LATCH ON the effects and mutes toggle and stay on across part changes and rerolls; CLEAR turns
   them off. Leaving SONG (F#5, G5, letting go of SEQ) turns every effect, latch, mute and DUCK off.
 
-**FOCUS, faders and scenes** (spec v0.5, the performance layer):
+**FOCUS, faders and scenes** (spec v0.5, v0.6):
 
-- **FOCUS:** hold D4 and press F3 / G3 / A3 / B3 to put T1 BASS / T2 LEAD / T3 PAD / T4 DRUM on the knobs; the knob
-  cards and the track row show it (`FOCUS T2`). It stays after D4 is let go. D4 + the same key, or a D4 tap, turns it
-  off. A locked track can be focused (a lock is for notes and rhythm).
-- **Faders:** hold D4 alone and turn the knobs: the focus track's (with FOCUS off, the last focused, T1 at first).
-  Let go: the values stay, the knobs go back. FX held always wins: its macros, which snap back.
+- **FOCUS:** tap F3 / G3 / A3 / B3 to put T1 BASS / T2 LEAD / T3 PAD / T4 DRUM on the knobs; the knob cards and the
+  track row show it (`FOCUS`). Tap the same key again to turn it off. A locked track can be focused (a lock is for
+  notes and rhythm).
+- **Levels (0.15):** hold D4 alone and turn K1–K4: T1–T4 LEVEL, a mixer, FOCUS on or off (the screen says
+  `MIXER: LEVELS (D4)`, the cards show the four levels). Let go: the levels stay, the knobs go back. FX held always
+  wins: its macros, which snap back.
 
 | Track | KNOB 1 | KNOB 2 | KNOB 3 | KNOB 4 |
 | --- | --- | --- | --- | --- |
@@ -532,12 +537,71 @@ them too. Edit a part as usual: load its slot, change it, save it back to the sa
 - **Scenes:** FX + D5 / E5 stores the knob settings of all four tracks; tapping D5 / E5 brings them back on the next
   1/16 (stopped: at once). An empty one says `SCENE 2 EMPTY`. Scenes live until power-off and are not saved with the
   song.
+  A track whose sound changed since (engine, preset) is skipped: the box says `T2 SKIPPED (SOUND)`.
+
+**Tempo, key and sounds without a hold** (spec v0.6): **SELECT** sets the tempo (FX held: 5 at a time), **F5** taps
+it; BPM LOCK and an external clock refuse both. **ALGORITHM** moves the key a semitone, with FX the scale (MIN DOR
+PHRY MPEN HARM MAJ LYD MIX PEN); playing, it waits for the next bar (the key shows in the accent until then), then all
+four tracks are written again in it. **PRESETS** browses the focus track's presets (FOCUS off: the last focused, T1
+at first); the sound changes at the next bar at least 0.6 s after the last turn (stopped: 0.6 s after it), and OCT−
+before then cancels it. **Favourites:** D4 + FX + black 1–4 stores the focus track's sound in FAV 1–4 (a factory
+preset, or the user preset it plays; kept in the settings), D4 + black 1–4 loads it at the next bar (a DRUM kit only on T4, and only a kit there).
+
+**SONG's screen** (spec v0.6): read at arm's length. At the top the tempo and the key; the parts A–D (the one playing
+filled); `BAR 3/8` and `STEP 09/16`; a bar for where the part (or GLO > SONG's chain) is; 16 cells with the playhead;
+the four tracks with a dot that lights on each note, a level meter, `M` for a mute, `L` for a lock and `FOCUS`; the
+two scenes and the state or the last message; the four knob cards as the knobs are now. A tempo, key, preset,
+scene or favourite change shows large in a box for about a second.
 
 ## 10. Quick layers
 
 Hold a button for its layer. Keys pressed in a layer are shortcuts: they play no notes, send no MIDI and record
 nothing. Double-tap the button to keep the layer open. In SET layers (GLO, SCL, EDIT, SEQ, REC), **OCT−** puts back
 what the layer changed since it opened.
+
+### Keyboard maps: every layer
+
+What each of the 27 keys does in each layer, and how to get there. Hold a layer button for the layer while you hold
+it; **double-tap** it to keep it open (tap it again to close). Keys in a layer play no notes.
+
+| Layer | How to get there |
+| --- | --- |
+| Playing | Nothing held: the keys play the selected track (ALGORITHM picks the track) |
+| FX | Hold **FX** |
+| PERFORM | **Double-tap FX**; tap FX to leave |
+| GLO | Hold **GLO** |
+| SCL | Hold **SCL** |
+| EDIT | Hold **EDIT** (a tap opens the EDIT pages: EDIT 1 has a DRUM track's KIT) |
+| SEQ TOOLS | Hold **SEQ** |
+| FORGE | SEQ TOOLS, then **F5** |
+| STARTER | SEQ TOOLS, then **G5** |
+| SONG | In STARTER, **F#5** |
+| REC | Hold **REC** |
+| DRUM grid | Select a DRUM track, tap **SEQ** (the STEP page) |
+
+![Playing](keymaps/play.png)
+
+![FX layer](keymaps/fx.png)
+
+![PERFORM](keymaps/perform.png)
+
+![GLO layer](keymaps/glo.png)
+
+![SCL layer](keymaps/scl.png)
+
+![EDIT layer](keymaps/edit.png)
+
+![SEQ TOOLS](keymaps/seq.png)
+
+![FORGE](keymaps/forge.png)
+
+![STARTER](keymaps/starter.png)
+
+![SONG](keymaps/song.png)
+
+![REC layer](keymaps/rec.png)
+
+![DRUM grid](keymaps/grid.png)
 
 ### FX layer (hold FX)
 

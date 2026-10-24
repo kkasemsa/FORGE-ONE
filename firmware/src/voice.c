@@ -393,11 +393,13 @@ static void mono_remove(track_t *t, uint32_t note)
 }
 
 static volatile uint8_t perf_kick;      /* FORGE ONE 0.7: a DRUM track's KICK started (perform.c DUCK; it clears it) */
+static volatile uint8_t trk_act;        /* FORGE ONE 0.15: bit per track, a note started (SONG's dots, ui_song_view.c) */
 static void trk_note_on(track_t *t, uint32_t note, uint32_t vel)
 {
     uint32_t any = 0, i, mode = trk_vmode(t);
     if (t->p[P_MUTE])
         return;
+    trk_act |= (uint8_t)(1u << ((uint32_t)(t - trk) & 7u));
     if (note == DRUM_LANE_NOTE[0] && ENGINES[t->eng_req % NENGINES] == &ENG_DRUM)
         perf_kick = 1;
     if (t->xf_on || t->eng_req != t->engine) {          /* engine switch under way: after the fade */

@@ -1265,6 +1265,8 @@ static void seq_entry(uint32_t pressed)
  *   HOME, PRESETS and every other page (EDIT, ENV, LFO, FX, SCL, ARP, MIXER, CLOCK, ...): the selected track's
  *     sound, one list over every engine, then the used user presets (preset_step). A sound load keeps the steps
  *     (SAVE held undoes it). Up to 1.0.3 it did that on HOME and PRESETS only */
+static int song_enc_on(void);                            /* (FORGE ONE 0.15: ui_song.c) */
+static void song_enc(int32_t sel, int32_t algo, int32_t pre);
 static void presets_turn(int32_t s)
 {
     const page_t *pg = cur_page();
@@ -1545,6 +1547,10 @@ static void ui_input(void)
         for (k = 0; k < 4u; k++)                        /* KNOB 1..4: the layer's (ui_layer.c layer_knob) */
             if ((ks[k] = panel_enc(EN_K1 + k)) != 0)
                 combo = 1;
+        if (song_enc_on()) {                            /* FORGE ONE 0.15 SONG (spec v0.6 §H9 §H10): SELECT the tempo, */
+            int32_t a = panel_enc(EN_ALGO), pr = panel_enc(EN_PRESET), se = panel_enc(EN_SELECT);   /* ALGORITHM the */
+            song_enc(se, a, pr);                        /* key, PRESETS the focus track's sound */
+        }
         if ((s = panel_enc(EN_PRESET)) != 0 && ui.ly == LAYER_FX) {   /* (a stray turn would load another sound) */
             fx_assign(s);                               /* FX: the white key held takes the next effect */
             combo = 1;

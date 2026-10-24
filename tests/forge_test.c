@@ -1215,6 +1215,10 @@ static int32_t sg_mean(const track_t *t)                /* the mean pitch of its
     return n ? sum * 16 / (int32_t)n : -1;
 }
 static void sg_tap(uint32_t b) { key_down(black(b)); frame(); key_up(black(b)); frame(); }
+static void sg_rr(uint32_t i)                           /* 0.15 (spec v0.6 §H7): D4 + F3..B3, a track's reroll */
+{
+    key_down(white(5)); frame(); key_down(white(i)); frame(); key_up(white(i)); frame(); key_up(white(5)); frame();
+}
 static void sg_open(uint32_t genre, uint32_t seed)     /* STARTER on GENRE's first, SEED; then F#5: SONG, part A */
 {
     track_t *t = melody(16);
@@ -1421,7 +1425,7 @@ static int test_song(void)
     }
     oct_back();                                         /* KEEP: nothing saved */
     ok = !sg.pend && !memcmp(slots, proj_slot, sizeof slots) && sg.on;
-    tkey(3);                                            /* B3: T4's new rhythm, SAVE B? again (0.14: D4 is FOCUS) */
+    sg_rr(3);                                           /* D4 + B3: T4's new rhythm, SAVE B? again */
     ok &= sg.pend == SG_B + 1u;
     oct_fwd();                                          /* SAVE: slot B only */
     memcpy(slots2, proj_slot, sizeof slots2);
@@ -1537,7 +1541,7 @@ static int test_song_fix(void)
     kt(EN_K1, -1);
     oct_fwd(); oct_fwd();
     sg_tap(2);                                          /* C */
-    tkey(3);                                            /* (B3: T4's rhythm; 0.14: D4 is FOCUS) */
+    sg_rr(3);                                           /* (D4 + B3: T4's rhythm) */
     memcpy(slots, proj_slot, sizeof slots);
     transport_req = 1;
     pm_blocks(2);
@@ -1617,7 +1621,7 @@ static int test_song_fx(void)
     ok = perf_song && sg_fxmask;
     for (i = 0; i < NTRK; i++) {
         for (j = 0; j < NTRK; j++) memcpy(was[j], trk[j].step, sizeof was[j]);
-        sg_wtap(i);
+        sg_rr(i);                                       /* (0.15: D4 + the key) */
         ok &= sg_same((const step_t (*)[NSTEP])was, i) && memcmp(was[i], trk[i].step, sizeof was[i]) && fs.on && sg.on;
         if (i < FP_DRUM) {
             for (j = 0; j < NSTEP; j++)
@@ -1634,12 +1638,12 @@ static int test_song_fx(void)
     for (j = 0; j < NTRK; j++) memcpy(was[j], trk[j].step, sizeof was[j]);
     song_render(SG_A);
     ok &= sg_same((const step_t (*)[NSTEP])was, 99);
-    bad += check("SONG spec v0.4.1 19. F3 G3 A3: one track's notes (its rhythm kept), B3: T4's rhythm, the rest byte for byte", ok);
+    bad += check("SONG spec v0.4.1 19. (D4 +) F3 G3 A3: one track's notes (its rhythm kept), B3: T4's rhythm, the rest byte for byte", ok);
     /* 20. T3 locked: A3 nothing, no prompt, T3 LOCKED; C4 skips T3 */
     oct_fwd(); oct_fwd();                               /* (written: a reroll would ask) */
     sg_tap(6);                                          /* G#4: T3 locked */
     for (j = 0; j < NTRK; j++) memcpy(was[j], trk[j].step, sizeof was[j]);
-    sg_wtap(2);
+    sg_rr(2);
     ok = msg_is("T3 LOCKED") && !sg.pend && sg_same((const step_t (*)[NSTEP])was, 99);
     tkey(TL_RANDOM);
     ok &= !memcmp(was[2], trk[2].step, sizeof was[2]) && sg.pend == SG_A + 1u;
@@ -1648,11 +1652,11 @@ static int test_song_fx(void)
     bad += check("  20. T3 locked: A3 changes nothing and asks nothing (T3 LOCKED); C4 skips T3", ok);
     /* 21. SAVE X? after a per-track reroll: one prompt for several; OCT- writes nothing, OCT+ slot A only */
     memcpy(slots, proj_slot, sizeof slots);
-    sg_wtap(1); sg_wtap(0);
+    sg_rr(1); sg_rr(0);
     ok = sg.pend == SG_A + 1u && msg_is("SAVE A?");
     oct_back();
     ok &= !sg.pend && !memcmp(slots, proj_slot, sizeof slots);
-    sg_wtap(3);
+    sg_rr(3);
     oct_fwd();
     ok &= !sg.pend && memcmp(&slots[0], &proj_slot[0], sizeof slots[0]) && !memcmp(&slots[1], &proj_slot[1], 3 * sizeof slots[0]);
     bad += check("  21. a per-track reroll asks SAVE A? (once for several); OCT- writes nothing, OCT+ slot A only", ok);
@@ -1679,14 +1683,16 @@ static int test_song_fx(void)
         ok &= ((perf_held >> (PF_M1 + 1u)) & 1u) != 0u;
         sg_w(1, 0);
         ok &= !((perf_held >> (PF_M1 + 1u)) & 1u);
-        sg_w(1, 1);                                     /* G3 first: a reroll */
+        sg_w(1, 1);                                     /* G3 first: (0.15) FOCUS T2, no mute */
         btn_down(B_FX); frame();
-        ok &= !((perf_held >> (PF_M1 + 1u)) & 1u) && sg.nvar[SG_A][1] == (uint8_t)(nv + 1u);
+        ok &= !((perf_held >> (PF_M1 + 1u)) & 1u) && sg.nvar[SG_A][1] == nv && sg.focus == 2u;
         sg_w(1, 0);
         btn_up(B_FX); frame();
+        sg_wtap(1);                                     /* (FOCUS off again) */
+        ok &= !sg.focus;
         for (i = 0; i < NTRK; i++) ok &= trk[i].p[P_MUTE] == mute[i];
         if (sg.pend) oct_back();
-        bad += check("  23. FX + G3: T2 muted while G3 is down (FX let go first too), no reroll; G3 then FX: a reroll; P_MUTE untouched", ok);
+        bad += check("  23. FX + G3: T2 muted while G3 is down (FX let go first too), no reroll; G3 then FX: FOCUS (0.15), no mute; P_MUTE untouched", ok);
     }
     /* 24. FX held + black 2 in SONG: part B, no mute; outside SONG black 1 is a mute (the FX layer) */
     btn_down(B_FX); frame();
@@ -1706,7 +1712,7 @@ static int test_song_fx(void)
     ok &= (perf_latched >> PF_M1) & 1u;
     sg_tap(9);                                          /* D#5: DUCK */
     sg_tap(2);                                          /* part C */
-    tkey(3);                                            /* (B3 T4's reroll; 0.14: D4 is FOCUS) */
+    sg_rr(3);                                           /* (D4 + B3: T4's reroll) */
     if (sg.pend) oct_back();
     ok &= ((perf_latched >> PF_R16) & 1u) && ((perf_latched >> PF_M1) & 1u) && (perf_latched & PF_BIT(PF_DUCK));
     sg_wtap(6);
@@ -1749,15 +1755,15 @@ static int test_song_fx(void)
         fs.on = 0;
     }
     bad += check("  27. leaving SONG by F#5, G5 or the layer let go: every effect, latch, mute and DUCK off", ok);
-    /* 29. F5: nothing (0.14, spec v0.5: D5 E5 are the scenes, tests 39 40) */
+    /* 29. F5: no note, no step, no effect (spec v0.5: D5 E5 the scenes; v0.6: F5 TAP, test 48) */
     sg_open((uint32_t)sg_genre("TRANCE"), 42);
     for (j = 0; j < NTRK; j++) memcpy(was[j], trk[j].step, sizeof was[j]);
     ok = 1;
     for (i = 14; i < 15u; i++) {
         sg_wtap(i);
-        ok &= msg_is("NOT IN SONG") && fs.on && sg.on && !perf_held && sg_same((const step_t (*)[NSTEP])was, 99);
+        ok &= fs.on && sg.on && !perf_held && sg_same((const step_t (*)[NSTEP])was, 99);
     }
-    bad += check("  29. F5 in SONG: NOT IN SONG, nothing changes (D5 E5: the scenes since spec v0.5)", ok);
+    bad += check("  29. F5 in SONG: no note, no step, no effect (its TAP: test 48)", ok);
     /* 28. INTRO and OUTRO, the mutes through the keys as SONG takes them (the ISR's path: SEQ held, FX held at the
      * key's down): T3, which the row plays, is silenced while held and back when let go; T1, which the row silences
      * ("-"), stays silent held, let go, or never touched; the chain and its rows' timing the same with and without */
@@ -1874,65 +1880,88 @@ static int test_song_perf(void)
     uint32_t i, j, cut, res;
     sg_open((uint32_t)sg_genre("TRANCE"), 42);
     fx_latch &= ~1u; perf_latch_on = 0;
-    /* 31. D4 tap: no reroll; B3 still rerolls T4's rhythm */
+    /* 31 (v0.6 46). D4 tap: nothing (no reroll, FOCUS as it was); D4 + B3 rerolls T4's rhythm */
     for (j = 0; j < NTRK; j++) memcpy(was[j], trk[j].step, sizeof was[j]);
     memcpy(nv, sg.nvar, sizeof nv); memcpy(rv, sg.rvar, sizeof rv);
     sg_wtap(SG_D4);
     ok = sg_same((const step_t (*)[NSTEP])was, 99) && !memcmp(nv, sg.nvar, sizeof nv) && !memcmp(rv, sg.rvar, sizeof rv) &&
          !sg.focus && fs.on && sg.on;
-    sg_wtap(3);
+    sg_rr(3);
     ok &= sg.rvar[SG_A][3] == rv[SG_A][3] + 1u && memcmp(was[3], trk[3].step, sizeof was[3]) &&
           sg_same((const step_t (*)[NSTEP])was, 3);
-    bad += check("SONG spec v0.5 31. D4 tap: no reroll, steps and rerolls byte for byte; B3 still rerolls T4's rhythm", ok);
-    /* 37. (before any focus: the faders on T1) FOCUS off, D4 held, K1: T1's CUTOFF; let go: it stays, K1 is SEED */
-    song_fmap(0, m);
-    cut = m[0][0];
+    bad += check("SONG spec v0.5 31 / v0.6 46. D4 tap: nothing, steps and rerolls byte for byte; D4 + B3 rerolls T4's rhythm", ok);
+    /* 37 (0.15, after the device test). D4 held: K1..K4 T1..T4 LEVEL, the rest as it was; let go: they stay, K1 SEED */
     sg_vals(pv);
     sg_w(SG_D4, 1);
     kt(EN_K1, -5);
-    ok = trk[0].p[cut] == pv[0][cut] - 5 && sg_vals_same((const int16_t (*)[P_COUNT])pv, 0, cut, 99) && !sg.focus;
+    kt(EN_K4, -2);
+    ok = trk[0].p[P_LEVEL] == pv[0][P_LEVEL] - 5 && trk[3].p[P_LEVEL] == pv[3][P_LEVEL] - 2 && !sg.focus;
+    for (j = 0; j < NTRK; j++)
+        ok &= j == 0u || j == 3u ? 1 : !memcmp(pv[j], trk[j].p, sizeof pv[j]);
     sg_w(SG_D4, 0);
     {
         uint8_t seed = fg.seed;
-        ok &= trk[0].p[cut] == pv[0][cut] - 5 && !sg.focus;   /* (a hold that turned a knob: no tap) */
+        ok &= trk[0].p[P_LEVEL] == pv[0][P_LEVEL] - 5 && !sg.focus;
         kt(EN_K1, 1);
-        ok &= fg.seed == (uint8_t)(seed + 1u) && trk[0].p[cut] == pv[0][cut] - 5;
+        ok &= fg.seed == (uint8_t)(seed + 1u) && trk[0].p[P_LEVEL] == pv[0][P_LEVEL] - 5;
         kt(EN_K1, -1);
     }
-    bad += check("  37. FOCUS off, D4 held: K1 is T1's CUTOFF; let go: the value stays, K1 SEED again, FOCUS still off", ok);
-    /* 32. D4 held + A3: FOCUS T3, no reroll, no mute; let go: it stays */
+    sg_wtap(1);                                         /* (FOCUS T2 on: D4 held is still the levels) */
+    sg_vals(pv);
+    sg_w(SG_D4, 1);
+    kt(EN_K2, 3);
+    sg_w(SG_D4, 0);
+    ok &= trk[1].p[P_LEVEL] == pv[1][P_LEVEL] + 3 && sg.focus == 2u;
+    sg_wtap(1);
+    trk[0].p[P_LEVEL] = pv[0][P_LEVEL] + 5; trk[1].p[P_LEVEL] = pv[1][P_LEVEL]; trk[3].p[P_LEVEL] = pv[3][P_LEVEL] + 2;
+    bad += check("  37. (0.15) D4 held: K1-K4 T1-T4 LEVEL, FOCUS on or off; let go: the levels stay, K1 SEED again", ok);
+    /* 43. G3 tap: FOCUS T2, no reroll, no mute; G3 again: off */
     for (j = 0; j < NTRK; j++) memcpy(was[j], trk[j].step, sizeof was[j]);
     memcpy(nv, sg.nvar, sizeof nv);
-    sg_w(SG_D4, 1);
-    sg_w(2, 1);
-    ok = sg.focus == 3u && msg_is("FOCUS T3 PAD") && !(perf_held & PF_MUTE) && trk[2].p[P_MUTE] == 0;
-    sg_w(2, 0);
-    sg_w(SG_D4, 0);
-    ok &= sg.focus == 3u && !memcmp(nv, sg.nvar, sizeof nv) && sg_same((const step_t (*)[NSTEP])was, 99);
-    bad += check("  32. D4 held + A3: FOCUS T3 PAD; no reroll, no mute; D4 let go: FOCUS stays", ok);
-    /* 33. at the key's down: FX + D4 + G3 a mute, D4 + G3 the focus, G3 alone a reroll; later presses change nothing */
+    sg_wtap(1);
+    ok = sg.focus == 2u && msg_is("FOCUS T2 LEAD") && !(perf_held & PF_MUTE) && trk[1].p[P_MUTE] == 0 &&
+         !memcmp(nv, sg.nvar, sizeof nv) && sg_same((const step_t (*)[NSTEP])was, 99);
+    sg_wtap(1);
+    ok &= !sg.focus && msg_is("FOCUS OFF");
+    bad += check("SONG spec v0.6 43. G3 tap: FOCUS T2 LEAD, no reroll, no mute; G3 again: FOCUS OFF", ok);
+    /* 44. D4 + A3: T3 rerolled alone; T3 locked: T3 LOCKED, nothing */
+    for (j = 0; j < NTRK; j++) memcpy(was[j], trk[j].step, sizeof was[j]);
+    memcpy(nv, sg.nvar, sizeof nv);
+    sg_rr(2);
+    ok = sg.nvar[SG_A][2] == nv[SG_A][2] + 1u && sg_same((const step_t (*)[NSTEP])was, 2) && !sg.focus;
+    sg_tap(6);                                          /* (G#4: T3 locked) */
+    for (j = 0; j < NTRK; j++) memcpy(was[j], trk[j].step, sizeof was[j]);
+    memcpy(nv, sg.nvar, sizeof nv);
+    sg_rr(2);
+    ok &= msg_is("T3 LOCKED") && !memcmp(nv, sg.nvar, sizeof nv) && sg_same((const step_t (*)[NSTEP])was, 99);
+    sg_tap(6);
+    bad += check("  44. D4 + A3: T3 rerolled alone; T3 locked: T3 LOCKED, nothing changes", ok);
+    /* 45. at the key's down: FX + D4 + G3 a mute, D4 + G3 a reroll, G3 FOCUS; later presses change nothing */
+    memcpy(nv, sg.nvar, sizeof nv);
     btn_down(B_FX); frame();
     sg_w(SG_D4, 1);
     sg_w(1, 1);
-    ok = ((perf_held >> (PF_M1 + 1u)) & 1u) && sg.focus == 3u;
+    ok = ((perf_held >> (PF_M1 + 1u)) & 1u) && !sg.focus && !memcmp(nv, sg.nvar, sizeof nv);
     btn_up(B_FX); frame();
-    ok &= ((perf_held >> (PF_M1 + 1u)) & 1u) && sg.focus == 3u;   /* (still the mute, FX let go) */
+    ok &= ((perf_held >> (PF_M1 + 1u)) & 1u) != 0u;     /* (still the mute, FX let go) */
     sg_w(1, 0);
     sg_w(SG_D4, 0);
-    ok &= !(perf_held & PF_MUTE) && sg.focus == 3u;
-    memcpy(nv, sg.nvar, sizeof nv);
+    ok &= !(perf_held & PF_MUTE);
     sg_w(SG_D4, 1); sg_w(1, 1);
-    btn_down(B_FX); frame();                            /* (FX after: still the focus) */
-    ok &= sg.focus == 2u && !(perf_held & PF_MUTE) && !memcmp(nv, sg.nvar, sizeof nv);
+    btn_down(B_FX); frame();                            /* (FX after: still the reroll) */
+    ok &= sg.nvar[SG_A][1] == nv[SG_A][1] + 1u && !(perf_held & PF_MUTE) && !sg.focus;
     btn_up(B_FX); frame();
     sg_w(1, 0); sg_w(SG_D4, 0);
-    sg_w(1, 1); sg_w(SG_D4, 1);                         /* (G3 first: the reroll; D4 after changes nothing) */
-    ok &= sg.nvar[SG_A][1] == nv[SG_A][1] + 1u && sg.focus == 2u;
+    memcpy(nv, sg.nvar, sizeof nv);
+    sg_w(1, 1); sg_w(SG_D4, 1);                         /* (G3 first: FOCUS; D4 after changes nothing) */
+    ok &= sg.focus == 2u && !memcmp(nv, sg.nvar, sizeof nv);
     sg_w(SG_D4, 0); sg_w(1, 0);
-    ok &= sg.focus == 2u;                               /* (that D4 was no tap: G3 was down) */
-    bad += check("  33. at the key's down: FX + D4 + G3 mutes T2, D4 + G3 FOCUS T2, G3 alone a reroll; later presses change nothing", ok);
+    ok &= sg.focus == 2u;
+    sg_wtap(1);
+    ok &= !sg.focus;
+    bad += check("  45. at the key's down: FX + D4 + G3 mutes T2, D4 + G3 rerolls T2, G3 FOCUS T2; later presses change nothing", ok);
     /* 34. FOCUS T1: K1 K2 move T1's CUTOFF and RESO only; kept over a part change and a reroll */
-    sg_w(SG_D4, 1); sg_w(0, 1); sg_w(0, 0); sg_w(SG_D4, 0);
+    sg_wtap(0);
     song_fmap(0, m);
     cut = m[0][0]; res = m[1][0];
     sg_vals(pv);
@@ -1958,7 +1987,7 @@ static int test_song_perf(void)
     trk[0].p[cut] = 90;
     kt(EN_K1, -1);
     ok = trk[0].p[cut] == 89;
-    sg_w(SG_D4, 1); sg_w(1, 1); sg_w(1, 0); sg_w(0, 1); sg_w(0, 0); sg_w(SG_D4, 0);   /* T2, then T1 again */
+    sg_wtap(1); sg_wtap(0);                             /* T2, then T1 again */
     kt(EN_K1, 1);
     ok &= sg.focus == 1u && trk[0].p[cut] == 90;
     btn_down(B_FX); frame(); sg_wtap(SG_D5); btn_up(B_FX); frame();   /* SCENE 1: CUTOFF 90 */
@@ -1975,18 +2004,18 @@ static int test_song_perf(void)
     btn_up(B_FX); frame();
     ok &= !perf_k[0] && sg_vals_same((const int16_t (*)[P_COUNT])pv, 99, 999, 999) && sg.focus == 1u;
     bad += check("  36. FOCUS T1 + FX held: K1 the FILTER macro; FX let go: it snaps back, CUTOFF unchanged", ok);
-    /* 38. FOCUS off: a D4 tap; D4 + the focus track's key */
+    /* 38 (v0.6). FOCUS T1 on: a D4 tap leaves it; B3: FOCUS T4 (its four); B3 again: off */
     sg_wtap(SG_D4);
-    ok = !sg.focus && msg_is("FOCUS OFF");
-    sg_w(SG_D4, 1); sg_w(3, 1); sg_w(3, 0); sg_w(SG_D4, 0);
+    ok = sg.focus == 1u;
+    sg_wtap(3);
     ok &= sg.focus == 4u && msg_is("FOCUS T4 DRUM");
     song_fmap(3, m);
     ok &= m[0][0] == P_LN0 && str_eq(song_fname(3, 0), "KICK") && str_eq(song_fname(3, 1), "TUNE") &&
           str_eq(song_fname(3, 2), "DECY") && str_eq(song_fname(3, 3), "DRV") && str_eq(song_fname(1, 1), "A/R") &&
           str_eq(song_fname(2, 2), "SEND");
-    sg_w(SG_D4, 1); sg_w(3, 1); sg_w(3, 0); sg_w(SG_D4, 0);
+    sg_wtap(3);
     ok &= !sg.focus;
-    bad += check("  38. a D4 tap turns FOCUS off; D4 + the focus track's key too (T4 DRUM: KICK TUNE DECY DRV)", ok);
+    bad += check("  38. (v0.6) a D4 tap leaves FOCUS; B3 FOCUS T4 (KICK TUNE DECY DRV), B3 again off", ok);
     /* 39. SCENE 1 stored, four params changed, D5 playing: all 16 back at the next 1/16, not before; E5 empty */
     sg_scene[1].n = 0; sg.scenes &= 1u;
     btn_down(B_FX); frame(); sg_wtap(SG_D5); btn_up(B_FX); frame();
@@ -2052,14 +2081,16 @@ static int test_song_perf(void)
         frame();
         for (n = 0; n < sg_scene[0].n && sg_scene[0].trk[n] != 0u; n++)
             ;
-        sg_scene[0].eng[1] = (uint8_t)trk[1].eng_req;
+        sg_scene[0].eng[1] = (uint8_t)trk[1].eng_req;   /* (T2's sound as stored again: 0.15 checks its preset too) */
+        sg_scene[0].pre[1] = trk[1].preset;
+        sg_scene[0].usr[1] = trk[1].user;
         sg_scene[0].v[n] = 999;                         /* (T1's first: CUTOFF) */
         sg_wtap(SG_D5);
         ok &= msg_is("SCENE 1") && trk[0].p[sg_scene[0].id[n]] == param_desc_of(eng_idx(trk[0].eng_req), sg_scene[0].id[n])->max;
         bad += check("  scene recall after T2's engine changed: T2 skipped (SCENE 1 SKIP T2), T1 T3 T4 back; a value past its range held to it", ok);
     }
     /* 41. CLEAR keeps FOCUS, its values and the scenes; leaving SONG: FOCUS off, the params kept, the scenes too */
-    sg_w(SG_D4, 1); sg_w(0, 1); sg_w(0, 0); sg_w(SG_D4, 0);
+    sg_wtap(0);
     kt(EN_K1, 3);
     sg_vals(pv);
     sg_tap(8);                                          /* C#5 CLEAR */
@@ -2071,9 +2102,360 @@ static int test_song_perf(void)
     return bad;
 }
 
+/* 0.15 spec v0.6 §H (tests 47..54): SELECT the tempo, F5 TAP, ALGORITHM KEY / SCALE at the bar, PRESETS the focus
+ * track's sound at the bar, four favourites, the scenes' sound check */
+static void sg_run_ms(uint32_t ms) { while (ms >= 16u) { pm_blocks(22); frame(); ms -= 16u; } }   /* (~16 ms of audio a frame) */
+static void sg_d4_black(uint32_t b, uint32_t fx)       /* D4 (+ FX) + black b */
+{
+    if (fx) { btn_down(B_FX); frame(); }
+    key_down(white(5)); frame(); sg_tap(b); key_up(white(5)); frame();
+    if (fx) { btn_up(B_FX); frame(); }
+}
+static int sg_roots(uint32_t r)
+{
+    uint32_t i;
+    for (i = 0; i < NTRK; i++)
+        if ((uint32_t)trk[i].p[P_ROOT] != r)
+            return 0;
+    return 1;
+}
+static int test_song_v06(void)
+{
+    static int16_t pv[NTRK][P_COUNT], pv2[NTRK][P_COUNT];
+    int bad = 0, ok;
+    uint32_t i, r0, n, k;
+    int16_t bpm;
+    sg_open((uint32_t)sg_genre("TRANCE"), 42);
+    fx_latch &= ~1u; perf_latch_on = 0;
+    ui_prefs &= ~PREF_BPM_LOCK;
+    song.g[G_CLOCK] = 0;
+    /* 47. SELECT: +3 detents +3 BPM, FX held +15; BPM LOCK: BPM LOCKED, no change */
+    bpm = song.g[G_BPM];
+    kt(EN_SELECT, 3);
+    ok = song.g[G_BPM] == bpm + 3 && sg.ov == SOV_TEMPO;
+    btn_down(B_FX); frame();
+    kt(EN_SELECT, 3);
+    btn_up(B_FX); frame();
+    ok &= song.g[G_BPM] == bpm + 18;
+    ui_prefs |= PREF_BPM_LOCK;
+    kt(EN_SELECT, 2);
+    ok &= song.g[G_BPM] == bpm + 18 && msg_is("BPM LOCKED");
+    ui_prefs &= ~PREF_BPM_LOCK;
+    song.g[G_CLOCK] = 1;
+    kt(EN_SELECT, 2);
+    ok &= song.g[G_BPM] == bpm + 18 && msg_is("EXT CLOCK");
+    song.g[G_CLOCK] = 0;
+    song.g[G_BPM] = bpm;
+    bad += check("SONG spec v0.6 47. SELECT: +3 detents +3 BPM, with FX +15; BPM LOCK: BPM LOCKED; external clock: EXT CLOCK", ok);
+    /* 48. F5 TAP: four taps 500 ms apart: 120 BPM (+-1); a 2.5 s gap starts over */
+    for (i = 0; i < 4u; i++) {
+        sg_wtap(14);
+        if (i < 3u) frames(500u - 32u);
+    }
+    ok = song.g[G_BPM] >= 119 && song.g[G_BPM] <= 121;
+    frames(2500u);
+    sg_wtap(14);
+    frames(250u - 32u);
+    sg_wtap(14);
+    ok &= song.g[G_BPM] >= 119 && song.g[G_BPM] <= 121;   /* (two taps of a new count: no tempo yet) */
+    sg_wtap(14);
+    ok &= song.g[G_BPM] >= 238 && song.g[G_BPM] <= 242;
+    ui_prefs |= PREF_BPM_LOCK;                          /* (review of 081a8ff: TAP refused as SELECT) */
+    bpm = song.g[G_BPM];
+    frames(2500u);
+    for (i = 0; i < 4u; i++) { sg_wtap(14); frames(300u); }
+    ok &= song.g[G_BPM] == bpm && msg_is("BPM LOCKED");
+    ui_prefs &= ~PREF_BPM_LOCK;
+    song.g[G_BPM] = 128;
+    bad += check("  48. F5 TAP: 4 taps 500 ms apart: 120 BPM; after a 2.5 s gap the count starts over (250 ms: 240); BPM LOCK: BPM LOCKED", ok);
+    /* 49. KEY: ALGORITHM +2 playing at step 5: the root as it was until the bar, then +2 on all four; stopped: at once */
+    r0 = fs.root;
+    transport_req = 1;
+    pm_blocks(2);
+    for (n = 0; n < 4000u && clk_step != 5u; n++) pm_blocks(1);
+    frame();
+    kt(EN_ALGO, 2);
+    ok = sg.kpend && sg.kroot == (r0 + 2u) % 12u && sg_roots(r0) && fs.root == r0;
+    for (n = 0; n < 400u && clk_step != 0u; n++) {
+        ok &= clk_step == 15u || sg_roots(r0);          /* (the bar's last 1/16 may take it: its notes have played) */
+        sg_run_ms(16);
+    }
+    ok &= clk_step == 0u && sg_roots((r0 + 2u) % 12u) && !sg.kpend && fs.root == (r0 + 2u) % 12u;
+    transport_req = 2;
+    pm_blocks(2); frame();
+    kt(EN_ALGO, -1);
+    ok &= !sg.kpend && sg_roots((r0 + 1u) % 12u);
+    bad += check("  49. ALGORITHM +2 at step 5: the root waits for the next bar, then +2 on all four tracks; stopped: at once", ok);
+    /* 50. SCALE: FX + ALGORITHM, the next of the list, at the bar the same way */
+    {
+        uint32_t sc0 = song_scale_now(), want;
+        for (i = 0; i < NELEM(SG_SCALES) && SG_SCALES[i] != sc0; i++)
+            ;
+        want = SG_SCALES[(i + 1u) % NELEM(SG_SCALES)];
+        transport_req = 1;
+        pm_blocks(2);
+        for (n = 0; n < 4000u && clk_step != 5u; n++) pm_blocks(1);
+        frame();
+        btn_down(B_FX); frame();
+        kt(EN_ALGO, 1);
+        btn_up(B_FX); frame();
+        ok = sg.kpend && sg.kscale == want && song_scale_now() == sc0 && (uint32_t)trk[0].p[P_SCALE] == sc0;
+        for (n = 0; n < 400u && clk_step != 0u; n++) sg_run_ms(16);
+        ok &= song_scale_now() == want && (uint32_t)trk[0].p[P_SCALE] == want && (uint32_t)trk[3].p[P_SCALE] == want;
+        transport_req = 2;
+        pm_blocks(2); frame();
+        bad += check("  50. FX + ALGORITHM: the next scale (MIN DOR PHRY MPEN ..), at the bar as the key", ok);
+    }
+    /* 51. PRESETS, FOCUS T1: the next preset of T1's engine, at the next bar 600 ms after the turn; T2..T4 untouched;
+     * OCT- before it: nothing loaded, SONG still open */
+    sg_wtap(0);                                         /* FOCUS T1 */
+    {
+        uint32_t p0 = trk[0].preset, e0 = trk[0].eng_req;
+        sg_vals(pv);
+        transport_req = 1;
+        pm_blocks(2);
+        kt(EN_PRESET, 1);
+        ok = sg.ppend == 1u && sg.pk != p0 && trk[0].preset == p0 && sg.ov == SOV_PRESET;
+        sg_run_ms(200);
+        ok &= trk[0].preset == p0;                      /* (under 600 ms: never, bar or not) */
+        for (n = 0; n < 400u && sg.ppend; n++) sg_run_ms(16);
+        ok &= trk[0].preset != p0 && trk[0].eng_req == e0 && clk_step >= 14u;
+        for (i = 1; i < NTRK; i++)
+            ok &= !memcmp(pv[i], trk[i].p, sizeof pv[i]);
+        k = trk[0].preset;
+        kt(EN_PRESET, 1);
+        oct_back();                                     /* (cancel: nothing loaded) */
+        ok &= !sg.ppend && fs.on && sg.on && msg_is("PRESET CANCELLED");
+        sg_run_ms(2000);
+        ok &= trk[0].preset == k;
+        transport_req = 2;
+        pm_blocks(2); frame();
+        bad += check("  51. PRESETS (FOCUS T1): T1 only, loaded at the bar 600 ms after the turn; OCT- before: cancelled, SONG open", ok);
+    }
+    /* 52. favourites: D4 + FX + black 2 stores T1's sound; another preset; D4 + black 2: it again (stopped: at once);
+     * kept in the settings; empty: FAV 3 EMPTY; a DRUM favourite on T1: refused */
+    {
+        uint32_t k1 = trk[0].preset, e1 = trk[0].eng_req;
+        persist_t ps;
+        memset(sg_fav, 0, 8);
+        sg_d4_black(1, 1);
+        ok = msg_is("FAV 2 STORED") && sg_fav[2] == e1 + 1u && sg_fav[3] == k1;
+        kt(EN_PRESET, 1);
+        sg_run_ms(800);
+        ok &= trk[0].preset != k1;
+        settings_export(&ps);
+        memset(sg_fav, 0, 8);
+        ok &= settings_import(&ps, (int)sizeof ps) != 0 && sg_fav[2] == e1 + 1u && sg_fav[3] == k1;
+        sg_d4_black(1, 0);
+        ok &= trk[0].preset == k1 && trk[0].eng_req == e1 && sg.part == SG_A;
+        sg_d4_black(2, 0);
+        ok &= msg_is("FAV 3 EMPTY");
+        sg_wtap(3);                                     /* FOCUS T4 (DRUM) */
+        sg_d4_black(3, 1);
+        sg_wtap(0);                                     /* FOCUS T1 */
+        k = trk[0].preset;
+        sg_d4_black(3, 0);
+        ok &= msg_is("FAV 4: DRUM ONLY T4") && trk[0].preset == k && trk[0].eng_req == e1 && ENGINES[0]->npresets <= 192u;
+        for (i = 0; i < NENGINES; i++)
+            ok &= ENGINES[i]->npresets <= 192u;          /* (the favourites' bytes: ANALOG's bits of presets 192..255) */
+        {   /* (review of 081a8ff) T1 on a user preset: FAV 1 keeps the user preset, D4 + black 1 loads it back */
+            uint8_t sel = song.sel;
+            song.sel = 0;
+            up_store(5, "FAV USER");
+            (void)up_load(5);
+            song.sel = sel;
+            ok &= user_of(&trk[0]) == 5u;
+            sg_d4_black(0, 1);
+            ok &= msg_is("FAV 1 STORED (USER)") && sg_fav[0] == SG_FAV_USER && sg_fav[1] == 5u;
+            apply_preset_to(&trk[0], 2);
+            ok &= user_of(&trk[0]) == UP_SLOTS;
+            sg_d4_black(0, 0);
+            ok &= user_of(&trk[0]) == 5u && song.sel == sel;
+        }
+        bad += check("  52. favourites: D4+FX+black 2 stores, D4+black 2 loads it (kept in the settings); FAV 3 EMPTY; a DRUM one on T1 refused; a user preset kept as one", ok);
+    }
+    /* 53. black 1..4 alone: the parts, no favourite */
+    k = trk[0].preset;
+    sg_tap(1);
+    ok = sg.part == SG_B && trk[0].preset == k;
+    sg_tap(0);
+    ok &= sg.part == SG_A;
+    bad += check("  53. black 1-4 alone: parts A-D, no favourite loads", ok);
+    /* 54. scenes: store, T2's preset changed, recall: T2 skipped (its params as they are), T1 T3 T4 back; values past
+     * the range held to it (min - 1, max + 1) */
+    {
+        uint32_t a, b;
+        btn_down(B_FX); frame(); sg_wtap(SG_D5); btn_up(B_FX); frame();
+        for (i = 0; i < NTRK; i++)
+            if (i != 1u) {
+                uint8_t m[4][2];
+                song_fmap(i, m);
+                trk[i].p[m[3][0]] = (int16_t)(trk[i].p[m[3][0]] > 20 ? trk[i].p[m[3][0]] - 20 : trk[i].p[m[3][0]] + 20);
+            }
+        sg_vals(pv);
+        apply_preset_to(&trk[1], (trk[1].preset + 1u) % ENGINES[trk[1].eng_req % NENGINES]->npresets);
+        frame();
+        sg_vals(pv2);
+        sg_wtap(SG_D5);
+        ok = msg_is("SCENE 1 SKIP T2") && sg.ov == SOV_SCENE && sg.ov_skip == 2u && !memcmp(pv2[1], trk[1].p, sizeof pv2[1]);
+        for (i = 0; i < NTRK; i++)
+            if (i != 1u)
+                ok &= memcmp(pv[i], trk[i].p, sizeof pv[i]) != 0;   /* (put back) */
+        for (a = 0; a < sg_scene[0].n && sg_scene[0].trk[a] != 0u; a++)
+            ;
+        for (b = a + 1u; b < sg_scene[0].n && sg_scene[0].trk[b] != 0u; b++)
+            ;
+        {
+            const param_desc_t *da = param_desc_of(eng_idx(trk[0].eng_req), sg_scene[0].id[a]);
+            const param_desc_t *db = param_desc_of(eng_idx(trk[0].eng_req), sg_scene[0].id[a + 1u]);
+            sg_scene[0].v[a] = (int16_t)(da->max + 1);
+            sg_scene[0].v[a + 1u] = (int16_t)(db->min - 1);
+            sg_wtap(SG_D5);
+            ok &= trk[0].p[sg_scene[0].id[a]] == da->max && trk[0].p[sg_scene[0].id[a + 1u]] == db->min;
+        }
+        bad += check("  54. scene recall after T2's preset changed: T2 skipped (its params kept), the others back; max+1 / min-1 held to the range", ok);
+    }
+    sg_close();
+    return bad;
+}
+
+/* 0.15 spec v0.6 §J (tests 55..57): SONG's screen says where the song is, draws by regions, the dots */
+static uint32_t sg_px_of(uint32_t y0, uint32_t y1, uint16_t c)   /* pixels of colour c in rows y0..y1-1 */
+{
+    uint32_t k, n = 0;
+    uint16_t sw = (uint16_t)((c >> 8) | (c << 8));
+    for (k = y0 * 240u; k < y1 * 240u; k++)
+        n += host_screen[k] == sw || host_screen[k] == c;
+    return n;
+}
+static int test_song_view(void)
+{
+    int bad = 0, ok;
+    uint32_t n, steps = 0, last, px0, ms;
+    sg_open((uint32_t)sg_genre("TRANCE"), 42);
+    fx_latch &= ~1u; perf_latch_on = 0;
+    sg_tap(1);                                          /* part B: all four play */
+    song.g[G_BPM] = 140;
+    transport_req = 1;
+    pm_blocks(2);
+    frame();
+    /* 55. each 1/16: BAR / STEP as the sequencer, the playhead its cell, the part block, the position bar; a mute: M */
+    ok = sv.shown;
+    last = trk[0].seq_idx;
+    for (n = 0; n < 2000u && steps < 40u; n++) {
+        sg_run_ms(16);
+        if (trk[0].seq_idx != last) {
+            uint32_t idx = trk[0].seq_idx % tl_len(&trk[0]);
+            last = trk[0].seq_idx;
+            steps++;
+            frame();
+            idx = trk[0].seq_idx % tl_len(&trk[0]);
+            ok &= sv.step == idx + 1u && sv.ph == idx % 16u && sv.bar == idx / 16u + 1u &&
+                  sv.bars == (tl_len(&trk[0]) + 15u) / 16u && sv.chain_px == (idx + 1u) * SV_CHW / tl_len(&trk[0]) &&
+                  sg.part == SG_B;
+        }
+    }
+    ok &= steps >= 40u && !sg_px_of(158, 176, T_REC);
+    {   /* (device 0.15) the STEP label stays as drawn: the digits right of it, never over it */
+        static uint16_t lab[30][40];
+        uint32_t r, c, same = 1;
+        sv.shown = 0;
+        frame();
+        for (r = 0; r < 30u; r++) for (c = 0; c < 40u; c++) lab[r][c] = host_screen[(62u + r) * 240u + 145u + c];
+        for (n = 0; n < 30u; n++) sg_run_ms(48);
+        for (r = 0; r < 30u; r++) for (c = 0; c < 40u; c++) same &= lab[r][c] == host_screen[(62u + r) * 240u + 145u + c];
+        ok &= same;
+    }
+    btn_down(B_FX); frame(); sg_w(2, 1);                /* FX + A3: T3 muted */
+    sg_run_ms(48);
+    ok &= sv_muted(2) && sg_px_of(158, 176, T_REC) > 10u;
+    sg_w(2, 0); btn_up(B_FX); frame();
+    sg_run_ms(48);
+    ok &= !sv_muted(2) && !sg_px_of(158, 176, T_REC);
+    bad += check("SONG spec v0.6 55. each 1/16: BAR / STEP digits, playhead cell, part block and position bar as the sequencer; a mute shows M (red), gone after", ok);
+    /* 56. playing at 140 BPM, all four tracks: the pixels sent per 1/16 on average, the largest transfer */
+    sg_run_ms(160);
+    px0 = host_px_n;
+    host_px_max = 0;
+    steps = 0;
+    last = trk[0].seq_idx;
+    for (ms = 0; ms < 6000u; ms += 16u) {
+        sg_run_ms(16);
+        if (trk[0].seq_idx != last) { last = trk[0].seq_idx; steps++; }
+    }
+    n = steps ? (host_px_n - px0) / steps : 99999u;
+    ok = steps > 40u && n <= 3000u && host_px_max < 240u * 240u / 4u;
+    printf("    56: %u steps, %u px a 1/16 on average, the largest transfer %u px\n", (unsigned)steps, (unsigned)n,
+           (unsigned)host_px_max);
+    bad += check("  56. playing at 140 BPM, all four tracks: 3,000 px or fewer a 1/16 on average, never the whole screen", ok);
+    /* 57. a note on T1 lights its dot within a frame, dark again by 150 ms; a muted track's stays dark */
+    for (n = 0; n < 4000u && !(trk_act & 1u); n++) pm_blocks(1);
+    frame();
+    ok = (trk_act & 1u) == 0u && sv.dot[0] == 1u;
+    for (ms = 0; ms < 400u && sv.dot[0]; ms += 16u) { fm1_ms += 0; frame(); trk_act &= ~1u; }
+    ok &= ms <= 150u && !sv.dot[0];
+    fx_latch |= 1u; perf_latch_on = 1;
+    btn_down(B_FX); frame(); sg_wtap(1); btn_up(B_FX); frame();   /* T2 muted (latched) */
+    trk_act |= 2u;
+    frame();
+    ok &= sv_muted(1) && !sv.dot[1];
+    sg_tap(8);                                          /* CLEAR */
+    fx_latch &= ~1u; perf_latch_on = 0;
+    transport_req = 2;
+    pm_blocks(2); frame();
+    bad += check("  57. a T1 note lights its dot within a frame, dark again in 150 ms or less; a muted track's dot stays dark", ok);
+    /* (device 0.15) D4 held across passes, the pass seeing it before the ISR does: the hold kept, the MIXER shown, K1
+     * T1's LEVEL; let go: back to SEED */
+    {
+        uint8_t m[4][2];
+        uint32_t cut, k9 = 1u << 9, px;
+        int16_t c0;
+        (void)m;
+        cut = P_LEVEL;
+        c0 = trk[0].p[cut];
+        ok = !sg.focus;
+        fm1_in.notes |= k9; host_notes |= k9;
+        frame();                                        /* (the pass first: kb_layer has no D4 yet) */
+        keyboard_block();
+        for (n = 0; n < 6u; n++) { frame(); ok &= song_d4() != 0u; }
+        {
+            char q[20];
+            ok &= str_eq(sv_state(q), "MIXER: LEVELS (D4)");
+            px = sg_px_of(197, 214, T_ACCENT);
+        }
+        kt(EN_K1, -3);
+        ok &= trk[0].p[cut] == c0 - 3 && song_d4() && px > 0u;
+        key_up(9u); frame(); frame();
+        ok &= !song_d4();
+        {
+            uint8_t seed = fg.seed;
+            kt(EN_K1, 1);
+            ok &= fg.seed == (uint8_t)(seed + 1u) && trk[0].p[cut] == c0 - 3;
+            kt(EN_K1, -1);
+        }
+        bad += check("  (device 0.15) D4 held over passes, seen by the pass before the ISR: the hold kept, MIXER shown, K1 T1's LEVEL; let go: SEED", ok);
+    }
+    {   /* the L face has every glyph SONG's screen sets in it: the keys, BAR n/n, the tempo */
+        uint32_t r, k2;
+        char b[16];
+        ok = 1;
+        for (r = 0; r < 12u; r++)
+            for (k2 = 0; k2 < NELEM(SG_SCALES); k2++) {
+                sg.kpend = 1; sg.kroot = (uint8_t)r; sg.kscale = SG_SCALES[k2];
+                song_key_name(b, sizeof b);
+                ok &= sv_large_ok(b);
+            }
+        sg.kpend = 0;
+        ok &= sv_large_ok("BAR 12/64") && sv_large_ok("0123456789");
+        bad += check("  the L face holds every glyph of SONG's large text (12 keys x 9 scales, BAR n/n, the tempo)", ok);
+    }
+    sg_close();
+    return bad;
+}
+
 int main(void)
 {
-    int bad = test_open() + test_styles() + test_evolve() + test_names() + test_chords() + test_reroll() + test_golden() + test_drum() + test_051() + test_starter() + test_perform() + test_roles() + test_song() + test_song_fix() + test_song_fx() + test_song_perf();
+    int bad = test_open() + test_styles() + test_evolve() + test_names() + test_chords() + test_reroll() + test_golden() + test_drum() + test_051() + test_starter() + test_perform() + test_roles() + test_song() + test_song_fix() + test_song_fx() + test_song_perf() + test_song_v06() + test_song_view();
     printf("%s\n", bad ? "FORGE TEST FAILED" : "forge tests passed");
     return bad != 0;
 }

@@ -111,9 +111,15 @@ static volatile uint32_t sg_fxmask;   /* main (0.13 SONG): the keys that take an
  * (eng_req) when stored: a track whose engine changed since is skipped (its params' indices mean other things now) */
 #define SC_MAX 20u                    /* (the focus params of T1..T4: 4 + 6 + 6 + 4) */
 typedef struct {
-    uint8_t n, trk[SC_MAX], id[SC_MAX], eng[NTRK];
-    int16_t v[SC_MAX];
+    uint8_t n, trk[SC_MAX], id[SC_MAX], eng[NTRK], pre[NTRK], usr[NTRK];   /* (0.15, spec v0.6 §H11: the preset and */
+    int16_t v[SC_MAX];                                                       /* user preset too) */
 } sg_scene_t;
+/* track i's sound is not the one stored with scene c: its params mean other things now (or another sound's) */
+static int sc_differs(const sg_scene_t *c, uint32_t i)
+{
+    const track_t *t = &trk[i % NTRK];
+    return t->eng_req != c->eng[i % NTRK] || t->preset != c->pre[i % NTRK] || t->user != c->usr[i % NTRK];
+}
 static sg_scene_t sg_scene[2];
 static volatile uint8_t sc_pend;
 static volatile uint8_t pq_pend, pq_mute, pq_solo;   /* main (0.7): PERFORM's QUANT: mutes and solos the ISR puts in at
