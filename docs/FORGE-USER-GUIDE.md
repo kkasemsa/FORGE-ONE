@@ -191,6 +191,8 @@ ordinary drum-grid steps once applied, so edit it on the grid, mute lanes in the
 
 ## 7. STARTER: a song start on all four tracks
 
+![STARTER keyboard map](keymaps/starter.png)
+
 **STARTER** (SEQ TOOLS **G5**, from 0.6) is FORGE for the whole song. One press loads a sound on each of the four
 tracks and writes a pattern for each, all from one seed:
 
@@ -372,6 +374,8 @@ parts:
 
 The parts are ordinary projects and the arrangement an ordinary SONG chain, so stock Felucca 1.6.1 loads and plays
 them too. Edit a part as usual: load its slot, change it, save it back to the same slot.
+
+![SONG keyboard map](keymaps/song.png)
 
 **SONG's keys** (spec v0.6, FORGE ONE 0.15): one touch for the common things. The columns: the key alone, with D4
 held, with FX held.

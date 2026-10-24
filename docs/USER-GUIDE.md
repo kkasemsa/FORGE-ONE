@@ -558,6 +558,50 @@ Hold a button for its layer. Keys pressed in a layer are shortcuts: they play no
 nothing. Double-tap the button to keep the layer open. In SET layers (GLO, SCL, EDIT, SEQ, REC), **OCT−** puts back
 what the layer changed since it opened.
 
+### Keyboard maps: every layer
+
+What each of the 27 keys does in each layer, and how to get there. Hold a layer button for the layer while you hold
+it; **double-tap** it to keep it open (tap it again to close). Keys in a layer play no notes.
+
+| Layer | How to get there |
+| --- | --- |
+| Playing | Nothing held: the keys play the selected track (ALGORITHM picks the track) |
+| FX | Hold **FX** |
+| PERFORM | **Double-tap FX**; tap FX to leave |
+| GLO | Hold **GLO** |
+| SCL | Hold **SCL** |
+| EDIT | Hold **EDIT** (a tap opens the EDIT pages: EDIT 1 has a DRUM track's KIT) |
+| SEQ TOOLS | Hold **SEQ** |
+| FORGE | SEQ TOOLS, then **F5** |
+| STARTER | SEQ TOOLS, then **G5** |
+| SONG | In STARTER, **F#5** |
+| REC | Hold **REC** |
+| DRUM grid | Select a DRUM track, tap **SEQ** (the STEP page) |
+
+![Playing](keymaps/play.png)
+
+![FX layer](keymaps/fx.png)
+
+![PERFORM](keymaps/perform.png)
+
+![GLO layer](keymaps/glo.png)
+
+![SCL layer](keymaps/scl.png)
+
+![EDIT layer](keymaps/edit.png)
+
+![SEQ TOOLS](keymaps/seq.png)
+
+![FORGE](keymaps/forge.png)
+
+![STARTER](keymaps/starter.png)
+
+![SONG](keymaps/song.png)
+
+![REC layer](keymaps/rec.png)
+
+![DRUM grid](keymaps/grid.png)
+
 ### FX layer (hold FX)
 
 The white keys hold performance effects on the master while pressed. **Black keys 1–4 mute T1–T4** while held.

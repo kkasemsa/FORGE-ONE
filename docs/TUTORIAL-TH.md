@@ -215,3 +215,47 @@ T1 เบส, T2 lead, T3 pad (คอร์ด), T4 กลอง (แทร็�
 | โหมด PERFORM | แตะ FX สองครั้ง (คีย์ดำ mute / scene, OCT+ ค้าง + คีย์ดำ solo, C#5 QUANT, D#5 DUCK, F#5 CLEAR) |
 | undo | SAVE ค้าง |
 | เซฟโปรเจกต์ | หยุด, SAVE ถึง PROJECT, K1 ช่อง, K4 SAVE, OCT+ |
+
+## แผนผังคีย์บอร์ดทุก layer
+
+แต่ละรูปบอกว่า 27 คีย์ทำอะไรใน layer นั้น และเข้า layer นั้นยังไง กดปุ่ม layer **ค้าง** = ใช้ layer ตอนที่จับปุ่มอยู่
+**แตะสองครั้ง** = ค้าง layer ไว้ไม่ต้องจับ (แตะอีกครั้งเพื่อปิด) คีย์ใน layer ไม่เล่นโน้ต
+
+| Layer | เข้ายังไง |
+| --- | --- |
+| เล่นปกติ | ไม่กดอะไรค้าง คีย์เล่นโน้ตของแทร็กที่เลือก (หมุน ALGORITHM เลือกแทร็ก) |
+| FX | กด **FX** ค้าง |
+| PERFORM | แตะ **FX สองครั้ง** แตะ FX อีกครั้งเพื่อออก |
+| GLO | กด **GLO** ค้าง |
+| SCL | กด **SCL** ค้าง |
+| EDIT | กด **EDIT** ค้าง (แตะเฉยๆ = เข้าหน้า EDIT ซึ่ง EDIT 1 มี KIT ของแทร็ก DRUM) |
+| SEQ TOOLS | กด **SEQ** ค้าง |
+| FORGE | ใน SEQ TOOLS กด **F5** |
+| STARTER | ใน SEQ TOOLS กด **G5** |
+| SONG | ใน STARTER กด **F#5** |
+| REC | กด **REC** ค้าง |
+| DRUM grid | เลือกแทร็ก DRUM แล้วแตะ **SEQ** (หน้า STEP) |
+
+![เล่นปกติ](keymaps/play.png)
+
+![FX](keymaps/fx.png)
+
+![PERFORM](keymaps/perform.png)
+
+![GLO](keymaps/glo.png)
+
+![SCL](keymaps/scl.png)
+
+![EDIT](keymaps/edit.png)
+
+![SEQ TOOLS](keymaps/seq.png)
+
+![FORGE](keymaps/forge.png)
+
+![STARTER](keymaps/starter.png)
+
+![SONG](keymaps/song.png)
+
+![REC](keymaps/rec.png)
+
+![DRUM grid](keymaps/grid.png)
