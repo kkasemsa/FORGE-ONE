@@ -755,11 +755,11 @@ static int test_starter(void)
     key_down(black(3)); frame(); key_up(black(3)); frame();
     ok &= !fs.var;
     kt(EN_K4, 1);
-    {   /* (EQUI's T4: the pack's RHYTHM BOX: DRUM, its kit 7 over PERC KIT, REV 30) */
-        const forge_sound_t *f = fs_pack("RHYTHM BOX");
+    {   /* (EQUI's T4: the pack's MINI KIT (0.14): DRUM, KIT MP over PERC KIT, REV 30) */
+        const forge_sound_t *f = fs_pack("MINI KIT");
         (void)fs_find_base(f->eng, f->base, &e, &k);
-        ok &= trk[3].eng_req == e && trk[3].preset == k && trk[3].p[P_E0] == 7 && trk[3].p[P_REV] == 30 &&
-              str_eq(FORGE_STARTER[42].snd[3].preset, "RHYTHM BOX");
+        ok &= trk[3].eng_req == e && trk[3].preset == k && trk[3].p[P_E0] == DK_MP && trk[3].p[P_REV] == 30 &&
+              str_eq(FORGE_STARTER[42].snd[3].preset, "MINI KIT");
     }
     bad += check("  black keys 1..4: the genre's variations (JARRE EQUI: its sounds, 120 BPM); LO-FI's SWG 25, no 4th", ok);
     oct_back();

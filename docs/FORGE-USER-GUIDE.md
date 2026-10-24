@@ -222,11 +222,11 @@ The screen shows a row a track: its preset and its first 16 steps. Under them, t
 |  | 4 **ARP** | *DEEP BASS* | LOFI STEP LEAD | *BERLIN PAD* | *RHYTHM BOX* · Berlin | 124 | DOR | – |
 | Detroit | 1 **STABS** | FM6 FM BASS | *WARM STAB* | FM6 TINE EP | *HOUSE KIT* · Detroit | 126 | DOR | – |
 |  | 2 **STRNG** | *DEEP BASS* | ANALOG STRINGS | *HOUSE PIANO* | *HOUSE KIT* · Detroit | 128 | MIN | – |
-|  | 3 **ELECT** | *ELECTRO BASS* | LOFI PULSE LD | PHASE STRING | *BOOM KIT* · Electro | 125 | PHRY | – |
+|  | 3 **ELECT** | *ELECTRO BASS* | LOFI PULSE LD | PHASE STRING | *808 KIT* · Electro | 125 | PHRY | – |
 |  | 4 **DEEP** | FM6 FM BASS | *GLASS ARP* | ANALOG SOFT PAD | DRUM DEEP KIT · Melodic | 124 | MIN | – |
 | Dub Techno | 1 **CHORD** | *DUB SUB* | *DUB CHORD* | GRAIN SHIMMER | *DUB KIT* · Dub | 118 | DOR | – |
 |  | 2 **DEEP** | VOICE WOW BASS | FM6 PAD | GRAIN CLOUD PAD | *DUB KIT* · Dub | 120 | MIN | – |
-|  | 3 **MINI** | *DUB SUB* | PHASE RESO | *DUB PAD* | *TECHNO KIT* · Dub | 124 | DOR | – |
+|  | 3 **MINI** | *DUB SUB* | PHASE RESO | *DUB PAD* | *909 KIT* · Dub | 124 | DOR | – |
 |  | 4 **ECHO** | ANALOG SUB BASS | FM6 TINE EP | GRAIN FROZEN | *DUB KIT* · Dub | 116 | MIN | – |
 | Melodic | 1 **ARC** | TRIO FAT BASS | ANALOG SAW LEAD | FM6 PAD | DRUM DRUM KIT · Melodic | 122 | MIN | – |
 |  | 2 **ARP** | *DEEP BASS* | TRIO SYNC LEAD | *TRANCE PAD* | DRUM TIGHT KIT · Melodic | 124 | MIN | – |
@@ -235,36 +235,36 @@ The screen shows a row a track: its preset and its first 16 steps. Under them, t
 | Acid House | 1 **CLASS** | *ACID 303* | *HOUSE PIANO* | ANALOG SOFT PAD | *HOUSE KIT* · Deep house | 124 | MIN | 10% |
 |  | 2 **JACK** | *ACID SQUARE* | ANALOG RAVE | *CHOIR AAH* | *HOUSE KIT* · Deep house | 122 | DOR | 15% |
 |  | 3 **FLOOR** | *ACID 303* | LOFI ARP 8BIT | PHASE ORGAN | DRUM DRUM KIT · Acid | 128 | MIN | – |
-| Acid Techno | 1 **ROLL** | ANALOG ACID | *CHIP ARP* | ANALOG SOFT PAD | *TECHNO KIT* · Acid | 128 | MIN | – |
-|  | 2 **WARE** | *ACID SQUARE* | LOFI STEP LEAD | ANALOG PWM STR | *TECHNO KIT* · Acid | 135 | MIN | – |
-|  | 3 **HARD** | *ACID 303* | FM6 BRASS | PHASE WIRE | *TECHNO KIT* · Acid | 140 | PHRY | – |
+| Acid Techno | 1 **ROLL** | ANALOG ACID | *CHIP ARP* | ANALOG SOFT PAD | *909 KIT* · Acid | 128 | MIN | – |
+|  | 2 **WARE** | *ACID SQUARE* | LOFI STEP LEAD | ANALOG PWM STR | *909 KIT* · Acid | 135 | MIN | – |
+|  | 3 **HARD** | *ACID 303* | FM6 BRASS | PHASE WIRE | *909 KIT* · Acid | 140 | PHRY | – |
 | Trance | 1 **GATE** | ANALOG SUB BASS | TRIO ARP LEAD | *TRANCE PAD* | *HOUSE KIT* · Trance | 138 | MIN | – |
 |  | 2 **LIFT** | ANALOG SUB BASS | *SUPERSAW* | *CHOIR PAD* | *HOUSE KIT* · Trance | 138 | MIN | – |
 |  | 3 **PSY** | ANALOG SQR BASS | TRIO RING BELL | PHASE RESO | DRUM TIGHT KIT · Trance | 142 | PHRY | – |
 | Deep House | 1 **KEYS** | *HOUSE BASS* | FM6 TINE EP | ANALOG SOFT PAD | DRUM DEEP KIT · Deep house | 122 | DOR | 15% |
 |  | 2 **ORGAN** | VOICE WOW BASS | *HOUSE ORGAN* | ANALOG STRINGS | *HOUSE KIT* · Deep house | 120 | MIN | 20% |
 |  | 3 **VOCAL** | ANALOG SUB BASS | *VOX CHANT* | FM6 PAD | DRUM DEEP KIT · Deep house | 121 | MIN | 10% |
-| Synthwave | 1 **DRIVE** | *OCTAVE BASS* | ANALOG SAW LEAD | ANALOG PWM STR | *BOOM KIT* · Synthwave | 110 | MIN | – |
-|  | 2 **NIGHT** | TRIO FAT BASS | *BRASS STAB* | FM6 PAD | *BOOM KIT* · Synthwave | 98 | MIN | – |
+| Synthwave | 1 **DRIVE** | *OCTAVE BASS* | ANALOG SAW LEAD | ANALOG PWM STR | *SIMMONS KIT* · Synthwave | 110 | MIN | – |
+|  | 2 **NIGHT** | TRIO FAT BASS | *BRASS STAB* | FM6 PAD | *SIMMONS KIT* · Synthwave | 98 | MIN | – |
 |  | 3 **8BIT** | LOFI WAVE BASS | *8BIT LEAD* | TRIO CHIP CHOIR | DRUM TIGHT KIT · Synthwave | 118 | MAJ | – |
 | Breakbeat | 1 **AMEN** | *REESE* | FM6 BRASS | ANALOG STRINGS | *BREAK KIT* · Breakbeat | 134 | MIN | 10% |
 |  | 2 **NUSK** | *ACID SQUARE* | LOFI STEP LEAD | PHASE STRING | *BREAK KIT* · Breakbeat | 135 | PHRY | 5% |
-|  | 3 **ELECT** | *ELECTRO BASS* | *SCREAM* | FM6 PAD | *BOOM KIT* · Electro | 128 | MIN | 5% |
+|  | 3 **ELECT** | *ELECTRO BASS* | *SCREAM* | FM6 PAD | *808 KIT* · Electro | 128 | MIN | 5% |
 | Ambient | 1 **CLOUD** | *DRONE BASS* | FM6 BELL | GRAIN CLOUD PAD | DRUM PERC KIT · Ambient | 80 | LYD | – |
 |  | 2 **DRONE** | PHYS DRONE STRING | SAMPLE FLUTE | *AIR PAD* | DRUM PERC KIT · Ambient | 72 | DOR | – |
 |  | 3 **GLASS** | *DRONE BASS* | PHYS MARIMBA | *CHOIR PAD* | DRUM PERC KIT · Ambient | 84 | LYD | – |
 |  | 4 **RAIN** | FM6 FM BASS | TRIO RING BELL | *GLASS PAD* | DRUM PERC KIT · Ambient | 76 | MIN | – |
-| Lo-Fi | 1 **PIANO** | *LOFI BASS* | SAMPLE PIANO | *LOFI PAD* | *BOOM KIT* · Lo-fi | 84 | DOR | 25% |
+| Lo-Fi | 1 **PIANO** | *LOFI BASS* | SAMPLE PIANO | *LOFI PAD* | *808 KIT* · Lo-fi | 84 | DOR | 25% |
 |  | 2 **TAPE** | TRIO FAT BASS | *WARM KEYS* | WHEEL SOFT FLUTE | DRUM DRUM KIT · Lo-fi | 88 | MIN | 20% |
 |  | 3 **SAX** | *LOFI BASS* | SAMPLE SAX | FM6 PAD | DRUM PERC KIT · Lo-fi | 80 | DOR | 22% |
-| Jarre | 1 **OXY** | ANALOG SQR BASS | *OXY LEAD* | *STRING MACH* | *RHYTHM BOX* · Rhythm box | 104 | MIN | – |
-|  | 2 **EQUI** | LOFI WAVE BASS | TRIO ARP LEAD | *CHOIR AAH* | *RHYTHM BOX* · Electro | 120 | MIN | – |
-|  | 3 **FIELD** | FM6 FM BASS | *BRASS STAB* | ANALOG PWM STR | *RHYTHM BOX* · Rhythm box | 112 | DOR | – |
+| Jarre | 1 **OXY** | ANALOG SQR BASS | *OXY LEAD* | *STRING MACH* | *MINI KIT* · Rhythm box | 104 | MIN | – |
+|  | 2 **EQUI** | LOFI WAVE BASS | TRIO ARP LEAD | *CHOIR AAH* | *MINI KIT* · Electro | 120 | MIN | – |
+|  | 3 **FIELD** | FM6 FM BASS | *BRASS STAB* | ANALOG PWM STR | *MINI KIT* · Rhythm box | 112 | DOR | – |
 |  | 4 **ZOO** | VOICE WOW BASS | *VOX CHANT* | GRAIN SHIMMER | DRUM TIGHT KIT · Electro | 118 | PHRY | – |
 
 \* The starter's SCALE is used only when the selected track's SCALE is CHR (the default). Any other SCALE you set is kept.
 
-**FORGE PACK (0.9).** Sounds in *italics* in the table are from the FORGE PACK: 41 sounds made for the starters.
+**FORGE PACK (0.9).** Sounds in *italics* in the table are from the FORGE PACK: 43 sounds (0.14) made for the starters.
 Each is a factory preset with its own settings on top (oscillator and filter, envelope, voice mode and glide, unison,
 the effect sends, the LFO), exactly as if you had turned the knobs yourself. So PRESETS shows the factory preset's
 name, a project saves them like any edited sound, and they open on stock Felucca and in the Felucca web editor. To
@@ -307,11 +307,13 @@ keep one for other songs, save it with **SAVE > USER** while the track has it.
 | **GLASS PAD** | GRAIN SHIMMER | Granular shimmer, long · LEVEL −7 dB |
 | **AIR PAD** | NOISE WIND | Filtered noise, slowly drifting · LEVEL −7 dB |
 | **LOFI PAD** | ANALOG SOFT PAD | Soft pad with hiss and tape wobble · LEVEL −7 dB |
-| **BOOM KIT** | DRUM DEEP KIT | Long, round kick; deep and boomy |
-| **HOUSE KIT** | DRUM DRUM KIT | Punchy kit, snappy |
+| **808 KIT** | DRUM DEEP KIT | KIT 80: long, round kick; deep and boomy (0.14; was BOOM KIT) |
+| **HOUSE KIT** | DRUM DRUM KIT | Punchy kit, snappy (0.14: on KIT 90) |
 | **BREAK KIT** | DRUM TIGHT KIT | Bright, snappy, driven |
 | **RHYTHM BOX** | DRUM PERC KIT | An early rhythm machine, soft |
-| **TECHNO KIT** | DRUM TIGHT KIT | Tight and driven |
+| **909 KIT** | DRUM TIGHT KIT | KIT 90: the later analog drum machine, a click on the kick, bright hats (0.14; was TECHNO KIT) |
+| **MINI KIT** | DRUM PERC KIT | KIT MP: the 70s organ-top rhythm box, soft: bongo, claves, maracas (0.14) |
+| **SIMMONS KIT** | DRUM DEEP KIT | KIT SD: the 80s electronic kit, swept kick and big bent toms (0.14) |
 | **DUB KIT** | DRUM DEEP KIT | Deep kit with delay and reverb on the drums |
 
 These were designed without listening on the FM-1: every starter is checked to play all four tracks without silence or

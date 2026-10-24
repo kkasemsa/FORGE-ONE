@@ -386,7 +386,7 @@ the FM-1 follows an external clock.
 
 K1 SEED, K2 DENSITY (50–150 % of each part's own), K3 EVOLVE and K4 GENRE (13 genres). Black keys 1–4 pick the
 genre's variation (3 or 4 each, 45 starters in all); each loads its own sounds, tempo, scale and swing. Sounds in
-*italics* are from the **FORGE PACK** (0.9): 41 sounds built on factory presets with their own settings (the full
+*italics* are from the **FORGE PACK** (0.9): 43 sounds (0.14) built on factory presets with their own settings (the full
 list is in the FORGE User Guide); they save and load as ordinary edited sounds, and SAVE > USER keeps one. C4 rerolls the notes of all four, D4 the rhythms. **OCT+** (or G5 again) keeps it; **OCT−** puts
 all four tracks back as they were, sounds, steps, automation and tempo included. SAVE-held undo cannot undo
 STARTER, so use OCT− before you let go of SEQ. PAN and MUTE are never changed; LEVEL only by the pack's pads (0.9.2:
@@ -400,11 +400,11 @@ they sit 7 to 12 dB lower, so a chord does not bury the bass), and OCT− puts i
 |  | 4 **ARP** | *DEEP BASS* | LOFI STEP LEAD | *BERLIN PAD* | *RHYTHM BOX* · Berlin | 124 | DOR | – |
 | Detroit | 1 **STABS** | FM6 FM BASS | *WARM STAB* | FM6 TINE EP | *HOUSE KIT* · Detroit | 126 | DOR | – |
 |  | 2 **STRNG** | *DEEP BASS* | ANALOG STRINGS | *HOUSE PIANO* | *HOUSE KIT* · Detroit | 128 | MIN | – |
-|  | 3 **ELECT** | *ELECTRO BASS* | LOFI PULSE LD | PHASE STRING | *BOOM KIT* · Electro | 125 | PHRY | – |
+|  | 3 **ELECT** | *ELECTRO BASS* | LOFI PULSE LD | PHASE STRING | *808 KIT* · Electro | 125 | PHRY | – |
 |  | 4 **DEEP** | FM6 FM BASS | *GLASS ARP* | ANALOG SOFT PAD | DRUM DEEP KIT · Melodic | 124 | MIN | – |
 | Dub Techno | 1 **CHORD** | *DUB SUB* | *DUB CHORD* | GRAIN SHIMMER | *DUB KIT* · Dub | 118 | DOR | – |
 |  | 2 **DEEP** | VOICE WOW BASS | FM6 PAD | GRAIN CLOUD PAD | *DUB KIT* · Dub | 120 | MIN | – |
-|  | 3 **MINI** | *DUB SUB* | PHASE RESO | *DUB PAD* | *TECHNO KIT* · Dub | 124 | DOR | – |
+|  | 3 **MINI** | *DUB SUB* | PHASE RESO | *DUB PAD* | *909 KIT* · Dub | 124 | DOR | – |
 |  | 4 **ECHO** | ANALOG SUB BASS | FM6 TINE EP | GRAIN FROZEN | *DUB KIT* · Dub | 116 | MIN | – |
 | Melodic | 1 **ARC** | TRIO FAT BASS | ANALOG SAW LEAD | FM6 PAD | DRUM DRUM KIT · Melodic | 122 | MIN | – |
 |  | 2 **ARP** | *DEEP BASS* | TRIO SYNC LEAD | *TRANCE PAD* | DRUM TIGHT KIT · Melodic | 124 | MIN | – |
@@ -413,31 +413,31 @@ they sit 7 to 12 dB lower, so a chord does not bury the bass), and OCT− puts i
 | Acid House | 1 **CLASS** | *ACID 303* | *HOUSE PIANO* | ANALOG SOFT PAD | *HOUSE KIT* · Deep house | 124 | MIN | 10% |
 |  | 2 **JACK** | *ACID SQUARE* | ANALOG RAVE | *CHOIR AAH* | *HOUSE KIT* · Deep house | 122 | DOR | 15% |
 |  | 3 **FLOOR** | *ACID 303* | LOFI ARP 8BIT | PHASE ORGAN | DRUM DRUM KIT · Acid | 128 | MIN | – |
-| Acid Techno | 1 **ROLL** | ANALOG ACID | *CHIP ARP* | ANALOG SOFT PAD | *TECHNO KIT* · Acid | 128 | MIN | – |
-|  | 2 **WARE** | *ACID SQUARE* | LOFI STEP LEAD | ANALOG PWM STR | *TECHNO KIT* · Acid | 135 | MIN | – |
-|  | 3 **HARD** | *ACID 303* | FM6 BRASS | PHASE WIRE | *TECHNO KIT* · Acid | 140 | PHRY | – |
+| Acid Techno | 1 **ROLL** | ANALOG ACID | *CHIP ARP* | ANALOG SOFT PAD | *909 KIT* · Acid | 128 | MIN | – |
+|  | 2 **WARE** | *ACID SQUARE* | LOFI STEP LEAD | ANALOG PWM STR | *909 KIT* · Acid | 135 | MIN | – |
+|  | 3 **HARD** | *ACID 303* | FM6 BRASS | PHASE WIRE | *909 KIT* · Acid | 140 | PHRY | – |
 | Trance | 1 **GATE** | ANALOG SUB BASS | TRIO ARP LEAD | *TRANCE PAD* | *HOUSE KIT* · Trance | 138 | MIN | – |
 |  | 2 **LIFT** | ANALOG SUB BASS | *SUPERSAW* | *CHOIR PAD* | *HOUSE KIT* · Trance | 138 | MIN | – |
 |  | 3 **PSY** | ANALOG SQR BASS | TRIO RING BELL | PHASE RESO | DRUM TIGHT KIT · Trance | 142 | PHRY | – |
 | Deep House | 1 **KEYS** | *HOUSE BASS* | FM6 TINE EP | ANALOG SOFT PAD | DRUM DEEP KIT · Deep house | 122 | DOR | 15% |
 |  | 2 **ORGAN** | VOICE WOW BASS | *HOUSE ORGAN* | ANALOG STRINGS | *HOUSE KIT* · Deep house | 120 | MIN | 20% |
 |  | 3 **VOCAL** | ANALOG SUB BASS | *VOX CHANT* | FM6 PAD | DRUM DEEP KIT · Deep house | 121 | MIN | 10% |
-| Synthwave | 1 **DRIVE** | *OCTAVE BASS* | ANALOG SAW LEAD | ANALOG PWM STR | *BOOM KIT* · Synthwave | 110 | MIN | – |
-|  | 2 **NIGHT** | TRIO FAT BASS | *BRASS STAB* | FM6 PAD | *BOOM KIT* · Synthwave | 98 | MIN | – |
+| Synthwave | 1 **DRIVE** | *OCTAVE BASS* | ANALOG SAW LEAD | ANALOG PWM STR | *SIMMONS KIT* · Synthwave | 110 | MIN | – |
+|  | 2 **NIGHT** | TRIO FAT BASS | *BRASS STAB* | FM6 PAD | *SIMMONS KIT* · Synthwave | 98 | MIN | – |
 |  | 3 **8BIT** | LOFI WAVE BASS | *8BIT LEAD* | TRIO CHIP CHOIR | DRUM TIGHT KIT · Synthwave | 118 | MAJ | – |
 | Breakbeat | 1 **AMEN** | *REESE* | FM6 BRASS | ANALOG STRINGS | *BREAK KIT* · Breakbeat | 134 | MIN | 10% |
 |  | 2 **NUSK** | *ACID SQUARE* | LOFI STEP LEAD | PHASE STRING | *BREAK KIT* · Breakbeat | 135 | PHRY | 5% |
-|  | 3 **ELECT** | *ELECTRO BASS* | *SCREAM* | FM6 PAD | *BOOM KIT* · Electro | 128 | MIN | 5% |
+|  | 3 **ELECT** | *ELECTRO BASS* | *SCREAM* | FM6 PAD | *808 KIT* · Electro | 128 | MIN | 5% |
 | Ambient | 1 **CLOUD** | *DRONE BASS* | FM6 BELL | GRAIN CLOUD PAD | DRUM PERC KIT · Ambient | 80 | LYD | – |
 |  | 2 **DRONE** | PHYS DRONE STRING | SAMPLE FLUTE | *AIR PAD* | DRUM PERC KIT · Ambient | 72 | DOR | – |
 |  | 3 **GLASS** | *DRONE BASS* | PHYS MARIMBA | *CHOIR PAD* | DRUM PERC KIT · Ambient | 84 | LYD | – |
 |  | 4 **RAIN** | FM6 FM BASS | TRIO RING BELL | *GLASS PAD* | DRUM PERC KIT · Ambient | 76 | MIN | – |
-| Lo-Fi | 1 **PIANO** | *LOFI BASS* | SAMPLE PIANO | *LOFI PAD* | *BOOM KIT* · Lo-fi | 84 | DOR | 25% |
+| Lo-Fi | 1 **PIANO** | *LOFI BASS* | SAMPLE PIANO | *LOFI PAD* | *808 KIT* · Lo-fi | 84 | DOR | 25% |
 |  | 2 **TAPE** | TRIO FAT BASS | *WARM KEYS* | WHEEL SOFT FLUTE | DRUM DRUM KIT · Lo-fi | 88 | MIN | 20% |
 |  | 3 **SAX** | *LOFI BASS* | SAMPLE SAX | FM6 PAD | DRUM PERC KIT · Lo-fi | 80 | DOR | 22% |
-| Jarre | 1 **OXY** | ANALOG SQR BASS | *OXY LEAD* | *STRING MACH* | *RHYTHM BOX* · Rhythm box | 104 | MIN | – |
-|  | 2 **EQUI** | LOFI WAVE BASS | TRIO ARP LEAD | *CHOIR AAH* | *RHYTHM BOX* · Electro | 120 | MIN | – |
-|  | 3 **FIELD** | FM6 FM BASS | *BRASS STAB* | ANALOG PWM STR | *RHYTHM BOX* · Rhythm box | 112 | DOR | – |
+| Jarre | 1 **OXY** | ANALOG SQR BASS | *OXY LEAD* | *STRING MACH* | *MINI KIT* · Rhythm box | 104 | MIN | – |
+|  | 2 **EQUI** | LOFI WAVE BASS | TRIO ARP LEAD | *CHOIR AAH* | *MINI KIT* · Electro | 120 | MIN | – |
+|  | 3 **FIELD** | FM6 FM BASS | *BRASS STAB* | ANALOG PWM STR | *MINI KIT* · Rhythm box | 112 | DOR | – |
 |  | 4 **ZOO** | VOICE WOW BASS | *VOX CHANT* | GRAIN SHIMMER | DRUM TIGHT KIT · Electro | 118 | PHRY | – |
 
 \* The starter's SCALE is used only when the selected track's SCALE is CHR (the default). Any other SCALE you set is kept.
@@ -654,7 +654,7 @@ In the order the FM-1 lists them:
 | **PHYS** | Physical models: modal resonators, strings, struck membranes, sympathetic strings |
 | **NOISE** | Noise from analog to digital: colours, crackle, shift-register and metallic tones |
 | **SLICE** | A drum break, a piano note or your own sample cut into slices, one per key; set slices by hand on SLICES |
-| **DRUM** | An 8-lane kit on the General MIDI key map, all synthesized. KIT: STD, 80, 10, 66, 55, 77, DEEP, TIGHT, PERC. EDIT > LANES sets each lane's level |
+| **DRUM** | An 8-lane kit on the General MIDI key map, all synthesized. KIT: STD, 80, 10, 66, 55, 77, DEEP, TIGHT, PERC, 90, MP, SD (FORGE ONE 0.14: 90 MP SD). EDIT > LANES sets each lane's level |
 
 A missing sample (an empty user slot) plays a plain sine at the note's pitch, and the screen says NO SAMPLE once.
 User samples are uploaded from the web editor.

@@ -57,6 +57,13 @@
  *   TIGHT  short and dry: 55's kick, 66's bright snare, 80's clap, 55's hats, 55's tom, 66's high rim, 80's bell
  *   PERC   a percussion kit: 10's kick, 77's snare and claps, 66's hats, 66's conga on TOM, 77's claves on RIM, 66's
  *          two-sine bell
+ * FORGE ONE 0.14: three more, data only as the three above:
+ *   90     the later drum machine's: a punchy kick with a click, a bright snare, a long clap, bright hats, 80's rim,
+ *          10's crash on BELL
+ *   MP     the 70s organ-top rhythm box: a soft thump, a short noise snare, maracas on HAT CL, a noise cymbal on HAT
+ *          OP, a bongo on TOM, claves on RIM, a noise cymbal on BELL
+ *   SD     the 80s hexagonal electronic kit: a swept boom kick, a gliding snare, 90's clap and hats, a big bent tom,
+ *          80's rim, 10's crash on BELL
  * Parameters per lane (dv_param_t): TUNE (1/16 semitone from the designed pitch, held in the voice's
  * range), DECAY, TONE, extra, LEVEL, accent, 0..127 each; the designed sound is at DV_DEF's values.
  * Accent adds up to 4 dB, a little more on the transient (click, spike, the claps). At LEVEL 100 the
@@ -76,7 +83,7 @@ enum {
 };
 /* a lane of a model kit as a type: the kit (1..DV_NKIT) in the high 4 bits, the lane in the low 3 (Felucca's own
  * types: 0 above). Its run (the DVT_* it plays through) is the kit's (DV_KIT) */
-#define DV_NKIT 8                                        /* (1.5.6, #216: DEEP TIGHT PERC after 77) */
+#define DV_NKIT 11                                       /* (1.5.6, #216: DEEP TIGHT PERC after 77; FORGE ONE 0.14: 90 MP SD) */
 #define DV_KITOF(t) ((uint32_t)(t) >> 4)
 #define DV_KTYPE(kit, lane) ((uint8_t)(((kit) << 4) | (lane)))
 
@@ -187,7 +194,7 @@ typedef struct {
     int16_t v[13];
 } dv_kit_t;
 /* the accent per kit: + (x / 16384) per accent step (75: +4 dB at full, as Felucca's own) */
-static const uint8_t DV_KIT_ACC[DV_NKIT] = {120, 45, 100, 40, 40, 80, 60, 70};
+static const uint8_t DV_KIT_ACC[DV_NKIT] = {120, 45, 100, 40, 40, 80, 60, 70, 100, 60, 110};
 static const dv_kit_t DV_KIT[DV_NKIT][DV_NLANE] = {
     {   /* 80 */
         /* deep sine, a small drop, long decay */
@@ -329,6 +336,62 @@ static const dv_kit_t DV_KIT[DV_NKIT][DV_NLANE] = {
         {DVT_CLAVE, 32, 1568, 149, 2131, {84, 28000, 10000, 6348, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
         /* 66's bell: sines 830 / 613 Hz */
         {DVT_RIM, 40, 1280, 60, 3629, {-84, 30000, 7500, 4096, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
+    },
+    {   /* 90 (FORGE ONE 0.14): the later drum machine's kit, put together from the runs and the five kits' numbers,
+         * data only as DEEP TIGHT PERC: a punchier, brighter, tighter kit than 80, voiced from its published traits */
+        /* 55 Hz swept down from about 210 Hz (tau 12 ms) after an attack sweep, a 2nd harmonic, a strong click */
+        {DVT_PUNCH, 60, 531, 280, 2700, {360, 120, 192, 1000, 0, 1300, 3600, 6000, 0, 0, 0, 0, 0}},
+        /* 80's two shells (173 / 336 Hz) under brighter, longer, snappier noise with a crack on the spike */
+        {DVT_SNARE, 40, 845, 150, 5690, {241, 0, 100, 53, 32767, 11000, 1820, 6827, 30, 12000, 32000, 12000, 1828}},
+        /* 80's clap (band 1 kHz, 3 teeth) with a longer tail */
+        {DVT_CLAP, 48, 1331, 420, 13485, {0, 4096, 1678, 0, 3000, 30000, 35, 441, 3, 0, 0, 0, 0}},
+        /* 55's bright cluster (8 .. 14.7 kHz) and noise, more sizzle */
+        {DVT_HATC, 45, 1909, 110, 1530, {1996, 5120, 1940, 2042, 7000, 11469, 18022, 3, 3, 0, 0, 0, 0}},
+        /* .. its open hat, longer */
+        {DVT_HATO, 63, 1909, 520, 1662, {1996, 5120, 1940, 2042, 4000, 11469, 18022, 3, 3, 0, 0, 0, 0}},
+        /* 80's mid tom, bent further, more stick */
+        {DVT_TOM, 53, 785, 182, 4055, {40, 100, 1302, 3000, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
+        /* 80's rim: 455 + 1667 Hz into a hard clip */
+        {DVT_RIM, 32, 1113, 12, 4599, {360, 12000, 30000, 32000, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
+        /* 10's long cymbal on BELL (the crash) */
+        {DVT_CYM, 53, 1014, 3773, 10841, {1766, 3413, 1729, 3413, 16384, 20000, 60, 19661, 0, 2, 0, 0, 0}},
+    },
+    {   /* MP (FORGE ONE 0.14): the small preset-rhythm box of the 70s organ-top kind (the one under the ambient
+         * synth records): soft, short, unaccented; data only */
+        /* a soft 70 Hz thump that swells in, no click, a trace of 2nd harmonic for small speakers */
+        {DVT_PUNCH, 64, 598, 130, 3600, {40, 100, 0, 700, 0, 0, 0, 4096, 25, 0, 0, 0, 0}},
+        /* a low shell under 4 kHz band noise, short */
+        {DVT_SNARE, 40, 979, 70, 13311, {107, 0, 100, 120, 3000, 1500, 1718, 8192, 30, 6000, 32767, 8000, 1828}},
+        /* (stand-in) the snare noise struck 3 times, as 66's */
+        {DVT_CLAP, 48, 1777, 210, 7505, {0, 6827, 1870, 0, 6000, 30000, 50, 400, 3, 0, 0, 0, 0}},
+        /* maracas: noise through a narrow band near 8 kHz, a soft rise */
+        {DVT_HATC, 45, 1907, 140, 6128, {1907, 1024, 1870, 2042, 0, 0, 7000, 12, 6, 0, 0, 0, 0}},
+        /* the noise cymbal: the same band, long */
+        {DVT_HATO, 63, 1907, 700, 4617, {1907, 1536, 1870, 2042, 0, 0, 7000, 3, 6, 0, 0, 0, 0}},
+        /* bongo 280 Hz on TOM */
+        {DVT_CONGA, 53, 982, 70, 5803, {0, 50, 1523, 0, 900, 0, 0, 0, 0, 0, 0, 0, 0}},
+        /* claves 2.5 kHz on RIM */
+        {DVT_CLAVE, 32, 1585, 120, 2131, {84, 28000, 6000, 6348, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
+        /* a cymbal mostly of noise on BELL */
+        {DVT_CYM, 53, 1014, 1500, 10841, {1766, 3413, 1729, 3413, 16384, 12000, 30, 6000, 19661, 2, 0, 0, 0}},
+    },
+    {   /* SD (FORGE ONE 0.14): the 80s hexagonal electronic kit: every drum a sine with a deep, fast pitch drop and
+         * noise; big toms; data only */
+        /* 55 Hz dropped from about 240 Hz (tau 30 ms): the "boom" sweep, a click, drive */
+        {DVT_PUNCH, 60, 531, 300, 2700, {420, 300, 192, 1200, 0, 1300, 2400, 7000, 0, 0, 0, 0, 0}},
+        /* a 200 Hz shell glided down an octave under loud noise, longer */
+        {DVT_SNARE, 40, 880, 220, 2953, {241, 192, 300, 80, 24000, 16000, 1820, 6827, 30, 12000, 32767, 12000, 1828}},
+        /* 90's clap */
+        {DVT_CLAP, 48, 1331, 420, 13485, {0, 4096, 1678, 0, 3000, 30000, 35, 441, 3, 0, 0, 0, 0}},
+        /* 90's bright hats */
+        {DVT_HATC, 45, 1909, 110, 1530, {1996, 5120, 1940, 2042, 7000, 11469, 18022, 3, 3, 0, 0, 0, 0}},
+        {DVT_HATO, 63, 1909, 520, 1662, {1996, 5120, 1940, 2042, 4000, 11469, 18022, 3, 3, 0, 0, 0, 0}},
+        /* the big tom: 110 Hz bent down hard as it rings, a stick of noise */
+        {DVT_TOM, 53, 723, 450, 2680, {300, 120, 1302, 6000, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
+        /* 80's rim */
+        {DVT_RIM, 32, 1113, 12, 4599, {360, 12000, 30000, 32000, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
+        /* 10's crash on BELL */
+        {DVT_CYM, 53, 1014, 3773, 10841, {1766, 3413, 1729, 3413, 16384, 20000, 60, 19661, 0, 2, 0, 0, 0}},
     },
 };
 

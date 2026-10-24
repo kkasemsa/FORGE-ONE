@@ -4,6 +4,7 @@ Newest first. FORGE is the SEQ TOOLS F5 motif generator in FORGE ONE (based on F
 
 | Version | Date | Theme |
 | --- | --- | --- |
+| 0.14 | 24 Oct 2026 | Three classic drum kits: 90, MP, SD; 808 and 909 kits in the pack |
 | 0.13 | 23 Oct 2026 | SONG: four parts A–D and the arrangement from one seed |
 | 0.12 | 23 Oct 2026 | F5 follows the track's sound: bass lines on a bass, held chords on a pad |
 | 0.11 | 23 Oct 2026 | A logo on the splash: one flame on an anvil |
@@ -21,6 +22,31 @@ Newest first. FORGE is the SEQ TOOLS F5 motif generator in FORGE ONE (based on F
 | 0.3 | 21 Oct 2026 | Safe live turns, chords in every scale, pinned seeds |
 | 0.2 | 21 Oct 2026 | The generator: SEED, DENSITY, EVOLVE, 8 styles |
 | 0.1 | 21 Oct 2026 | Scaffold: F5 FORGE cell, CI build |
+
+## 0.14
+
+Three more model kits on the DRUM engine's KIT knob, after PERC: **90**, **MP**, **SD**. Like DEEP TIGHT PERC they
+are data only (a row of numbers each in `DV_KIT`, `drum_voice.c`): the same runs, nothing new in the sample loops, no
+extra CPU. The old kits, their stored values and every pinned render are unchanged; a project saved with a new kit
+plays KIT STD's lane voices on stock Felucca 1.6.1 (an unknown KIT value is held to its range).
+
+- **90**, the later analog drum machine's kit: a 55 Hz kick swept from about 210 Hz with a strong click (t-30 0.4 s),
+  a brighter, snappier snare with a crack, a longer clap tail, bright hats (the open one 0.73 s), 80's rim, and 10's
+  crash on BELL (shown CYM).
+- **MP**, the 70s organ-top rhythm box (the sound under the early ambient synth records): a soft 70 Hz thump with no
+  click, a short noise snare, maracas on HAT CL, a long noise cymbal on HAT OP, a 280 Hz bongo on TOM (CONGA), 2.5 kHz
+  claves on RIM (CLAVE), a noise cymbal on BELL (CYM); a low accent.
+- **SD**, the 80s hexagonal electronic kit: a kick dropped from about 240 Hz, a 200 Hz snare that glides down an
+  octave under loud noise, 90's clap and hats, a big 110 Hz tom bent hard as it rings (0.5 s), 80's rim, 10's crash.
+- FORGE PACK (43 sounds): BOOM KIT is now **808 KIT** (KIT 80, the long boom; same values), TECHNO KIT is **909 KIT**
+  (KIT 90), HOUSE KIT plays KIT 90; new **MINI KIT** (KIT MP, REV 30) and **SIMMONS KIT** (KIT SD, REV 30).
+- Starters: JARRE (OXY, EQUI, FIELD) use MINI KIT; SYNTHWAVE DRIVE and NIGHT use SIMMONS KIT; Detroit, Acid House,
+  Trance and Deep House kits are on 90 through HOUSE KIT, Dub MINI and Acid Techno through 909 KIT; Electro and Lo-Fi
+  keep the 808 boom.
+- Voiced by numbers (drum_test measures every lane: t-30, centroid, level against the STD kit's lane levels within
+  1.5 dB); not yet heard on the instrument. The web editor's KIT list ends 90 MP SD.
+- Tests: drum_test (targets for 90 MP SD, lane names, the KIT knob's order and end), v156_test (the kit count),
+  forge_test (EQUI's MINI KIT), web tests (the KIT list).
 
 ## 0.13
 
