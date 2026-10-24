@@ -51,17 +51,84 @@ static struct {
     uint8_t scenes;                         /* .. §H3: bit x, SCENE x + 1 stored */
     /* 0.15 (spec v0.6 §H9 §H10): what waits for the next bar. kpend: KEY / SCALE (kroot, kscale); ppend: a preset browsed
      * on PRESETS (track + 1; pk its preset, pms the last detent); fpend: a favourite to load (slot + 1, on ftrk) */
-    uint8_t kpend, kroot, kscale, ppend, pk, fpend, ftrk, armed;
+    uint8_t kpend, kroot, kscale, ppend, pk, fpend, ftrk, armed, kwhat, flast;
     uint32_t pms;
     uint8_t ov, ov_skip;                    /* .. §J1: the overlay shown (SOV_*, 0 none) and a scene's skipped tracks */
     uint32_t ov_ms;
+    /* 0.16 (spec v0.7): a key whose hold does something else (SG_HOLD_MS): hk its key + 1, hkind, hp its place, hms its
+     * down, hfired the hold done; hbpm the tempo before F5's tap. qpart: a part waiting for the bar (+ 1). click: the
+     * visual metronome. chain: auto-chain on, cbar the bars played of the part, cbars[x] its length (index of SG_CBARS).
+     * dirty: bit x, part x differs from its slot (an orange dot). octpend / octms: a single OCT- waiting for a second */
+    uint8_t hk, hkind, hp, hfired, qpart, click, chain, cbar, cbars[SG_N], dirty, octpend;
+    int16_t hbpm;
+    uint32_t hms, octms;
     uint8_t nvar[SG_N][NTRK], rvar[SG_N][NTRK];
 } sg;
 
-/* 0.15 (spec v0.6 §J1): the overlays, shown 1.2 s after the last change (ui_song_view.c draws them) */
-enum { SOV_NONE, SOV_TEMPO, SOV_KEY, SOV_PRESET, SOV_SCENE, SOV_SCENE2, SOV_FAV };
-#define SOV_MS 1200u
-static void song_ov(uint32_t kind) { sg.ov = (uint8_t)kind; sg.ov_ms = fm1_ms; }
+/* 0.15 (spec v0.6 §J1): the overlays; 0.16 (spec v0.7 §A): every action in SONG opens the box, its kind, a small line
+ * (the context), a large one (the action or value), a note ("@ NEXT BAR") or a value bar, a red frame when refused.
+ * A new action replaces it at once; it closes SG_POPUP_MS after the last (ui_song_view.c draws it) */
+enum { SOV_NONE, SOV_TEMPO, SOV_KEY, SOV_PRESET, SOV_SCENE, SOV_SCENE2, SOV_FAV, SOV_POP };
+#define SG_POPUP_MS 1000u                       /* spec v0.7 §1: the box's time (display, not a hold) */
+#define SG_HOLD_MS 500u                         /* .. every hold: FAV store, F5 CLICK, D5 / E5 store */
+#define SG_HOLD_SEQ_MS 600u                     /* .. SEQ held: SONG */
+#define SOV_MS SG_POPUP_MS
+static struct {
+    char sm[20], big[24], note[20];
+    int16_t bar;                                /* 0..1000, -1 none */
+    uint8_t red, n;                             /* n: bumped on each (the view's signature) */
+} sg_pop;
+static void song_pop(uint32_t kind, const char *sm, const char *big, const char *note, int32_t bar, uint32_t red)
+{
+    str_cpy(sg_pop.sm, sm, sizeof sg_pop.sm);
+    str_cpy(sg_pop.big, big, sizeof sg_pop.big);
+    str_cpy(sg_pop.note, note ? note : "", sizeof sg_pop.note);
+    sg_pop.bar = (int16_t)(bar < 0 ? -1 : bar > 1000 ? 1000 : bar);
+    sg_pop.red = (uint8_t)(red != 0u);
+    sg_pop.n++;
+    sg.ov = (uint8_t)kind;
+    sg.ov_ms = fm1_ms;
+}
+static void song_refuse(const char *what, const char *big)   /* a refused action: the red box (and the message) */
+{
+    song_pop(SOV_POP, what, big, "", -1, 1);
+    ui_message(what);
+}
+static void song_ov(uint32_t kind);
+static void song_remember(void);
+static void song_sound_name(uint32_t e, uint32_t k, uint32_t user, char *b);
+static void song_undo(void);
+#define SG_OCT2_MS 350u
+static const uint8_t SG_CBARS[5] = {1, 2, 4, 8, 16};    /* 0.16 auto-chain: a part's bars (index; default 8) */
+#define SG_CBAR_DEF 3u
+/* 0.16 (spec v0.7 §3): one level of UNDO, double-tap OCT-: the last reroll (the part's reroll counts: it renders again),
+ * the last sound loaded on a track (a preset at the bar, a favourite: its engine, preset and sound values), the last
+ * KEY / SCALE change. ~0.3 KB */
+enum { SU_NONE, SU_REROLL, SU_SOUND, SU_KEY };
+static struct {
+    uint8_t kind, what, trk, eng, pre, usr, root, scale;   /* what: the tracks a reroll took (bit i), 0xF C4 */
+    uint8_t nvar[SG_N][NTRK], rvar[SG_N][NTRK];
+    int16_t p[P_COUNT];
+} sgu;
+static void song_undo_take(uint32_t kind, uint32_t what)
+{
+    sgu.kind = (uint8_t)kind;
+    sgu.what = (uint8_t)what;
+    if (kind == SU_REROLL) {
+        memcpy(sgu.nvar, sg.nvar, sizeof sgu.nvar);
+        memcpy(sgu.rvar, sg.rvar, sizeof sgu.rvar);
+    } else if (kind == SU_SOUND) {
+        const track_t *t = &trk[what % NTRK];
+        sgu.trk = (uint8_t)(what % NTRK);
+        sgu.eng = t->eng_req;
+        sgu.pre = t->preset;
+        sgu.usr = t->user;
+        memcpy(sgu.p, t->p, sizeof sgu.p);
+    } else if (kind == SU_KEY) {
+        sgu.root = fs.root;
+        sgu.scale = fs.scale;
+    }
+}
 static void song_off(void);
 static uint32_t song_dtype(void) { return FS_GENRE_D[fs.genre % FS_NGENRE]; }
 static const char *song_role(uint32_t x) { return SG_ROLE[x == SG_D && song_dtype() == SD_BREAK ? SG_N : x]; }
@@ -323,6 +390,7 @@ static void song_say(void)                              /* "SONG 42 SYNTHWAVE" (
 }
 static void song_reset(void)                            /* a new song: its rerolls back to 0, written no more */
 {
+    sg.dirty = 0xFu;                                    /* (0.16: no part saved) */
     memset(sg.nvar, 0, sizeof sg.nvar);
     memset(sg.rvar, 0, sizeof sg.rvar);
     sg.stage = SG_EDIT;
@@ -349,9 +417,23 @@ static uint32_t song_keymask(uint32_t fx)               /* the keys that take an
 static uint8_t sg_fx_was;
 static void song_d4_poll(uint32_t on);
 static void song_poll(void);
+static void song_hold_poll(void);
+static void song_chain_bars(int32_t s);
+enum { SH_PART = 1, SH_SCENE, SH_TAP };
+static void song_hold_start(uint32_t k, uint32_t kind, uint32_t p);
+static void song_part_tap(uint32_t x);
+static void song_chain_toggle(void);
+static void song_autolock(void);
+static const char *song_fx_name(uint32_t e);
+static int song_oct_do(uint32_t up);
 static void song_fx_poll(uint32_t on, uint32_t fx)
 {
     song_d4_poll(on);
+    if (sg.on && sg.octpend && fm1_ms - sg.octms >= SG_OCT2_MS) {   /* (0.16: OCT- alone, no second tap came) */
+        sg.octpend = 0;
+        if (song_oct_do(0))
+            on = 0;
+    }
     if (on)
         song_poll();
     if (on && sg_fx_was && !fx && !perf_latch_on)
@@ -368,11 +450,13 @@ static void song_duck(void)                             /* D#5: DUCK on / off, l
 {
     perf_latched ^= PF_BIT(PF_DUCK);
     ui_message(perf_latched & PF_BIT(PF_DUCK) ? "DUCK ON" : "DUCK OFF");
+    song_pop(SOV_POP, "DUCK", perf_latched & PF_BIT(PF_DUCK) ? "ON" : "OFF", "", -1, 0);
 }
 
 /* F#5 in STARTER: SONG on (part A in the tracks) or off (STARTER's own patterns back) */
 static void song_toggle(void)
 {
+    uint32_t x;
     if (sg.stage == SG_CONFIRM)
         return;
     if (sg.on)
@@ -384,11 +468,20 @@ static void song_toggle(void)
     sg.lastf = 0;                                       /* params and the scenes stay) */
     sg.d4 = 0;
     sg.kpend = sg.ppend = sg.fpend = sg.ov = 0;
+    sg.qpart = sg.hk = sg.octpend = 0;
+    sg.chain = sg.cbar = 0;
+    for (x = 0; x < SG_N; x++)
+        sg.cbars[x] = SG_CBAR_DEF;
     song_reset();
     if (sg.on) {
+        char b[SG_NAME_LEN + 1u];
         song_render(SG_A);
         song_say();
+        song_autolock();
+        song_name(SG_A, b);
+        song_pop(SOV_POP, "SONG", b, "", -1, 0);                                /* (0.16 spec v0.7 §1: SONG keeps the layer open) */
     } else {
+        song_remember();
         fs_render();
         fs_say();
     }
@@ -412,6 +505,8 @@ static void song_lock(uint32_t i)                       /* black 5..8: T1..T4 lo
     sg.lock ^= (uint8_t)(1u << i);
     str_cpy(b + 3, (sg.lock >> i) & 1u ? "LOCKED" : "FREE", sizeof b - 3u);
     ui_message(b);
+    b[2] = 0;
+    song_pop(SOV_POP, (sg.lock >> i) & 1u ? "LOCK" : "UNLOCK", b, "", -1, 0);
 }
 static void song_reroll(void)                           /* C4: the part shown's notes, its tracks not locked */
 {
@@ -422,10 +517,13 @@ static void song_reroll(void)                           /* C4: the part shown's 
             any = 1;
         }
     if (!any) {
-        ui_message("ALL TRACKS LOCKED");
+        song_refuse("ALL TRACKS LOCKED", "NOTES");
         return;
     }
+    song_undo_take(SU_REROLL, 0xFu);
     song_render(sg.part);
+    sg.dirty |= (uint8_t)(1u << sg.part);
+    song_pop(SOV_POP, "REROLL", "NOTES", "", -1, 0);
     if (sg.stage == SG_WRITTEN) {
         sg.pend = (uint8_t)(sg.part + 1u);
         song_say();
@@ -440,14 +538,21 @@ static void song_track(uint32_t i)
     char b[12] = {'T', (char)('1' + i), ' ', 0};
     if ((sg.lock >> i) & 1u) {
         str_cpy(b + 3, "LOCKED", sizeof b - 3u);
-        ui_message(b);
+        ui_message(b);                          /* ("T3 LOCKED", the red box: REROLL refused) */
+        song_pop(SOV_POP, b, "REROLL", "", -1, 1);
         return;
+    }
+    song_undo_take(SU_REROLL, 1u << i);
+    {
+        char t[3] = {'T', (char)('1' + i), 0};
+        song_pop(SOV_POP, "REROLL", t, "", -1, 0);
     }
     if (i < FP_DRUM)
         sg.nvar[sg.part][i] = (uint8_t)((sg.nvar[sg.part][i] + 1u) % 100u);
     else
         sg.rvar[sg.part][i] = (uint8_t)((sg.rvar[sg.part][i] + 1u) % 100u);
     song_render(sg.part);
+    sg.dirty |= (uint8_t)(1u << sg.part);
     sg.flash = (uint8_t)(i + 1u);
     sg.flash_ms = fm1_ms;
     if (sg.stage == SG_WRITTEN) {
@@ -566,6 +671,11 @@ static void song_focus_knob(uint32_t k, int32_t s)
     str_cpy(b + str_len(b), val, sizeof b - str_len(b));
     str_cpy(b + str_len(b), unit, sizeof b - str_len(b));
     ui_message(b);
+    {   /* the box: "T1 BASS", "CUT 74" and its bar */
+        char sm[12] = {'T', (char)('1' + i), ' ', 0};
+        str_cpy(sm + 3, FP_ROLE[i], sizeof sm - 3u);
+        song_pop(SOV_POP, sm, b + 3, "", d->max > d->min ? (t->p[m[k][0]] - d->min) * 1000 / (d->max - d->min) : -1, 0);
+    }
 }
 /* 0.15 (Ong, after the device test): D4 held, KNOB 1..4 are T1..T4 LEVEL, a mixer (FOCUS on or off); the values stay
  * when D4 is let go. ("T3 LEVEL -6.0 dB") */
@@ -582,6 +692,11 @@ static void song_mix_knob(uint32_t k, int32_t s)
     str_cpy(b + str_len(b), val, sizeof b - str_len(b));
     str_cpy(b + str_len(b), unit, sizeof b - str_len(b));
     ui_message(b);
+    {   /* the box: "MIXER", "T1 -4.0" and its bar */
+        char big[16] = {'T', (char)('1' + (k & 3u)), ' ', 0};
+        str_cpy(big + 3, val, sizeof big - 3u);
+        song_pop(SOV_POP, "MIXER", big, "", (t->p[P_LEVEL] - d->min) * 1000 / (d->max - d->min ? d->max - d->min : 1), 0);
+    }
 }
 static void song_focus_say(void)                        /* "FOCUS T1 BASS" / "FOCUS OFF" */
 {
@@ -596,6 +711,7 @@ static void song_focus_say(void)                        /* "FOCUS T1 BASS" / "FO
 }
 static void song_focus_pick(uint32_t i)                 /* 0.15 (spec v0.6 §H7): F3..B3 alone, the same key again: off */
 {
+    char t[3] = {'T', (char)('1' + i), 0};
     if (sg.focus == i + 1u) {
         sg.focus = 0;
     } else {
@@ -603,6 +719,7 @@ static void song_focus_pick(uint32_t i)                 /* 0.15 (spec v0.6 §H7)
         sg.lastf = (uint8_t)i;
     }
     song_focus_say();
+    song_pop(SOV_POP, sg.focus ? "FOCUS" : "FOCUS", sg.focus ? t : "OFF", "", -1, 0);
 }
 /* each pass (song_fx_poll): D4 let go. (0.15, spec v0.6: a D4 tap does nothing; v0.5's tap turned FOCUS off) */
 static uint32_t song_d4_down(void);
@@ -637,9 +754,14 @@ static void song_scene(uint32_t x, uint32_t store)      /* D5 / E5: recall, FX h
                     }
         }
         sg.scenes |= (uint8_t)(1u << (x & 1u));
+        str_cpy(b + 8, "SAVED", sizeof b - 8u);
+        song_pop(SOV_POP, b, "T1-T4", "", -1, 0);       /* (0.16: its box) */
         str_cpy(b + 8, "STORED", sizeof b - 8u);
     } else if (!((sg.scenes >> (x & 1u)) & 1u)) {
         str_cpy(b + 8, "EMPTY", sizeof b - 8u);
+        b[7] = 0;
+        song_pop(SOV_POP, "EMPTY", b, "", -1, 1);
+        b[7] = ' ';
     } else {
         uint32_t i;
         b[7] = 0;
@@ -674,15 +796,22 @@ static void song_key_name(char *b, uint32_t n)          /* "C# MIN" */
     str_cpy(b + str_len(b), N_SCALE[song_scale_shown() % NELEM(N_SCALE)], n - str_len(b));
 }
 static int song_ext_clock(void) { return song.g[G_CLOCK] != 0; }
+static void song_bpm_text(char *b)                      /* "126 BPM" (b: 12) */
+{
+    fmt_int(b, (uint32_t)song.g[G_BPM]);
+    str_cpy(b + str_len(b), " BPM", 12 - str_len(b));
+}
 /* SELECT in SONG: BPM +-1 a detent (FX held: +-5), at once; BPM LOCK and an external clock refuse */
 static void song_bpm(int32_t s)
 {
+    char b[12];
+    song_bpm_text(b);
     if (song_ext_clock()) {
-        ui_message("EXT CLOCK");
+        song_refuse("EXT CLOCK", b);
         return;
     }
     if (ui_prefs & PREF_BPM_LOCK) {
-        ui_message("BPM LOCKED");
+        song_refuse("BPM LOCKED", b);
         return;
     }
     song.g[G_BPM] = (int16_t)clamp(song.g[G_BPM] + s * (song_fx_btn() ? 5 : 1), GP[G_BPM].min, GP[G_BPM].max);
@@ -692,26 +821,28 @@ static void song_bpm(int32_t s)
 static void glo_tap(void);
 static void song_tap(void)                              /* F5: TAP tempo (GLO's: the last 4 taps, 2 s starts over) */
 {
-    int16_t b = song.g[G_BPM];
+    char t[12];
+    song_bpm_text(t);
     if (song_ext_clock()) {
-        ui_message("EXT CLOCK");
+        song_refuse("EXT CLOCK", t);
         return;
     }
     if (ui_prefs & PREF_BPM_LOCK) {                     /* (review of 081a8ff: as SELECT) */
-        ui_message("BPM LOCKED");
+        song_refuse("BPM LOCKED", t);
         return;
     }
     glo_tap();
-    if (song.g[G_BPM] != b)
-        song_ov(SOV_TEMPO);
-    else
-        ui_message("TAP");
+    song_bpm_text(t);
+    song_pop(SOV_TEMPO, "TAP", t, "", -1, 0);
+    ui_message("TAP");
 }
 static void song_key_apply(void)                        /* the KEY / SCALE waiting: all four tracks, the part again */
 {
     if (!sg.kpend)
         return;
     sg.kpend = 0;
+    song_undo_take(SU_KEY, 0);
+    sg.dirty = 0xFu;                                    /* (every part is in the new key now) */
     fs.root = sg.kroot;
     fs.scale = sg.kscale;
     song_render(sg.part);
@@ -722,6 +853,7 @@ static void song_key_apply(void)                        /* the KEY / SCALE waiti
 static void song_keyturn(int32_t s)
 {
     uint32_t r = song_root_shown(), sc = song_scale_shown(), i;
+    sg.kwhat = (uint8_t)song_fx_btn();              /* (the box: KEY or SCALE) */
     if (song_fx_btn()) {
         for (i = 0; i < NELEM(SG_SCALES) && SG_SCALES[i] != sc; i++)
             ;
@@ -772,6 +904,8 @@ static void song_preset(int32_t s)
 static void song_load(uint32_t i, uint32_t e, uint32_t k)   /* track i: engine e's preset k */
 {
     track_t *t = &trk[i % NTRK];
+    song_undo_take(SU_SOUND, i % NTRK);
+    sg.dirty = 0xFu;                                    /* (a part's slot keeps its sounds) */
     if (t->eng_req != e)
         set_engine_of(t, e);
     apply_preset_to(t, k);
@@ -788,6 +922,8 @@ static void song_fav_load(uint32_t i, uint32_t x)       /* favourite x into trac
     uint32_t e = sg_fav[2u * (x & 3u)], k = sg_fav[2u * (x & 3u) + 1u];
     if (e == SG_FAV_USER) {                             /* (up_load loads into the selected track: i, for the call) */
         uint8_t sel = song.sel;
+        song_undo_take(SU_SOUND, i % NTRK);
+        sg.dirty = 0xFu;
         song.sel = (uint8_t)(i % NTRK);
         (void)up_load(k);
         song.sel = sel;
@@ -808,16 +944,23 @@ static void song_fav(uint32_t x, uint32_t store)
         settings_later();
         str_cpy(b + 6, u < UP_SLOTS ? "STORED (USER)" : "STORED", sizeof b - 6u);
         ui_message(b);
+        {
+            char sm[16] = "FAV 1 SAVED", nm[24];
+            sm[4] = (char)('1' + (x & 3u));
+            song_sound_name(trk[i].eng_req, u < UP_SLOTS ? u : trk[i].preset, u < UP_SLOTS, nm);
+            song_pop(SOV_POP, sm, nm, "", -1, 0);
+        }
         return;
     }
     if (e == SG_FAV_USER && !up_used(sg_fav[2u * (x & 3u) + 1u])) {
         str_cpy(b + 5, ": USER SOUND GONE", sizeof b - 5u);   /* (its slot erased or overwritten empty since) */
-        ui_message(b);
+        b[5] = 0;
+        song_refuse(b, "SOUND GONE");
         return;
     }
     if (!e || (e > NENGINES && e != SG_FAV_USER)) {
         str_cpy(b + 6, "EMPTY", sizeof b - 6u);
-        ui_message(b);
+        song_refuse(b, "EMPTY");
         return;
     }
     dr = ENGINES[e == SG_FAV_USER ? up_engine(sg_fav[2u * (x & 3u) + 1u]) : e - 1u] == &ENG_DRUM;
@@ -825,9 +968,12 @@ static void song_fav(uint32_t x, uint32_t store)
         b[5] = ':';
         str_cpy(b + 6, dr ? " DRUM ONLY T4" : " NOT ON DRUM", sizeof b - 6u);
         ui_message(b);
+        b[5] = 0;
+        song_pop(SOV_POP, b, dr ? "DRUM ONLY T4" : "NOT ON DRUM", "", -1, 1);
         return;
     }
     sg.fpend = (uint8_t)((x & 3u) + 1u);
+    sg.flast = (uint8_t)(x & 3u);
     sg.ftrk = (uint8_t)i;
     if (!song.playing) {
         song_fav_load(i, x);
@@ -835,6 +981,76 @@ static void song_fav(uint32_t x, uint32_t store)
     }
     song_ov(SOV_FAV);
 }
+/* the box of an overlay kind as it stands (spec v0.7 §A's table) */
+static void song_sound_name(uint32_t e, uint32_t k, uint32_t user, char *b)   /* a sound's name (b: 24) */
+{
+    if (user) {
+        up_name(k, b);
+        return;
+    }
+    str_cpy(b, ENGINES[e % NENGINES]->npresets ? ENGINES[e % NENGINES]->presets[k % ENGINES[e % NENGINES]->npresets].name :
+               "-", 24);
+}
+static void song_ov(uint32_t kind)
+{
+    char sm[20], big[24], note[20] = "";
+    sm[0] = big[0] = 0;
+    switch (kind) {
+    case SOV_TEMPO:
+        str_cpy(sm, "TEMPO", sizeof sm);
+        song_bpm_text(big);
+        break;
+    case SOV_KEY:
+        str_cpy(sm, sg.kwhat ? "SCALE" : "KEY", sizeof sm);
+        str_cpy(big, sg.kwhat ? N_SCALE[song_scale_shown() % NELEM(N_SCALE)] : SG_NOTE[song_root_shown() % 12u],
+                sizeof big);
+        if (sg.kpend)
+            str_cpy(note, "@ NEXT BAR", sizeof note);
+        break;
+    case SOV_PRESET: {
+        uint32_t i = sg.ppend ? sg.ppend - 1u : song_ftrack(), k = sg.ppend ? sg.pk : trk[i].preset, n;
+        const track_t *t = &trk[i];
+        str_cpy(sm, "T1 PRESET 000", sizeof sm);
+        sm[1] = (char)('1' + i);
+        n = song_pre_rank(t, k) + 1u;
+        sm[10] = (char)('0' + n / 100u % 10u);
+        sm[11] = (char)('0' + n / 10u % 10u);
+        sm[12] = (char)('0' + n % 10u);
+        song_sound_name(t->eng_req, k, 0, big);
+        if (sg.ppend && song.playing)
+            str_cpy(note, "@ NEXT BAR", sizeof note);
+        break;
+    }
+    case SOV_SCENE: case SOV_SCENE2: {
+        uint32_t i;
+        str_cpy(sm, kind == SOV_SCENE ? "SCENE 1" : "SCENE 2", sizeof sm);
+        str_cpy(big, sg.ov_skip ? "" : "RECALL", sizeof big);
+        for (i = 0; i < NTRK; i++)
+            if ((sg.ov_skip >> i) & 1u) {
+                char n[4] = {'T', (char)('1' + i), ' ', 0};
+                str_cpy(big + str_len(big), n, sizeof big - str_len(big));
+            }
+        if (sg.ov_skip)
+            str_cpy(big + str_len(big), "SKIP", sizeof big - str_len(big));
+        if (song.playing && !sg.ov_skip)
+            str_cpy(note, "@ NEXT 1/16", sizeof note);
+        break;
+    }
+    case SOV_FAV: {
+        uint32_t x = sg.fpend ? sg.fpend - 1u : sg.flast & 3u, e = sg_fav[2u * x];
+        str_cpy(sm, "FAV 1", sizeof sm);
+        sm[4] = (char)('1' + x);
+        song_sound_name(e == SG_FAV_USER ? 0u : e - 1u, sg_fav[2u * x + 1u], e == SG_FAV_USER, big);
+        if (sg.fpend && song.playing)
+            str_cpy(note, "@ NEXT BAR", sizeof note);
+        break;
+    }
+    default:
+        return;
+    }
+    song_pop(kind, sm, big, note, -1, 0);
+}
+
 /* each pass: what waits for the bar, put in on the bar's last 1/16 (its notes played: the change sounds from the next
  * bar's first), late into it; missed, on the first pass after. Stopped: KEY and a favourite at once, a preset 600 ms
  * after its last detent */
@@ -852,6 +1068,16 @@ static void song_poll(void)
             bar = 1;                            /* (the late part of the 1/16 missed) */
         if (bar)
             sg.armed = 0;
+    }
+    song_hold_poll();
+    if (bar && sg.chain && !sg.qpart &&
+        ++sg.cbar >= SG_CBARS[sg.cbars[sg.part] % NELEM(SG_CBARS)])   /* (0.16 auto-chain: the next part at the bar) */
+        sg.qpart = (uint8_t)((sg.part + 1u) % SG_N + 1u);
+    if (sg.qpart && (bar || !song.playing)) {           /* (0.16: a part at the bar) */
+        uint32_t x = sg.qpart - 1u;
+        sg.qpart = 0;
+        sg.cbar = 0;
+        song_part(x);
     }
     if (sg.kpend && (bar || !song.playing))
         song_key_apply();
@@ -876,7 +1102,11 @@ static void song_enc(int32_t sel, int32_t algo, int32_t pre)
     if (sg.stage == SG_CONFIRM)
         return;
     for (; algo; algo -= algo > 0 ? 1 : -1)             /* (a detent a step) */
-        song_keyturn(algo);
+        if (song_d4()) {
+            sg.d4_used = 1;
+            song_chain_bars(algo);                      /* (0.16: D4 + ALGORITHM, the part's bars in the chain) */
+        } else
+            song_keyturn(algo);
     for (; pre; pre -= pre > 0 ? 1 : -1)
         song_preset(pre);
 }
@@ -923,14 +1153,17 @@ static int song_cards(void)
 static int song_wkey(uint32_t k)
 {
     uint32_t p = key_place(k);
-    if (p >= SG_FX_KEY0 && p < SG_FX_KEY0 + 6u)
+    if (p >= SG_FX_KEY0 && p < SG_FX_KEY0 + 6u) {
+        song_pop(SOV_POP, "FX", song_fx_name(SG_FX[p - SG_FX_KEY0]), "", -1, 0);   /* (0.16: the ISR's, while held) */
         return 1;
+    }
     if (p < NTRK) {
         if (sg.d4)
             sg.d4_used = 1;
-        if (kb_fx[k] || song_fx_btn())
-            ;                                   /* (the mute: the ISR's) */
-        else if (song_d4())
+        if (kb_fx[k] || song_fx_btn()) {        /* (the mute: the ISR's, while held) */
+            char t[3] = {'T', (char)('1' + p), 0};
+            song_pop(SOV_POP, "MUTE", t, "", -1, 0);
+        } else if (song_d4())
             song_track(p);                      /* (0.15, spec v0.6 §H7: D4 held, the reroll) */
         else
             song_focus_pick(p);                 /* (.. alone: FOCUS, the same key again: off) */
@@ -941,12 +1174,17 @@ static int song_wkey(uint32_t k)
         sg.d4_used = (kb_layer & 0x55u) != 0u;
         return 1;
     }
-    if (p == TL_FORGE) {                        /* 0.15 F5: TAP tempo */
+    if (p == TL_FORGE) {                        /* 0.15 F5: TAP tempo; 0.16: held, the visual CLICK */
+        sg.hbpm = song.g[G_BPM];
         song_tap();
+        song_hold_start(k, SH_TAP, 0);
         return 1;
     }
-    if (p == SG_FX_KEY0 + 6u || p == SG_FX_KEY0 + 7u) {   /* D5 / E5: the scenes */
-        song_scene(p - SG_FX_KEY0 - 6u, song_fx_btn());
+    if (p == SG_FX_KEY0 + 6u || p == SG_FX_KEY0 + 7u) {   /* D5 / E5: the scenes (0.16: a tap recalls, held stores; */
+        if (song_fx_btn())                                 /* FX held: stored at once) */
+            song_scene(p - SG_FX_KEY0 - 6u, 1);
+        else
+            song_hold_start(k, SH_SCENE, p - SG_FX_KEY0 - 6u);
         return 1;
     }
     if (p >= SG_FX_KEY0 + 8u && p < TL_STARTER) {
@@ -980,12 +1218,15 @@ static int song_write(void)
     }
     sg.part = SG_A;
     sg.stage = SG_WRITTEN;
+    sg.dirty = 0;
+    song_remember();
     ui_message("SONG SAVED: A-D");
+    song_pop(SOV_POP, "SAVE", "A-D SAVED", "", -1, 0);
     str_cpy(ui.msg2, "GLO > SONG PLAYS IT", sizeof ui.msg2);
     return 0;
 }
 /* OCT+ (up 1) / OCT- (0) in SONG; returns 1 when SONG (and STARTER) closed */
-static int song_oct(uint32_t up)
+static int song_oct_do(uint32_t up)
 {
     char b[SG_NAME_LEN + 1u];
     if (!up && song_cancel_pending())                   /* (0.15: a preset waiting for the bar: only that) */
@@ -1009,9 +1250,12 @@ static int song_oct(uint32_t up)
             return 0;
         }
         sg.pend = 0;
+        sg.dirty &= (uint8_t)~(1u << x);
+        song_remember();
         {
             char m[12] = {(char)('A' + x), ' ', 'S', 'A', 'V', 'E', 'D', 0};
             ui_message(m);
+            song_pop(SOV_POP, "SAVE", m, "", -1, 0);
         }
         return 0;
     }
@@ -1045,6 +1289,197 @@ static int song_oct(uint32_t up)
     fs_close(1);
     ui_message("SONG DONE");
     return 1;
+}
+/* OCT+ at once; OCT- (0.16, spec v0.7 §3): a second tap within SG_OCT2_MS is UNDO, else the single tap's action (cancel
+ * a change waiting, KEEP, cancel, done) SG_OCT2_MS later (song_poll); returns 1 when SONG (and STARTER) closed now */
+static int song_oct(uint32_t up)
+{
+    if (up || sg.stage == SG_CONFIRM) {                 /* (the confirm: no UNDO, answered at once) */
+        sg.octpend = 0;
+        return song_oct_do(up);
+    }
+    if (sg.octpend && fm1_ms - sg.octms < SG_OCT2_MS) {
+        sg.octpend = 0;
+        song_undo();
+        return 0;
+    }
+    sg.octpend = 1;
+    sg.octms = fm1_ms;
+    return 0;
+}
+
+/* 0.16 (spec v0.7 §1): the last song, kept with the settings (written when SONG writes its slots and when it is left):
+ * 16 bytes in favorites.factory[2][8..23] and the rerolls in [3][8..23] (nvar) and [4][8..23] (rvar): engines 2..4's
+ * favourite bits of presets 64..191, which no engine has (tests/forge_test.c checks) */
+#define SG_LAST_MAGIC 0xA5u
+#define sg_last (&favorites.factory[2][8])
+#define sg_last_nvar (&favorites.factory[3][8])
+#define sg_last_rvar (&favorites.factory[4][8])
+enum { SL_MAGIC, SL_SEED, SL_GENRE, SL_VAR, SL_ROOT, SL_SCALE, SL_BPM0, SL_BPM1, SL_LOCKPART, SL_DENS, SL_EVOL, SL_CB0,
+       SL_CB1, SL_FLAGS, SL_DIRTY, SL_N };
+typedef char sg_last_fits[SL_N <= 16 ? 1 : -1];
+static void song_remember(void)
+{
+    uint8_t *h = sg_last;
+    uint32_t x, i;
+    h[SL_MAGIC] = SG_LAST_MAGIC;
+    h[SL_SEED] = fg.seed;
+    h[SL_GENRE] = fs.genre;
+    h[SL_VAR] = fs.var;
+    h[SL_ROOT] = fs.root;
+    h[SL_SCALE] = fs.scale;
+    h[SL_BPM0] = (uint8_t)song.g[G_BPM];
+    h[SL_BPM1] = (uint8_t)((uint16_t)song.g[G_BPM] >> 8);
+    h[SL_LOCKPART] = (uint8_t)((sg.lock & 0xFu) | (sg.part & 3u) << 4);
+    h[SL_DENS] = fs.dens;
+    h[SL_EVOL] = fg.evolve;
+    h[SL_CB0] = (uint8_t)(sg.cbars[0] | sg.cbars[1] << 4);
+    h[SL_CB1] = (uint8_t)(sg.cbars[2] | sg.cbars[3] << 4);
+    h[SL_FLAGS] = (uint8_t)((sg.stage == SG_WRITTEN ? 1u : 0u) | (sg.chain ? 2u : 0u));
+    h[SL_DIRTY] = sg.dirty;
+    for (x = 0; x < SG_N; x++)
+        for (i = 0; i < NTRK; i++) {
+            sg_last_nvar[x * NTRK + i] = sg.nvar[x][i];
+            sg_last_rvar[x * NTRK + i] = sg.rvar[x][i];
+        }
+    settings_later();
+}
+/* the last song back into STARTER (open) and SONG (on), as it was left; none kept: the song STARTER has. 1 = restored */
+static int song_restore(void)
+{
+    const uint8_t *h = sg_last;
+    uint32_t x, i, ok = h[SL_MAGIC] == SG_LAST_MAGIC;
+    if (ok) {
+        fg.set = fs.set = 1;
+        fg.seed = (uint8_t)(h[SL_SEED] % 100u);
+        fs.genre = (uint8_t)(h[SL_GENRE] % FS_NGENRE);
+        fs.var = (uint8_t)(h[SL_VAR] < FS_GENRE[fs.genre].n ? h[SL_VAR] : 0u);
+        fs.dens = (uint8_t)clamp(h[SL_DENS], 50, 150);
+        fg.evolve = (uint8_t)(h[SL_EVOL] > 4u ? 4u : h[SL_EVOL]);
+    }
+    fs_open();
+    if (ok) {
+        fs.root = (uint8_t)(h[SL_ROOT] % 12u);
+        fs.scale = (uint8_t)(h[SL_SCALE] % NELEM(N_SCALE));
+        if (!song_ext_clock())
+            song.g[G_BPM] = (int16_t)clamp((int32_t)(h[SL_BPM0] | h[SL_BPM1] << 8), GP[G_BPM].min, GP[G_BPM].max);
+    }
+    song_toggle();                                      /* (SONG on: part A, the rerolls 0) */
+    if (ok) {
+        for (x = 0; x < SG_N; x++)
+            for (i = 0; i < NTRK; i++) {
+                sg.nvar[x][i] = (uint8_t)(sg_last_nvar[x * NTRK + i] % 100u);
+                sg.rvar[x][i] = (uint8_t)(sg_last_rvar[x * NTRK + i] % 100u);
+            }
+        sg.lock = (uint8_t)(h[SL_LOCKPART] & 0xFu);
+        sg.part = (uint8_t)((h[SL_LOCKPART] >> 4) & 3u);
+        sg.cbars[0] = (uint8_t)(h[SL_CB0] & 7u);
+        sg.cbars[1] = (uint8_t)((h[SL_CB0] >> 4) & 7u);
+        sg.cbars[2] = (uint8_t)(h[SL_CB1] & 7u);
+        sg.cbars[3] = (uint8_t)((h[SL_CB1] >> 4) & 7u);
+        for (x = 0; x < SG_N; x++)
+            if (sg.cbars[x] >= NELEM(SG_CBARS))
+                sg.cbars[x] = SG_CBAR_DEF;
+        sg.chain = (uint8_t)((h[SL_FLAGS] >> 1) & 1u);
+        sg.stage = (h[SL_FLAGS] & 1u) ? SG_WRITTEN : SG_EDIT;
+        sg.dirty = (uint8_t)(h[SL_DIRTY] & 0xFu);
+        song_render(sg.part);
+    }
+    {
+        char b[SG_NAME_LEN + 1u];
+        song_name(sg.part, b);
+        song_pop(SOV_POP, ok ? "LAST SONG" : "SONG", b, "", -1, 0);
+    }
+    return (int)ok;
+}
+
+/* a part asked for (OP1..4 let go before SG_HOLD_MS): playing, at the bar; stopped, at once */
+static void song_part_tap(uint32_t x)
+{
+    char b[2] = {(char)('A' + (x & 3u)), 0};
+    sg.cbar = 0;                                        /* (the chain goes on from it) */
+    if (song.playing) {
+        sg.qpart = (uint8_t)((x & 3u) + 1u);
+        song_pop(SOV_POP, "PART", b, "@ NEXT BAR", -1, 0);
+        return;
+    }
+    sg.qpart = 0;
+    song_part(x);
+    song_pop(SOV_POP, "PART", b, "", -1, 0);
+}
+static void song_chain_toggle(void)                     /* D4 + F#5: auto-chain on / off */
+{
+    char b[16] = "ON ";
+    sg.chain = (uint8_t)!sg.chain;
+    sg.cbar = 0;
+    fmt_int(b + 3, SG_CBARS[sg.cbars[sg.part] % NELEM(SG_CBARS)]);
+    str_cpy(b + str_len(b), " BARS", sizeof b - str_len(b));
+    song_pop(SOV_POP, "CHAIN", sg.chain ? b : "OFF", "", -1, 0);
+    ui_message(sg.chain ? "CHAIN ON" : "CHAIN OFF");
+}
+static void song_chain_bars(int32_t s)                  /* D4 + ALGORITHM: the part shown's bars 1 2 4 8 16 */
+{
+    char b[16] = "A: ";
+    uint32_t i = sg.cbars[sg.part] % NELEM(SG_CBARS);
+    i = (uint32_t)clamp((int32_t)i + (s > 0 ? 1 : -1), 0, (int32_t)NELEM(SG_CBARS) - 1);
+    sg.cbars[sg.part] = (uint8_t)i;
+    b[0] = (char)('A' + sg.part);
+    fmt_int(b + 3, SG_CBARS[i]);
+    str_cpy(b + str_len(b), SG_CBARS[i] == 1u ? " BAR" : " BARS", sizeof b - str_len(b));
+    song_pop(SOV_POP, "CHAIN", b, "", -1, 0);
+}
+static void song_click_toggle(void)                     /* F5 held: the visual metronome on / off */
+{
+    sg.click = (uint8_t)!sg.click;
+    song_pop(SOV_POP, "CLICK", sg.click ? "ON" : "OFF", "", -1, 0);
+}
+/* a key with a hold: its down (song_wkey, layer_key); song_hold_poll decides tap or hold */
+static void song_hold_end(uint32_t held);
+static void song_hold_start(uint32_t k, uint32_t kind, uint32_t p)
+{
+    if (sg.hk)
+        song_hold_end(0);                               /* (another key meanwhile: the first one was a tap) */
+    sg.hk = (uint8_t)(k + 1u);
+    sg.hkind = (uint8_t)kind;
+    sg.hp = (uint8_t)p;
+    sg.hms = fm1_ms;
+    sg.hfired = 0;
+}
+static void glo_tap_drop(void);
+static void song_hold_end(uint32_t held)                /* held: SG_HOLD_MS passed, the key down; else let go */
+{
+    uint32_t kind = sg.hkind, p = sg.hp;
+    if (held) {
+        sg.hfired = 1;
+        if (kind == SH_PART)
+            song_fav(p, 1);                             /* (the part not changed) */
+        else if (kind == SH_SCENE)
+            song_scene(p, 1);
+        else if (kind == SH_TAP) {
+            song.g[G_BPM] = sg.hbpm;                    /* (the hold's tap undone: no tempo from it) */
+            glo_tap_drop();
+            song_click_toggle();
+        }
+        return;
+    }
+    if (!sg.hfired) {
+        if (kind == SH_PART)
+            song_part_tap(p);
+        else if (kind == SH_SCENE)
+            song_scene(p, 0);
+    }
+    sg.hk = 0;
+}
+static void song_hold_poll(void)
+{
+    uint32_t k;
+    if (!sg.hk)
+        return;
+    k = sg.hk - 1u;
+    if (!(((kb_layer | fm1_in.notes) >> k) & 1u))
+        song_hold_end(0);
+    else if (!sg.hfired && fm1_ms - sg.hms >= SG_HOLD_MS)
+        song_hold_end(1);
 }
 static uint32_t song_sig(void)
 {
@@ -1157,8 +1592,11 @@ static void song_led_w(uint32_t p, uint32_t *on, uint32_t *can)
 /* STARTER or SONG closed some other way (the layer let go, another tool): SONG with it, nothing written */
 static void song_off(void)
 {
-    if (sg.on)
-        song_fx_clear();                                /* (spec v0.4.1: leaving SONG turns its effects off) */
+    if (sg.on) {
+        song_fx_clear();
+        song_remember();                                /* (0.16: the last song, for SEQ held and BOOT = SONG) */
+    }
+    sg.qpart = sg.hk = sg.octpend = 0;                                /* (spec v0.4.1: leaving SONG turns its effects off) */
     perf_song = 0;
     sg_fxmask = 0;
     sg.on = 0;
@@ -1175,6 +1613,80 @@ static void song_knob(uint32_t k, int32_t s)
     fs_knob(k, s);
     if (fg.seed != seed || fs.genre != genre)
         song_reset();                                   /* (another song: EDIT, not written; DENSITY / EVOLVE: the */
+    sg.dirty = 0xFu;
     song_render(sg.part);                               /* same song, still written, a reroll still asks SAVE X?) */
     song_say();
+    {   /* the box: "SONG", "SEED 42" .. "GENRE TRANCE" and its bar (0.16) */
+        static const char *const N[4] = {"SEED ", "DENS ", "EVOL ", ""};
+        char b[24];
+        int32_t r = k == 0u ? fg.seed * 1000 / 99 : k == 1u ? (fs.dens - 50) * 10 : k == 2u ? fg.evolve * 250 :
+                    (int32_t)(fs.genre * 1000u / (FS_NGENRE - 1u));
+        str_cpy(b, N[k & 3u], sizeof b);
+        if (k == 3u)
+            str_cpy(b, FS_GENRE[fs.genre % FS_NGENRE].name, sizeof b);
+        else
+            fmt_int(b + str_len(b), k == 0u ? fg.seed : k == 1u ? fs.dens : fg.evolve);
+        song_pop(SOV_POP, "SONG", b, "", r, 0);
+    }
+}
+/* FX held, KNOB k: the macro's box (ui_layer.c layer_knob) */
+static void song_macro_pop(uint32_t k)
+{
+    static const char *const N[4] = {"FILTER ", "CRUSH ", "THROW ", "DEPTH "};
+    char b[20];
+    int32_t x = perf_k[k & 3u];
+    str_cpy(b, N[k & 3u], sizeof b);
+    if (x < 0)
+        str_cpy(b + str_len(b), "-", sizeof b - str_len(b));
+    fmt_int(b + str_len(b), (uint32_t)(x < 0 ? -x : x));
+    song_pop(SOV_POP, "FX", b, "", k ? x * 10 : (x + 100) * 5, 0);
+}
+/* double-tap OCT-: the last reroll, sound or key back (one level) */
+static void song_undo(void)
+{
+    char b[20] = "";
+    if (sgu.kind == SU_REROLL) {
+        memcpy(sg.nvar, sgu.nvar, sizeof sg.nvar);
+        memcpy(sg.rvar, sgu.rvar, sizeof sg.rvar);
+        song_render(sg.part);
+        if (sgu.what == 0xFu)
+            str_cpy(b, "NOTES", sizeof b);
+        else {
+            b[0] = 'T';
+            b[1] = (char)('1' + (__builtin_ctz(sgu.what) & 3));
+            str_cpy(b + 2, " REROLL", sizeof b - 2u);
+        }
+    } else if (sgu.kind == SU_SOUND) {
+        track_t *t = &trk[sgu.trk % NTRK];
+        uint32_t i;
+        if (t->eng_req != sgu.eng)
+            set_engine_of(t, sgu.eng);
+        load_begin(t, UNDO_SOUND);
+        panic_req |= (uint8_t)(1u << (sgu.trk % NTRK));
+        fm1_irq_off();
+        for (i = 0; i < P_COUNT; i++)
+            if (!param_kept(i) || i == P_LEVEL)
+                t->p[i] = sgu.p[i];
+        t->preset = sgu.pre;
+        t->user = sgu.usr;
+        fm1_irq_on();
+        load_end(t);
+        b[0] = 'T';
+        b[1] = (char)('1' + (sgu.trk % NTRK));
+        str_cpy(b + 2, " SOUND", sizeof b - 2u);
+    } else if (sgu.kind == SU_KEY) {
+        fs.root = sgu.root;
+        fs.scale = sgu.scale;
+        sg.kpend = 0;
+        song_render(sg.part);
+        str_cpy(b, "KEY", sizeof b);
+    } else {
+        song_refuse("NOTHING TO UNDO", "UNDO");
+        return;
+    }
+    sgu.kind = SU_NONE;
+    if (sg.stage == SG_WRITTEN)
+        sg.pend = (uint8_t)(sg.part + 1u);
+    ui_message("UNDO");
+    song_pop(SOV_POP, "UNDO", b, "", -1, 0);
 }

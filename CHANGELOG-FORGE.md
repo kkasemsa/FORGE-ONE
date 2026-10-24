@@ -4,6 +4,7 @@ Newest first. FORGE is the SEQ TOOLS F5 motif generator in FORGE ONE (based on F
 
 | Version | Date | Theme |
 | --- | --- | --- |
+| 0.16 | 24 Oct 2026 | SONG spec v0.7: SEQ held opens SONG, every action on screen, holds, UNDO, CLICK, CHAIN |
 | 0.15 | 24 Oct 2026 | SONG spec v0.6: one-touch control, its own screen; a longer splash |
 | 0.14 | 24 Oct 2026 | Three classic drum kits: 90, MP, SD; 808 and 909 kits in the pack |
 | 0.13 | 23 Oct 2026 | SONG: four parts A–D and the arrangement from one seed |
@@ -23,6 +24,49 @@ Newest first. FORGE is the SEQ TOOLS F5 motif generator in FORGE ONE (based on F
 | 0.3 | 21 Oct 2026 | Safe live turns, chords in every scale, pinned seeds |
 | 0.2 | 21 Oct 2026 | The generator: SEED, DENSITY, EVOLVE, 8 styles |
 | 0.1 | 21 Oct 2026 | Scaffold: F5 FORGE cell, CI build |
+
+## 0.16
+
+SONG to the Song Mode spec v0.7 r3 (usability: one-step entry, one play screen, fewer combos). D4 held stays the
+T1–T4 LEVEL mixer of 0.15 (the spec's `FADER Tn` became `MIXER`, as decided after the 0.15 hardware test).
+
+- **Entry** (§1): SEQ held 0.6 s (`SG_HOLD_SEQ_MS`), nothing else touched, opens STARTER and SONG at once with the
+  last song: SEED, genre and variation, DENSITY, EVOLVE, ROOT, SCALE, BPM (not on an external clock), the part, the
+  locks, the per-part rerolls, the chain's bars, written or not. A tap of SEQ, or a key or knob while it is held, is
+  as before. Kept with the settings when SONG is left (any way) or writes its slots: 16 bytes in
+  `favorites.factory[2][8..23]`, the rerolls in `[3][8..23]` and `[4][8..23]` (engines 2..4's favourite bits of
+  presets 64..191, which no engine has; the test checks). The parts are rendered again from the seed and rerolls.
+- **Auto-lock:** entering SONG (SEQ held, F#5 in STARTER, BOOT) locks the SEQ layer open; FX stays a modifier (it does
+  not close the lock); SEQ again (or HOME, a page button) leaves.
+- **MENU > SYSTEM > BOOT** `NORMAL` / `SONG` (`favorites.factory[15][13]` bit 0; not in the editor's MENU): power-on
+  opens SONG with the last song, stopped, part A.
+- **Action box** (§A): every key, knob and encoder in SONG opens a 200×110 box over the middle for `SG_POPUP_MS`
+  (1 s): the context small (AF_M), the action large (AF_L, AF_M when it has lowercase or is too wide), a value bar or
+  `@ NEXT BAR`; refused: framed red (`BPM LOCKED`, `EXT CLOCK`, `T3 LOCKED`, `FAV 2 EMPTY`, `SCENE 2` `EMPTY`,
+  `NOTHING TO UNDO`). The next action replaces it at once; drawn as its own region, the rows under it drawn again when
+  it closes (the parts and T4's row stay drawn beside it). One struct (`sg_pop`), no new fonts.
+- **D4 held:** `MIXER` large across the head (the tempo and key back when it is let go); the state line
+  `K1-K4: T1-T4 LEVEL`.
+- **Holds** (`SG_HOLD_MS` 500 ms, one engine: `song_hold_*`): black 1–4 tap = the part (playing: at the next bar;
+  stopped: at once), held = store FAV 1–4 (the focus track's sound; the part not changed); D5 / E5 tap = recall, held =
+  store (FX + D5 / E5 still stores at once); F5 tap = TAP, held = CLICK on / off (the hold's tap taken back).
+- **UNDO** (§3): OCT− twice within 350 ms (`SG_OCT2_MS`): one level, the last reroll (C4 or a track: the part's
+  reroll counters back and the part rendered again), the last preset or favourite loaded (engine, preset, user slot and
+  the track's values), the last KEY / SCALE change. A single OCT− acts 350 ms later (at the confirm `OVERWRITE A-D?`:
+  at once).
+- **CLICK** (§4): visual only (the FM-1 has one audio out): `CLK` in the head; the BAR row filled on beat 1 and framed
+  on beats 2–4 for 80 ms.
+- **CHAIN** (§4): D4 + F#5 on / off; D4 + ALGORITHM the bars of the part shown (1 2 4 8 16, 8 at first); A → B → C → D
+  → A at the bar, forever; `CHAIN 3/8` on the state line; a part tapped while it runs: at the bar, the chain on from it.
+  The SONG tracks only (GLO > SONG's chain is not touched).
+- **Dots** (§5): an orange dot on each part block not as its slot (all four until written; a reroll, a key, a sound
+  load or a SONG knob marks them; SAVE A-D and SAVE X clear); `NOT SAVED YET` removed.
+- Tests (forge_test, `test_song_v07`, the host halves of 59–77): the lock and constants; the box for knob, FOCUS, LOCK,
+  DUCK, CLEAR, TEMPO, FX, replaced at once and gone after 1 s; red boxes; OP2 tap / hold / D4 recall; UNDO of a reroll,
+  a preset, a key, then `NOTHING TO UNDO`, a single OCT− 350 ms later; F5 hold CLICK and its flashes; D5 hold / tap;
+  CHAIN order, bars, a part tapped; the dots; SEQ held (last song from the settings), a tap, a key while held; BOOT.
+  Older SONG tests now leave by SEQ again and wait for OCT−'s 350 ms. ui_test: SYSTEM has 8 rows; SEQ held 0.8 s opens
+  SONG. ui_render: four new screens (the knob box, a part at the bar, a red box, CLICK + CHAIN + dots).
 
 ## 0.15
 

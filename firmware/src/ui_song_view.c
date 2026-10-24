@@ -13,8 +13,11 @@
  *     197..213  the two scenes (filled: stored; the one recalled flashes), then the state or the last message
  *     216..239  the four knob cards as the knobs are now: FX held its macros, D4 held or FOCUS the track's, else SEED
  *               DENSITY EVOLVE GENRE
- * A change of tempo, key, preset, scene or favourite opens a box over 46..175 for 1.2 s after the last one (while a
- * change waits for its bar: until then); what it covers is drawn again when it closes.
+ * 0.16 (spec v0.7): every action opens a box over 64..173 (song_pop: the context, the action large, a value bar or
+ * "@ NEXT BAR"; refused: framed red) for SG_POPUP_MS after the last one (while a change waits for its bar: until then),
+ * the next replacing it at once; what it covers is drawn again when it closes. D4 held: MIXER, large, over the head;
+ * CLICK on: CLK in the head, the BAR row filled on beat 1 and framed on the others (SV_FLASH_MS); a part not as its
+ * slot: an orange dot on its block; CHAIN on: CHAIN n/N where the state was (NOT SAVED YET is gone).
  *
  * Drawn by regions: each its own signature, redrawn when that changes (never the whole screen while it shows, but on
  * entering it or a palette / style change). Per 1/16: the STEP digits, the two playhead cells; the meters at most
@@ -23,8 +26,8 @@
 
 enum { SV_HEAD, SV_PARTS, SV_BAR, SV_STEPN, SV_CHAIN, SV_SCN, SV_CARDS, SV_OV, SV_N };
 static struct {
-    uint8_t shown, ov_was, meter[NTRK], dot[NTRK], ph, lit;
-    uint32_t gen, sig[SV_N], dot_ms[NTRK], meter_ms;
+    uint8_t shown, ov_was, meter[NTRK], dot[NTRK], ph, lit, beat, strong;
+    uint32_t gen, sig[SV_N], dot_ms[NTRK], meter_ms, fl_ms;
     /* what the screen says (tests/forge_test.c reads it): BAR bar / bars, STEP step / len, the playhead cell
      * (0xFF stopped), the position bar's fill (px of SV_CHW) */
     uint32_t bar, bars, step, len, chain_px;
@@ -34,6 +37,11 @@ static struct {
 #define SV_CHW 232
 #define SV_DOT_MS 120u
 #define SV_MW 66                                        /* a meter's width */
+#define SV_FLASH_MS 80u                                 /* 0.16 CLICK: a beat's flash */
+#define SV_BOX_X 20                                     /* 0.16 (spec v0.7 §A): the action box, centred */
+#define SV_BOX_Y 64
+#define SV_BOX_W 200
+#define SV_BOX_H 110
 
 static int sv_full(void) { return !sv.shown; }
 static int sv_dirty(uint32_t r, uint32_t sig)           /* region r shows sig now: 1 when it must be drawn */
@@ -82,6 +90,18 @@ static void sv_pos(void)
     }
     if (sv.bar > sv.bars)
         sv.bar = sv.bars;
+    if (song.playing && idx % 4u == 0u && sv.beat != (uint8_t)(idx + 1u)) {   /* (0.16 CLICK: a beat begins) */
+        sv.fl_ms = fm1_ms;
+        sv.strong = (uint8_t)(idx % 16u == 0u);
+    }
+    sv.beat = (uint8_t)(song.playing ? idx + 1u : 0u);
+}
+/* 0.16 CLICK (spec v0.7 §4): 0 none, 1 a beat (the BAR row framed), 2 beat 1 (the BAR row filled), SV_FLASH_MS long */
+static uint32_t sv_flash(void)
+{
+    if (!sg.click || !song.playing || fm1_ms - sv.fl_ms >= SV_FLASH_MS)
+        return 0;
+    return sv.strong ? 2u : 1u;
 }
 
 static void sv_head(void)                               /* 128 BPM .. A MIN */
@@ -90,14 +110,25 @@ static void sv_head(void)                               /* 128 BPM .. A MIN */
     uint32_t pend = sg.kpend;
     fmt_int(b, (uint32_t)song.g[G_BPM]);
     song_key_name(k, sizeof k);
-    if (!sv_dirty(SV_HEAD, str_hash(pend + 3u * (uint32_t)song.g[G_CLOCK], b) * 31u + str_hash(1u, k) + ux.gen))
+    if (!sv_dirty(SV_HEAD, str_hash(pend + 3u * (uint32_t)song.g[G_CLOCK] + 7u * sg.click + 17u * song_d4(), b) * 31u +
+                               str_hash(1u, k) + ux.gen))
         return;
+    if (song_d4()) {                                    /* (0.16 spec v0.7 §2.1: D4 held, the mixer: large) */
+        cv_begin(240, 36, T_TINT);
+        GFX_HOOK_ALIGN(0, 0, 240, 36, AL_HV, "song view mixer head centred");
+        cv_text_in(0, CAP_IN(L, 36), 240, &AF_L, "MIXER", T_ACCENT, T_TINT);
+        cv_blit(0, 0);
+        return;
+    }
     cv_begin(240, 36, T_BG);
     GFX_HOOK_ALIGN(0, 0, 0, 36, AL_V, "song view head on its middle");
     {
         int32_t x = cv_text_on(8, CAP_IN(L, 36), &AF_L, b, T_TEXT, T_BG);
-        cv_text_on(x + 3, CAP_IN(L, 36) + AF_L_CAP_Y + AF_L_CAP_H - AF_S_CAP_Y - AF_S_CAP_H, &AF_S,
-                   song.g[G_CLOCK] ? "EXT" : "BPM", T_MID, T_BG);
+        x = cv_text_on(x + 3, CAP_IN(L, 36) + AF_L_CAP_Y + AF_L_CAP_H - AF_S_CAP_Y - AF_S_CAP_H, &AF_S,
+                       song.g[G_CLOCK] ? "EXT" : "BPM", T_MID, T_BG);
+        if (sg.click)                                   /* (0.16: the visual CLICK on) */
+            cv_text_on(x + 6, CAP_IN(L, 36) + AF_L_CAP_Y + AF_L_CAP_H - AF_S_CAP_Y - AF_S_CAP_H, &AF_S, "CLK",
+                       T_THEME, T_BG);
     }
     GFX_HOOK_ALIGN(0, 0, 0, 36, AL_V, "song view head on its middle");
     cv_text_r(232, CAP_IN(L, 36), sv_large_ok(k) ? &AF_L : &AF_M, k, pend ? T_ACCENT : T_THEME, T_BG);
@@ -106,7 +137,7 @@ static void sv_head(void)                               /* 128 BPM .. A MIN */
 static void sv_parts(void)
 {
     uint32_t i, blink = sg.pend && ((fm1_ms / 300u) & 1u);
-    if (!sv_dirty(SV_PARTS, 7u + sg.part * 13u + sg.pend * 131u + blink * 1031u + ux.gen))
+    if (!sv_dirty(SV_PARTS, 7u + sg.part * 13u + sg.pend * 131u + blink * 1031u + sg.dirty * 4099u + ux.gen))
         return;
     cv_begin(240, 22, T_BG);
     for (i = 0; i < SG_N; i++) {
@@ -118,6 +149,8 @@ static void sv_parts(void)
             cv_frame(x, 0, 55, 22, T_ACCENT);
         GFX_HOOK_ALIGN(x, 0, x + 55, 22, AL_HV, "song view part centred");
         cv_text_in(x, CAP_IN(M, 22), 55, &AF_M, b, ink, f);
+        if ((sg.dirty >> i) & 1u)                       /* (0.16 spec v0.7 §5: not as its slot) */
+            cv_rrect(x + 55 - 11, 3, 8, 8, 4, T_ACCENT, f);
     }
     cv_blit(0, 38);
 }
@@ -130,16 +163,20 @@ static void sv_bar(void)                                /* BAR 3/8 (large) and t
     str_cpy(b + str_len(b), "/", sizeof b - str_len(b));
     fmt_int(n, sv.bars);
     str_cpy(b + str_len(b), n, sizeof b - str_len(b));
-    if (sv_dirty(SV_BAR, str_hash(sv.len, b) + ux.gen)) {
-        cv_begin(240, 30, T_BG);
+    if (sv_dirty(SV_BAR, str_hash(sv.len + 7919u * sv_flash(), b) + ux.gen)) {
+        uint32_t fl = sv_flash();
+        uint16_t bg = fl == 2u ? T_ACCENT : T_BG, tx = fl == 2u ? T_INK : T_TEXT, md = fl == 2u ? T_INK : T_MID;
+        cv_begin(240, 30, bg);
+        if (fl == 1u)
+            cv_frame(0, 0, 240, 30, T_ACCENT);
         GFX_HOOK_ALIGN(0, 0, 0, 30, AL_V, "song view bar on its middle");
-        cv_text_on(8, CAP_IN(L, 30), &AF_L, b, T_TEXT, T_BG);
+        cv_text_on(8, CAP_IN(L, 30), &AF_L, b, tx, bg);
         GFX_HOOK_ALIGN(0, 0, 0, 30, AL_V, "song view bar on its middle");
-        cv_text_on(150, CAP_IN(S, 30), &AF_S, "STEP", T_MID, T_BG);
+        cv_text_on(150, CAP_IN(S, 30), &AF_S, "STEP", md, bg);
         b[0] = '/';
         fmt_int(b + 1, sv.len);
         GFX_HOOK_ALIGN(0, 0, 0, 30, AL_V, "song view bar on its middle");
-        cv_text_r(232, CAP_IN(M, 30), &AF_M, b, T_MID, T_BG);
+        cv_text_r(232, CAP_IN(M, 30), &AF_M, b, md, bg);
         cv_blit(0, 62);
         sv.sig[SV_STEPN] = 0;                           /* (its digits on top again) */
     }
@@ -149,10 +186,11 @@ static void sv_bar(void)                                /* BAR 3/8 (large) and t
         b[0] = '/';                                     /* (left of "/LEN": b held BAR n/n when its region did */
         fmt_int(b + 1, sv.len);                         /* not change, so the digits landed on STEP: device 0.15) */
         w = text_w(&AF_M, b);
-        cv_begin(22, 30, T_BG);
-        GFX_HOOK_ALIGN(0, 0, 0, 30, AL_V, "song view bar on its middle");
-        cv_text_r(22, CAP_IN(M, 30), &AF_M, n, T_TEXT, T_BG);
-        cv_blit((uint32_t)(232 - w - 22), 62);
+        uint16_t bg = sv_flash() == 2u ? T_ACCENT : T_BG;
+        cv_begin(22, 28, bg);
+        GFX_HOOK_ALIGN(0, -1, 0, 29, AL_V, "song view bar on its middle");
+        cv_text_r(22, CAP_IN(M, 30) - 1, &AF_M, n, sv_flash() == 2u ? T_INK : T_TEXT, bg);
+        cv_blit((uint32_t)(232 - w - 22), 63);
     }
 }
 static void sv_chain(void)
@@ -218,13 +256,13 @@ static uint32_t sv_meter_px(int32_t a)                  /* |sample| Q15 -> px, 6
     v = lg * 8 + (((a << 3) >> lg) & 7);
     return (uint32_t)clamp((v - 48) * SV_MW / 80, 0, SV_MW);
 }
-static void sv_rows(void)
+static void sv_rows(uint32_t from)                     /* the rows from track from (the box over the others) */
 {
     uint32_t i, now = fm1_ms, act = trk_act, meters = now - sv.meter_ms >= 33u;
     trk_act = 0;                                        /* (the ISR's bits: taken; one lost to a race only re-lights) */
     if (meters)
         sv.meter_ms = now;
-    for (i = 0; i < NTRK; i++) {
+    for (i = from; i < NTRK; i++) {
         const track_t *t = &trk[i];
         int32_t y = sv_row_y(i);
         uint32_t mute = sv_muted(i), lock = (sg.lock >> i) & 1u, foc = sg.focus == i + 1u, d;
@@ -294,7 +332,7 @@ static void sv_rows(void)
 static const char *sv_state(char *b)                    /* (b: 20 bytes) */
 {
     if (song_d4()) {
-        str_cpy(b, "MIXER: LEVELS (D4)", 20);
+        str_cpy(b, "K1-K4: T1-T4 LEVEL", 20);
         return b;
     }
     if (ui.msg_t && ui.msg[0])
@@ -304,7 +342,17 @@ static const char *sv_state(char *b)                    /* (b: 20 bytes) */
         b[5] = (char)('A' + sg.pend - 1u);
         return b;
     }
-    return sg.stage == SG_WRITTEN ? "SAVED A-D" : "NOT SAVED YET";
+    if (sg.chain) {                                     /* (0.16: CHAIN 4/8, the bar in the part / its bars) */
+        char n[4];
+        str_cpy(b, "CHAIN ", 20);
+        fmt_int(n, (uint32_t)sg.cbar % 16u + 1u);
+        str_cpy(b + str_len(b), n, 20 - str_len(b));
+        str_cpy(b + str_len(b), "/", 20 - str_len(b));
+        fmt_int(n, SG_CBARS[sg.cbars[sg.part] % NELEM(SG_CBARS)]);
+        str_cpy(b + str_len(b), n, 20 - str_len(b));
+        return b;
+    }
+    return "";                                          /* (0.16 spec v0.7 §5: the parts' dots say it) */
 }
 static void sv_scenes(void)                             /* SC [1] [2], then the state or the last message */
 {
@@ -312,7 +360,8 @@ static void sv_scenes(void)                             /* SC [1] [2], then the 
     uint32_t fad = song_d4();
     const char *s = sv_state(q);
     uint32_t fl = sg.ov == SOV_SCENE || sg.ov == SOV_SCENE2 ? sg.ov - SOV_SCENE + 1u : 0u, i;
-    if (!sv_dirty(SV_SCN, str_hash(sg.scenes + fl * 4u + ux.gen * 16u + (ui.msg_t && ui.msg[0]) * 64u + fad * 128u, s)))
+    if (!sv_dirty(SV_SCN, str_hash(sg.scenes + fl * 4u + ux.gen * 16u + (ui.msg_t && ui.msg[0]) * 64u + fad * 128u +
+                                       sg.chain * 256u, s)))
         return;
     cv_begin(240, 16, T_BG);
     GFX_HOOK_ALIGN(0, 0, 0, 16, AL_V, "song view scenes on their middle");
@@ -331,8 +380,9 @@ static void sv_scenes(void)                             /* SC [1] [2], then the 
     GFX_HOOK_ALIGN(0, 0, 0, 16, AL_V, "song view scenes on their middle");
     {
         int32_t w = text_w(&AF_S, s), x = 232 - (w < 150 ? w : 150);
-        cv_free_text(x, CAP_IN(S, 16), &AF_S, s, fad || sg.pend ? T_ACCENT : ui.msg_t && ui.msg[0] ? T_TEXT : T_MID, T_BG,
-                     150);
+        if (s[0])
+            cv_free_text(x, CAP_IN(S, 16), &AF_S, s, fad || sg.pend ? T_ACCENT : ui.msg_t && ui.msg[0] ? T_TEXT : T_MID,
+                         T_BG, 150);
     }
     cv_blit(0, 197);
 }
@@ -420,89 +470,38 @@ static void sv_cards(void)
     cv_blit(0, 216);
 }
 
-/* the box over the middle: what changed, large */
-static void sv_ov_text(char *t, char *big, char *sub)
-{
-    t[0] = big[0] = sub[0] = 0;
-    switch (sg.ov) {
-    case SOV_TEMPO:
-        str_cpy(t, song.g[G_CLOCK] ? "TEMPO (EXT)" : "TEMPO", 16);
-        fmt_int(big, (uint32_t)song.g[G_BPM]);
-        str_cpy(sub, "FX+SELECT +-5  F5 TAP", 28);
-        break;
-    case SOV_KEY:
-        str_cpy(t, sg.kpend ? "KEY > NEXT BAR" : "KEY", 16);
-        song_key_name(big, 24);
-        str_cpy(sub, "FX+ALGO: SCALE", 28);
-        break;
-    case SOV_PRESET: {
-        uint32_t i = sg.ppend ? sg.ppend - 1u : song_ftrack(), k = sg.ppend ? sg.pk : trk[i].preset, n;
-        const track_t *tt = &trk[i];
-        const engine_t *e = ENGINES[tt->eng_req % NENGINES];
-        char a[6];
-        t[0] = 'T';
-        t[1] = (char)('1' + i);
-        str_cpy(t + 2, " PRESET ", 16 - 2u);
-        n = song_pre_rank(tt, k) + 1u;
-        fmt_int(a, n);
-        str_cpy(t + str_len(t), a, 16 - str_len(t));
-        str_cpy(t + str_len(t), "/", 16 - str_len(t));
-        fmt_int(a, song_pre_n(tt));
-        str_cpy(t + str_len(t), a, 16 - str_len(t));
-        str_cpy(big, e->npresets ? e->presets[k % e->npresets].name : "-", 24);
-        str_cpy(sub, sg.ppend ? "AT THE BAR  OCT-: CANCEL" : "LOADED", 28);
-        break;
-    }
-    case SOV_SCENE: case SOV_SCENE2: {
-        uint32_t i;
-        str_cpy(big, sg.ov == SOV_SCENE ? "SCENE 1" : "SCENE 2", 24);
-        str_cpy(sub, sg.ov_skip ? "" : "AT THE NEXT 1/16", 28);
-        for (i = 0; i < NTRK; i++)
-            if ((sg.ov_skip >> i) & 1u) {
-                char n[4] = {'T', (char)('1' + i), ' ', 0};
-                str_cpy(sub + str_len(sub), n, 28 - str_len(sub));
-            }
-        if (sg.ov_skip)
-            str_cpy(sub + str_len(sub), "SKIPPED (SOUND)", 28 - str_len(sub));
-        break;
-    }
-    case SOV_FAV: {
-        uint32_t i = sg.fpend ? sg.ftrk : song_ftrack();
-        char n[8] = "FAV 1";
-        n[4] = (char)('0' + (sg.fpend ? sg.fpend : 1u));
-        str_cpy(big, n, 24);
-        str_cpy(sub, "> T1", 28);
-        sub[3] = (char)('1' + i);
-        str_cpy(sub + 4, sg.fpend ? " AT THE BAR" : "", 24);
-        break;
-    }
-    default:
-        break;
-    }
-}
+/* 0.16 (spec v0.7 §A): the action box over the middle, as song_pop left it: the context small, the action large, a
+ * value bar or "@ NEXT BAR" under it; refused: a red frame. Drawn when it changes (each new action: at once) */
 static void sv_overlay(void)
 {
-    char t[16], big[24], sub[28];
-    sv_ov_text(t, big, sub);
-    if (!sv_dirty(SV_OV, str_hash(str_hash(str_hash(sg.ov + ux.gen * 7u, t), big), sub)))
+    uint16_t fr = sg_pop.red ? T_REC : T_ACCENT;
+    const aafont_t *f;
+    if (!sv_dirty(SV_OV, str_hash(str_hash(str_hash(sg_pop.n * 7u + (uint32_t)sg_pop.bar * 131u + sg_pop.red + ux.gen * 977u,
+                                                    sg_pop.sm), sg_pop.big), sg_pop.note)))
         return;
-    cv_begin(216, 130, T_BG);
-    cv_rrect(0, 0, 216, 130, 8, T_THEME, T_BG);
-    cv_rrect(2, 2, 212, 126, 7, T_SURF, T_THEME);
-    if (t[0]) {
-        GFX_HOOK_ALIGN(0, 8, 216, 28, AL_HV, "song view box title centred");
-        cv_text_in(0, 8 + CAP_IN(M, 20), 216, &AF_M, t, T_MID, T_SURF);
+    cv_begin(SV_BOX_W, SV_BOX_H, T_BG);
+    cv_rrect(0, 0, SV_BOX_W, SV_BOX_H, 8, fr, T_BG);
+    cv_rrect(2, 2, SV_BOX_W - 4, SV_BOX_H - 4, 7, T_SURF, fr);
+    if (sg_pop.sm[0]) {
+        GFX_HOOK_ALIGN(0, 8, SV_BOX_W, 30, AL_HV, "song view box title centred");
+        cv_text_in(0, 8 + CAP_IN(M, 22), SV_BOX_W, &AF_M, sg_pop.sm, sg_pop.red ? T_REC : T_MID, T_SURF);
     }
-    GFX_HOOK_ALIGN(0, 40, 216, 80, AL_HV, "song view box value centred");
-    if (sv_large_ok(big) && text_w(&AF_L, big) <= 204)
-        cv_text_in(0, 40 + CAP_IN(L, 40), 216, &AF_L, big, T_TEXT, T_SURF);
+    f = sv_large_ok(sg_pop.big) && text_w(&AF_L, sg_pop.big) <= SV_BOX_W - 12 ? &AF_L : &AF_M;
+    GFX_HOOK_ALIGN(0, 34, SV_BOX_W, 74, AL_HV, "song view box value centred");
+    if (f == &AF_L)
+        cv_text_in(0, 34 + CAP_IN(L, 40), SV_BOX_W, &AF_L, sg_pop.big, T_TEXT, T_SURF);
+    else if (text_w(&AF_M, sg_pop.big) <= SV_BOX_W - 12)
+        cv_text_in(0, 34 + CAP_IN(M, 40), SV_BOX_W, &AF_M, sg_pop.big, T_TEXT, T_SURF);
     else
-        cv_text_in(0, 40 + CAP_IN(M, 40), 216, &AF_M, big, T_TEXT, T_SURF);
-    if (sub[0]) {
-        GFX_HOOK_ALIGN(0, 96, 216, 116, AL_HV, "song view box note centred");
-        cv_text_in(0, 96 + CAP_IN(S, 20), 216, &AF_S, sub, T_THEME, T_SURF);
+        cv_free_text(6, 34 + CAP_IN(M, 40), &AF_M, sg_pop.big, T_TEXT, T_SURF, SV_BOX_W - 12);
+    if (sg_pop.note[0]) {
+        GFX_HOOK_ALIGN(0, 80, SV_BOX_W, 100, AL_HV, "song view box note centred");
+        cv_text_in(0, 80 + CAP_IN(S, 20), SV_BOX_W, &AF_S, sg_pop.note, T_ACCENT, T_SURF);
+    } else if (sg_pop.bar >= 0) {
+        cv_rect(16, 88, SV_BOX_W - 32, 5, T_LINE);
+        cv_rect(16, 88, (SV_BOX_W - 32) * sg_pop.bar / 1000, 5, T_THEME);
     }
-    cv_blit(12, 46);
+    cv_blit(SV_BOX_X, SV_BOX_Y);
 }
 
 /* SONG's screen (ui_draw.c, instead of the layer's map): 1 when it is SONG's to draw */
@@ -522,24 +521,24 @@ static int song_view(void)
     sv_pos();
     sv_head();
     ov = sg.ov != SOV_NONE;
+    sv_parts();
     if (ov) {
         sv_overlay();
+        sv_rows(3);                                     /* (T4's row: under the box) */
     } else {
         if (sv.ov_was) {                                /* (the box closed: what it covered, again) */
             uint8_t s = sv.shown;
             sv.shown = 0;
-            sv_parts();
             sv_bar();
             sv_chain();
             sv_strip();
-            sv_rows();
+            sv_rows(0);
             sv.shown = s;
         }
-        sv_parts();
         sv_bar();
         sv_chain();
         sv_strip();
-        sv_rows();
+        sv_rows(0);
     }
     sv.ov_was = (uint8_t)ov;
     if (!ov)
