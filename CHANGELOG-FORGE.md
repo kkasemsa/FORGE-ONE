@@ -48,6 +48,10 @@ Usability and three genres (from the 0.17 review's ideas 1 2 3 4 6).
 - **Genres:** CHIPTUNE (LEVEL, BOSS, MENU), MINIMAL (LOOP, HYPNO, CLICK), ELECTRO (MIAMI, ROBOT, FREAK): 54 starters in
   16 genres, appended (the saved last song's genre numbers keep their meaning); two new beats (MINIMAL: four, off-beat
   hat, rim; CHIP: 1 and 3, snare 2 4, 8th hats); D: CHIPTUNE LIFT, MINIMAL and ELECTRO BREAK. Only existing sounds.
+- **FILL fix (device report: D4 + C4, then the fill stuck):** the sequencer ends a FILL itself as well as the UI: a held
+  fill stops at the next 1/16 once D4 or C4 is up (the keys read in the audio ISR), a bar's fill by the second bar
+  line at the latest, a crash on the next bar's first T4 step even with none on 1; SONG's keys gone mid-fill (no pass
+  of SONG): the held fill ends with its crash.
 - Tests: `test_song_v09`; the starter rules and pinned patterns for 54 (the 45 unchanged), K4's wrap, test 49 / 65 by
   fifths. ui_render: HELP and EVO screens.
 

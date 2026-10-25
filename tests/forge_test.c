@@ -3533,6 +3533,44 @@ static int test_song_v09(void)
     }
     bad += check("  AUTO EVOLVE (FX + F5): a track a part-length, T1 T3 T4 (T2 locked: skipped), quietly; off again", ok);
     sg_close();
+    /* 0.18.1 (device: "D4 + C4 FILL, then stuck"): the sequencer ends a FILL itself, the UI's pass or not. Held: over
+     * with D4 or C4 up; a bar's fill: over by the second bar line at the latest; the locked layer with no SEQ held */
+    sg_open((uint32_t)sg_genre("TRANCE"), 42);
+    fx_latch &= ~1u; perf_latch_on = 0;
+    btn_up(B_SEQ); frame();
+    ok = ui.lock == LAYER_SEQ && sg.on;
+    sg_play();
+    sg_to_step(3);
+    sg_c4_down();
+    ok &= sgf.live && sgf.key == 8u;
+    sg_run_ms(200);
+    fm1_in.notes &= ~(1u << white(4)); keyboard_block();   /* (C4 up, no UI pass after) */
+    pm_blocks(80);
+    ok &= !sgf.live;
+    fm1_in.notes &= ~(1u << white(5)); keyboard_block();
+    frame();
+    ok &= !sg.fk && !sgf.live;
+    sg_run_ms(3000);
+    ok &= !sgf.live && !sgf.bar && !sgf.crash && !sg.farm;
+    sg_to_step(6);
+    sg_c4_down();
+    sg_run_ms(200);
+    fm1_in.notes &= ~(1u << white(5)); keyboard_block();   /* (D4 up first, no UI pass) */
+    pm_blocks(80);
+    ok &= !sgf.live;
+    key_up(white(4)); frame();
+    sg_run_ms(3000);
+    ok &= !sgf.live && !sgf.bar && !sgf.crash;
+    {
+        uint32_t m = 0;
+        sgf_bar_start();                                /* (a bar's fill, no UI pass at all: two bar lines at most) */
+        for (n = 0; n < 40000u && sgf.bar; n++, m++) pm_blocks(1);
+        ok &= !sgf.bar && m * CTL < 3u * 16u * div_samples(2);   /* (under three bars) */
+        if (!ok) printf("    fill end: live %u bar %u crash %u farm %u fk %u, %u blocks\n", sgf.live, sgf.bar, sgf.crash, sg.farm, sg.fk, (unsigned)m);
+    }
+    sg_stop();
+    bad += check("  (bug) FILL ends with D4 or C4 up, the UI's pass or not; a bar's fill by the second bar line; SEQ lock, no SEQ held", ok);
+    sg_close();
     return bad;
 }
 

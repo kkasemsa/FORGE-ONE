@@ -460,6 +460,11 @@ static void song_fx_poll(uint32_t on, uint32_t fx)
     }
     if (on)
         song_poll();
+    else if (sg.on && sg.fk) {                          /* (0.18.1: no SONG keys now: a held FILL ends, a crash) */
+        sgf.live = 0;
+        sg.fk = 0;
+        sgf_crash_start();
+    }
     if (on && sg_fx_was && !fx && !perf_latch_on)
         perf_k[0] = perf_k[1] = perf_k[2] = perf_k[3] = 0;
     sg_fx_was = (uint8_t)(on && fx);
@@ -1874,7 +1879,7 @@ static void song_part_tap(uint32_t x)
         if (sg.farm && sg.fwait == 1u) {                /* (0.17 review: a fill armed for the next bar: this bar's */
             sg.farm = 0;                                /* rest instead, the part on time) */
             song_fill_set(++sg.fbars);
-            sgf.bar = 1;
+            sgf_bar_start();
         }
         song_pop(SOV_POP, "PART", b, "@ NEXT BAR", -1, 0);
         return;
@@ -2015,7 +2020,7 @@ static void song_fill_arm(void)
     song_pop(SOV_POP, "FILL", sg.qpart ? b : "@ BAR END", "", -1, 0);
     if (sg.qpart) {                                     /* (0.17 review: a part waits for this bar line: the fill is */
         song_fill_set(++sg.fbars);                      /* this bar's rest, the part on time) */
-        sgf.bar = 1;
+        sgf_bar_start();
         return;
     }
     sg.farm = 1;                                        /* (the chain: the part's last bar; in it already: the next */
@@ -2036,6 +2041,7 @@ static void song_fill_down(uint32_t k)                  /* D4 held, C4 down */
         return;
     }
     song_fill_set(fm1_ms);
+    sgf.key = (uint8_t)(k + 1u);
     sgf.live = 1;                                       /* (the sequencer: from its next 1/16) */
     sg.fk = (uint8_t)(k + 1u);
     sg.fms = fm1_ms;
@@ -2060,14 +2066,14 @@ static void song_fill_poll(uint32_t bar)
             if (fm1_ms - sg.fms < SG_HOLD_MS)
                 song_fill_arm();                        /* (a tap: the full bar at the bar end) */
             else
-                sgf.crash = 1;                          /* (held: a crash on the next downbeat) */
+                sgf_crash_start();                          /* (held: a crash on the next downbeat) */
         } else if (sg.ov == SOV_POP && str_eq(sg_pop.sm, "FILL"))
             sg.ov_ms = fm1_ms;                          /* (its box stays while held) */
     }
     if (bar && sgf.bar) {                               /* (the fill's bar done) */
         sgf.bar = 0;
         if (sgf.type == FILL_CRASH)
-            sgf.crash = 1;
+            sgf_crash_start();
     }
 }
 static void song_fill_bar(void)                         /* at a bar line, after the chain's count */
@@ -2075,7 +2081,7 @@ static void song_fill_bar(void)                         /* at a bar line, after 
     if (sg.farm && !--sg.fwait) {
         sg.farm = 0;
         song_fill_set(++sg.fbars);
-        sgf.bar = 1;
+        sgf_bar_start();
     }
 }
 /* 0.18: HELP. FX + D4 tapped turns it on (and off): each key then says in the box what it does (alone, with D4 and

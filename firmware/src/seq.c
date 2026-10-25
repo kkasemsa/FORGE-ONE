@@ -1120,7 +1120,13 @@ static void fill_note(step_t *f, uint32_t note)
     if (f->n < 4u)
         f->note[f->n++] = (uint8_t)note;
 }
-static volatile struct { uint8_t live, bar, crash, type, dens; } sgf;
+static volatile struct { uint8_t live, bar, crash, type, dens, key, last, wraps; } sgf;
+/* 0.18.1: the sequencer ends a FILL itself too (the UI's poll may not run: a fill must never outlast its keys or its
+ * bar). key: the fill key (+ 1); last: the 1/16 of T4's last step, a smaller one the next bar; wraps: the bar
+ * lines a bar's fill has crossed (the UI ends it at the first, the sequencer at the second at the latest) */
+#define SGF_KD4 9u                                      /* (D4: ui_song.c SG_KD4) */
+static void sgf_bar_start(void) { sgf.last = 0; sgf.wraps = 0; sgf.bar = 1; }
+static void sgf_crash_start(void) { sgf.last = 0; sgf.crash = 1; }
 static uint32_t sgf_adv;                                /* (the block's samples: seq_n, for sgf_pos) */
 static const uint8_t FILL_TOM[6] = {50, 48, 47, 45, 43, 41};   /* (GM toms, high to low) */
 /* 0.17 review: what the track's kit really has. A model kit plays its own piece on a lane (drum_voice.c DV_KIT): a
@@ -1198,7 +1204,17 @@ static void fill_crash(step_t *f, uint32_t kit)         /* the crash; a kit with
 }
 static int sgf_step(const track_t *t, const step_t *o, step_t *f)
 {
-    uint32_t i = sgf_pos(), fill = sgf.live || sgf.bar, crash = sgf.crash && !i, kit;
+    uint32_t i = sgf_pos(), wrap = i < sgf.last, fill, crash, kit;
+    sgf.last = (uint8_t)i;
+    if (sgf.live && (!sgf.key || !((fm1_in.notes >> SGF_KD4) & 1u) || !((fm1_in.notes >> (sgf.key - 1u)) & 1u)))
+        sgf.live = 0;                                   /* (0.18.1: D4 or C4 up, whatever the UI does) */
+    if (sgf.bar && wrap && ++sgf.wraps >= 2u) {         /* (0.18.1: the UI missed the bar line: over at the next) */
+        sgf.bar = 0;
+        if (sgf.type == FILL_CRASH)
+            sgf.crash = 1;
+    }
+    fill = sgf.live || sgf.bar;
+    crash = sgf.crash && (!i || wrap);                  /* (0.18.1: the bar's first T4 step, on 1 or not) */
     if (!fill && !crash)
         return 0;
     kit = fill_kit(t);
