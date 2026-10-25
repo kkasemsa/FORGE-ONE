@@ -52,6 +52,9 @@ Usability and three genres (from the 0.17 review's ideas 1 2 3 4 6).
   fill stops at the next 1/16 once D4 or C4 is up (the keys read in the audio ISR), a bar's fill by the second bar
   line at the latest, a crash on the next bar's first T4 step even with none on 1; SONG's keys gone mid-fill (no pass
   of SONG): the held fill ends with its crash.
+- **Display fix (0.16–0.18):** the action box closed while playing left its text and frame between the BAR, chain,
+  strip and track rows ("S96 VERSE" behind the strip): its whole rect is cleared before they are drawn again. Test: the
+  screen after the box closes against a full draw of the same state (the live meters aside).
 - Tests: `test_song_v09`; the starter rules and pinned patterns for 54 (the 45 unchanged), K4's wrap, test 49 / 65 by
   fifths. ui_render: HELP and EVO screens.
 

@@ -533,6 +533,7 @@ static int song_view(void)
     } else {
         if (sv.ov_was) {                                /* (the box closed: what it covered, again) */
             uint8_t s = sv.shown;
+            lcd_fill(SV_BOX_X, SV_BOX_Y, SV_BOX_W, SV_BOX_H, T_BG);   /* (0.18.1: the gaps between the rows too) */
             sv.shown = 0;
             sv_bar();
             sv_chain();

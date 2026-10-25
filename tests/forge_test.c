@@ -3415,6 +3415,14 @@ static int test_song_v08(void)
 }
 
 /* FORGE ONE 0.18: K4 every starter, the LEDs, HELP, ALGORITHM by fifths, AUTO EVOLVE */
+static int sv_in_meter(uint32_t x, uint32_t y)          /* (a meter: live levels, a full draw starts it from 0) */
+{
+    uint32_t i;
+    for (i = 0; i < NTRK; i++)
+        if (x >= SV_X0 + 96u && x < SV_X0 + 96u + SV_MW && (int32_t)y >= sv_row_y(i) + 7 && (int32_t)y < sv_row_y(i) + 12)
+            return 1;
+    return 0;
+}
 static int test_song_v09(void)
 {
     int bad = 0, ok;
@@ -3570,6 +3578,33 @@ static int test_song_v09(void)
     }
     sg_stop();
     bad += check("  (bug) FILL ends with D4 or C4 up, the UI's pass or not; a bar's fill by the second bar line; SEQ lock, no SEQ held", ok);
+    sg_close();
+    /* 0.18.1 (device and emulator: "S96 VERSE" left behind the strip): the action box closed while playing, the
+     * screen as a full draw of the same state would be; any pixel of the box's rect different: a redraw gap */
+    sg_open((uint32_t)sg_genre("TRANCE"), 42);
+    btn_up(B_SEQ); frame();
+    sg_play();
+    sg_run_ms(300);
+    {
+        static uint16_t was[240 * 240];
+        uint32_t x, y, diff = 0;
+        song_pop(SOV_POP, "PART C", "S42 VERSE", "", -1, 0);
+        ui_draw();
+        ok = sg.ov == SOV_POP;
+        sg_run_ms(3000);
+        ui_draw();
+        ok &= sg.ov == SOV_NONE && song.playing;
+        memcpy(was, host_screen, sizeof was);
+        sv.shown = 0;
+        ui_draw();
+        for (y = SV_BOX_Y; y < SV_BOX_Y + SV_BOX_H; y++)
+            for (x = SV_BOX_X; x < SV_BOX_X + SV_BOX_W; x++)
+                diff += was[y * 240u + x] != host_screen[y * 240u + x] && !sv_in_meter(x, y);
+        ok &= diff == 0u;
+        if (!ok) printf("    box closed: %u pixels differ from a full draw (meters aside)\n", (unsigned)diff);
+    }
+    sg_stop();
+    bad += check("  (bug) the action box closed while playing: nothing of it left (as a full draw)", ok);
     sg_close();
     return bad;
 }
