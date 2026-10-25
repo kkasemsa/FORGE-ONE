@@ -4,6 +4,7 @@ Newest first. FORGE is the SEQ TOOLS F5 motif generator in FORGE ONE (based on F
 
 | Version | Date | Theme |
 | --- | --- | --- |
+| 0.18 | 25 Oct 2026 | SONG: HELP, K4 every starter, keys by fifths, AUTO EVOLVE, LEDs; CHIPTUNE MINIMAL ELECTRO |
 | 0.17 | 24 Oct 2026 | SONG spec v0.8: G5 one-press exit, FILL on D4 + C4, PRESETS by category, sounds kept |
 | 0.16 | 24 Oct 2026 | SONG spec v0.7: SEQ held opens SONG, every action on screen, holds, UNDO, CLICK, CHAIN |
 | 0.15 | 24 Oct 2026 | SONG spec v0.6: one-touch control, its own screen; a longer splash |
@@ -25,6 +26,37 @@ Newest first. FORGE is the SEQ TOOLS F5 motif generator in FORGE ONE (based on F
 | 0.3 | 21 Oct 2026 | Safe live turns, chords in every scale, pinned seeds |
 | 0.2 | 21 Oct 2026 | The generator: SEED, DENSITY, EVOLVE, 8 styles |
 | 0.1 | 21 Oct 2026 | Scaffold: F5 FORGE cell, CI build |
+
+## 0.18
+
+Usability and three genres (from the 0.17 review's ideas 1 2 3 4 6).
+
+- **K4 in SONG** steps through every starter, genre by genre and variation by variation (`TRANCE LIFT 2/3`), a new
+  song with its sounds and tempo (STARTER keeps K4 GENRE and the black keys). A variation change counts as a song change
+  (its own sounds, 0.17's rule).
+- **LEDs:** a part waiting for the bar line blinks fast, CHAIN's next part slowly; C4 blinks while a FILL is armed, lit
+  while one plays; F5 lights on each beat with CLICK on; with HELP on every key breathes.
+- **HELP:** FX + D4 tapped (D4 let go with FX held, nothing else touched): each key says in the box what it does
+  (alone, D4, FX) and does nothing, the effect keys and mutes too (no key mask to the ISR); again: off; leaving SONG ends
+  it. (The idea was a 1 s hold of any key; F3..B3 act at their down and OP1..4, D5, E5, F5 already have holds, so a
+  mode instead.)
+- **ALGORITHM by fifths:** right a fifth up, left a fifth down (a fourth up), round the circle (C G D A ..). Two detents
+  are a whole tone; the semitone step is gone (seven fifths).
+- **AUTO EVOLVE:** FX + F5 (`EVO` in the head): every part-length of bars (CHAIN's bars of the part, 8 at first) at the
+  bar line one unlocked track's next variant (T1..T3 notes, T4 beat), round the four; quiet (a message, the dot; no SAVE
+  X?, no undo); locked tracks never.
+- **Genres:** CHIPTUNE (LEVEL, BOSS, MENU), MINIMAL (LOOP, HYPNO, CLICK), ELECTRO (MIAMI, ROBOT, FREAK): 54 starters in
+  16 genres, appended (the saved last song's genre numbers keep their meaning); two new beats (MINIMAL: four, off-beat
+  hat, rim; CHIP: 1 and 3, snare 2 4, 8th hats); D: CHIPTUNE LIFT, MINIMAL and ELECTRO BREAK. Only existing sounds.
+- **FILL fix (device report: D4 + C4, then the fill stuck):** the sequencer ends a FILL itself as well as the UI: a held
+  fill stops at the next 1/16 once D4 or C4 is up (the keys read in the audio ISR), a bar's fill by the second bar
+  line at the latest, a crash on the next bar's first T4 step even with none on 1; SONG's keys gone mid-fill (no pass
+  of SONG): the held fill ends with its crash.
+- **Display fix (0.16–0.18):** the action box closed while playing left its text and frame between the BAR, chain,
+  strip and track rows ("S96 VERSE" behind the strip): its whole rect is cleared before they are drawn again. Test: the
+  screen after the box closes against a full draw of the same state (the live meters aside).
+- Tests: `test_song_v09`; the starter rules and pinned patterns for 54 (the 45 unchanged), K4's wrap, test 49 / 65 by
+  fifths. ui_render: HELP and EVO screens.
 
 ## 0.17
 

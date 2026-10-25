@@ -643,7 +643,7 @@ static int test_starter(void)
     {   /* 0.8: the genres cover the table in order, 1..4 variations each; the names fit; one heavy engine a starter;
          * DRUM on T4; the beats' and LENs' values in range */
         uint32_t g, nx = 0, heavy;
-        ok = FS_NGENRE == 13u && FS_NSTART >= 40u;
+        ok = FS_NGENRE == 16u && FS_NSTART == 54u;      /* (0.18: CHIPTUNE MINIMAL ELECTRO, 3 each) */
         for (g = 0; g < FS_NGENRE; g++) {
             ok &= FS_GENRE[g].first == nx && FS_GENRE[g].n >= 1u && FS_GENRE[g].n <= 4u &&
                   text_w(&AF_S, FS_GENRE[g].card) <= COL_W - 8 && str_len(FS_GENRE[g].name) <= 12u;
@@ -667,7 +667,7 @@ static int test_starter(void)
                 break;
             }
         }
-        bad += check("STARTER (0.8): 13 genres over 45 starters in order, names fit, one heavy engine (GRAIN / PHYS) each", ok);
+        bad += check("STARTER (0.8; 0.18: 16 over 54): genres over the starters in order, names fit, one heavy engine (GRAIN / PHYS) each", ok);
     }
     {   /* 0.9 FORGE PACK: every sound's base preset exists, its name fits the row, every one is used, the values are
          * in range; loaded, the track has them */
@@ -736,11 +736,15 @@ static int test_starter(void)
     tkey(5);                                            /* D4 */
     ok &= fg.rvar == 1u && msg_is("NEW RHYTHMS 1") && fs.on;
     bad += check("  C4 / D4: new notes / rhythms on all four, STARTER stays open", ok);
-    kt(EN_K4, -1);                                      /* (wraps: JARRE, its first: OXY) */
+    kt(EN_K4, -1);                                      /* (wraps: 0.18's last, ELECTRO, its first: MIAMI) */
+    (void)fs_find(&FORGE_STARTER[51].snd[1], &e, &k);
+    ok = fs.genre == 15u && !fs.var && song.g[G_BPM] == 128 && trk[1].eng_req == e && trk[1].preset == k &&
+         !fg.nvar && msg_is("ELECT MIAMI 42");
+    kt(EN_K4, -3);                                      /* (JARRE, its first: OXY) */
     (void)fs_find(&FORGE_STARTER[41].snd[1], &e, &k);
-    ok = fs.genre == 12u && !fs.var && song.g[G_BPM] == 104 && trk[1].eng_req == e && trk[1].preset == k &&
-         trk[2].p[P_SLEN] == 64 && !fg.nvar && msg_is("JARRE OXY 42");
-    bad += check("  K4 GENRE wraps (BERLIN > JARRE): its first variation's sounds and 104 BPM, C4 / D4 from 0", ok);
+    ok &= fs.genre == 12u && !fs.var && song.g[G_BPM] == 104 && trk[1].eng_req == e && trk[1].preset == k &&
+          trk[2].p[P_SLEN] == 64 && !fg.nvar && msg_is("JARRE OXY 42");
+    bad += check("  K4 GENRE wraps (BERLIN > ELECTRO), JARRE: its first variation's sounds and 104 BPM, C4 / D4 from 0", ok);
     key_down(black(1)); frame(); key_up(black(1)); frame();   /* G#3: the second variation */
     (void)fs_find(&FORGE_STARTER[42].snd[0], &e, &k);
     ok = fs.var == 1u && song.g[G_BPM] == 120 && trk[0].eng_req == e && trk[0].preset == k && msg_is("JARRE EQUI 42") &&
@@ -878,7 +882,7 @@ static int test_starter(void)
         }
         if (f)
             fclose(f);
-        bad += check("  pinned seeds: 45 starters x 3 seeds write the four tracks they wrote before", f && n == FS_NSTART * 3u && !miss);
+        bad += check("  pinned seeds: every starter (0.18: 54) x 3 seeds write the four tracks they wrote before", f && n == FS_NSTART * 3u && !miss);
     }
     btn_up(B_SEQ); frame();
     return bad;
@@ -1264,7 +1268,8 @@ static int test_song(void)
     int bad = 0, ok, g;
     uint32_t i, j, x, d, lo, n;
     char nm[SG_NAME_LEN + 1u];
-    ok = SG_NAME_LEN == PROJ_NAME_LEN && sizeof FS_GENRE_D == 13u;
+    ok = SG_NAME_LEN == PROJ_NAME_LEN && sizeof FS_GENRE_D == 16u && FS_GENRE_D[13] == SD_LIFT && FS_GENRE_D[14] == SD_BREAK &&
+         FS_GENRE_D[15] == SD_BREAK;                    /* (0.18: CHIPTUNE LIFT, MINIMAL and ELECTRO BREAK) */
     for (i = 0; i < 13u; i++)
         ok &= (g = sg_genre(MAP[i].g)) >= 0 && FS_GENRE_D[g] == MAP[i].d;
     for (i = 0, n = 0; i < 13u; i++)
@@ -2192,8 +2197,8 @@ static int test_song_v06(void)
     transport_req = 2;
     pm_blocks(2); frame();
     kt(EN_ALGO, -1);
-    ok &= !sg.kpend && sg_roots((r0 + 1u) % 12u);
-    bad += check("  49. ALGORITHM +2 at step 5: the root waits for the next bar, then +2 on all four tracks; stopped: at once", ok);
+    ok &= !sg.kpend && sg_roots((r0 + 2u + 5u) % 12u)   /* (0.18: by fifths: +2 = 2 semitones, -1 = 5 down) */;
+    bad += check("  49. ALGORITHM +2 (0.18: two fifths) at step 5: the root waits for the next bar, then on all four tracks; stopped: at once", ok);
     /* 50. SCALE: FX + ALGORITHM, the next of the list, at the bar the same way */
     {
         uint32_t sc0 = song_scale_now(), want;
@@ -2567,7 +2572,7 @@ static int test_song_v07(void)
         ok &= trk[0].preset == k1;
         r0 = fs.root;
         kt(EN_ALGO, 1);
-        ok &= fs.root == (r0 + 1u) % 12u;
+        ok &= fs.root == (r0 + 7u) % 12u   /* (0.18: a fifth up) */;
         sg_oct2();
         ok &= fs.root == r0;
         sg_oct2();                                      /* (one level: nothing more) */
@@ -3409,9 +3414,204 @@ static int test_song_v08(void)
     return bad;
 }
 
+/* FORGE ONE 0.18: K4 every starter, the LEDs, HELP, ALGORITHM by fifths, AUTO EVOLVE */
+static int sv_in_meter(uint32_t x, uint32_t y)          /* (a meter: live levels, a full draw starts it from 0) */
+{
+    uint32_t i;
+    for (i = 0; i < NTRK; i++)
+        if (x >= SV_X0 + 96u && x < SV_X0 + 96u + SV_MW && (int32_t)y >= sv_row_y(i) + 7 && (int32_t)y < sv_row_y(i) + 12)
+            return 1;
+    return 0;
+}
+static int test_song_v09(void)
+{
+    int bad = 0, ok;
+    uint32_t i, n, on, can;
+    sg_snd.valid = 0;
+    sg_open((uint32_t)sg_genre("TRANCE"), 42);
+    fx_latch &= ~1u; perf_latch_on = 0;
+    /* K4: the next starter (TRANCE GATE > LIFT), its sounds and tempo; round past the last */
+    {
+        uint32_t e, k;
+        ok = fs_idx() == 22u;
+        kt(EN_K4, 1);
+        (void)fs_find(&FORGE_STARTER[23].snd[1], &e, &k);
+        ok &= fs_idx() == 23u && fs.var == 1u && song.g[G_BPM] == 138 && trk[1].eng_req == e && sg.on &&
+              str_eq(sg_pop.big, "TRANCE LIFT 2/3");
+        kt(EN_K4, -2);
+        ok &= fs_idx() == 21u && fs.genre == (uint8_t)sg_genre("ACID TECHNO");
+        fs.genre = 0; fs.var = 0;
+        kt(EN_K4, -1);
+        ok &= fs_idx() == FS_NSTART - 1u && str_eq(FORGE_STARTER[fs_idx()].name, "FREAK");
+        kt(EN_K4, 1);
+        ok &= fs_idx() == 0u;
+        if (!ok) printf("    K4: idx %u big %s\n", (unsigned)fs_idx(), sg_pop.big);
+    }
+    bad += check("SONG 0.18 K4 steps every starter (TRANCE GATE > LIFT 2/3: its sounds, 138 BPM), round past ELECTRO FREAK", ok);
+    sg_close();
+    /* the LEDs: a part waiting blinks, CHAIN's next blinks, C4 an armed FILL, F5 the CLICK's beat */
+    sg_open((uint32_t)sg_genre("TRANCE"), 42);
+    sg_play();
+    sg_to_step(3);
+    sg_tap(1);
+    {
+        uint32_t seen = 0;
+        for (n = 0; n < 20u; n++) { song_led(1, &on, &can); seen |= 1u << on; frames(64); if (!sg.qpart) break; }
+        ok = seen == 3u;
+    }
+    for (n = 0; n < 400u && sg.qpart; n++) sg_run_ms(16);
+    sg_tap(0);
+    for (n = 0; n < 400u && sg.qpart; n++) sg_run_ms(16);
+    sg_c4_tap();
+    {
+        uint32_t seen = 0;
+        for (n = 0; n < 10u && sg.farm; n++) { song_led_w(4, &on, &can); seen |= 1u << on; frames(64); }
+        ok &= seen == 3u;
+    }
+    sg.click = 1;
+    {
+        uint32_t seen = 0;
+        for (n = 0; n < 30u; n++) { sg_run_ms(16); song_led_w(TL_FORGE, &on, &can); seen |= 1u << on; }
+        ok &= seen == 3u;
+    }
+    sg.click = 0;
+    sg_stop();
+    bad += check("  LEDs: a part waiting blinks, an armed FILL blinks C4, the CLICK lights F5 on the beat", ok);
+    /* HELP: FX + D4 tapped; a key says what it does and does nothing; the effects too; FX + D4 again: off */
+    {
+        char q[20];
+        uint32_t part = sg.part;
+        btn_down(B_FX); frame(); key_down(white(5)); frame(); key_up(white(5)); frame(); btn_up(B_FX); frame();
+        ok = sg.help && str_eq(sg_pop.sm, "HELP") && str_eq(sv_state(q), "HELP  FX+D4: OFF");
+        sg_wtap(0);
+        ok &= !sg.focus && str_eq(sg_pop.sm, "F3") && str_eq(sg_pop.big, "FOCUS T1");
+        sg_w(6, 1);
+        ok &= !perf_held && str_eq(sg_pop.sm, "E4") && str_eq(sg_pop.big, "REPEAT 1/16");
+        sg_w(6, 0);
+        sg_tap(2);
+        ok &= sg.part == part && !sg.qpart && str_eq(sg_pop.sm, "A#3") && str_eq(sg_pop.big, "PART C");
+        sg_g5();
+        ok &= sg.on && fs.on && str_eq(sg_pop.big, "STARTER");
+        btn_down(B_FX); frame(); key_down(white(5)); frame(); key_up(white(5)); frame(); btn_up(B_FX); frame();
+        ok &= !sg.help;
+        sg_wtap(0);
+        ok &= sg.focus == 1u;
+        sg_wtap(0);
+        btn_down(B_FX); frame(); key_down(white(5)); frame(); sg_wtap(1); key_up(white(5)); frame(); btn_up(B_FX); frame();
+        ok &= !sg.help;                                 /* (FX + D4 + G3: a mute, no HELP) */
+    }
+    bad += check("  HELP: FX + D4 tapped; F3 / E4 / A#3 / G5 say what they do, nothing done; again: off; FX + D4 + a key: no HELP", ok);
+    /* ALGORITHM by fifths: C > G > D; left: F */
+    {
+        uint32_t r0 = fs.root;
+        kt(EN_ALGO, 1);
+        ok = fs.root == (r0 + 7u) % 12u;
+        kt(EN_ALGO, 1);
+        ok &= fs.root == (r0 + 2u) % 12u;
+        kt(EN_ALGO, -3);
+        ok &= fs.root == (r0 + 5u) % 12u;               /* (2 up, 3 down: a fifth below the start) */
+        kt(EN_ALGO, 1);
+        ok &= fs.root == r0;
+    }
+    bad += check("  ALGORITHM round the circle of fifths (up: a fifth, down: a fourth)", ok);
+    /* AUTO EVOLVE: FX + F5; each part-length of bars an unlocked track's next variant, round, the locked skipped */
+    {
+        uint8_t nv[NTRK], rv;
+        for (i = 0; i < SG_N; i++) sg.cbars[i] = 0;     /* (1 bar) */
+        btn_down(B_FX); frame(); sg_wtap(TL_FORGE); btn_up(B_FX); frame();
+        ok = sg.evolve && str_eq(sg_pop.sm, "AUTO EVOLVE") && song.g[G_BPM] > 0;
+        sg_tap(5);                                      /* lock T2 */
+        for (i = 0; i < NTRK; i++) nv[i] = sg.nvar[sg.part][i];
+        rv = sg.rvar[sg.part][3];
+        sg_play();
+        for (n = 0; n < 3u; n++) {
+            uint8_t b = sg.ebar;
+            uint32_t m;
+            (void)b;
+            for (m = 0; m < 400u; m++) { sg_run_ms(16); if (ui.msg_t && !memcmp(ui.msg, "EVOLVE", 6)) break; }
+            ui.msg_t = 0;
+        }
+        ok &= sg.nvar[sg.part][0] == (uint8_t)(nv[0] + 1u) && sg.nvar[sg.part][1] == nv[1] &&
+              sg.nvar[sg.part][2] == (uint8_t)(nv[2] + 1u) && sg.rvar[sg.part][3] == (uint8_t)(rv + 1u) && (sg.dirty & (1u << sg.part)) && !sg.pend;
+        sg_stop();
+        btn_down(B_FX); frame(); sg_wtap(TL_FORGE); btn_up(B_FX); frame();
+        ok &= !sg.evolve;
+        sg_tap(5);
+        if (!ok) printf("    evolve: %u %u %u %u (was %u %u %u %u)\n", sg.nvar[sg.part][0], sg.nvar[sg.part][1], sg.nvar[sg.part][2], sg.rvar[sg.part][3], nv[0], nv[1], nv[2], rv);
+    }
+    bad += check("  AUTO EVOLVE (FX + F5): a track a part-length, T1 T3 T4 (T2 locked: skipped), quietly; off again", ok);
+    sg_close();
+    /* 0.18.1 (device: "D4 + C4 FILL, then stuck"): the sequencer ends a FILL itself, the UI's pass or not. Held: over
+     * with D4 or C4 up; a bar's fill: over by the second bar line at the latest; the locked layer with no SEQ held */
+    sg_open((uint32_t)sg_genre("TRANCE"), 42);
+    fx_latch &= ~1u; perf_latch_on = 0;
+    btn_up(B_SEQ); frame();
+    ok = ui.lock == LAYER_SEQ && sg.on;
+    sg_play();
+    sg_to_step(3);
+    sg_c4_down();
+    ok &= sgf.live && sgf.key == 8u;
+    sg_run_ms(200);
+    fm1_in.notes &= ~(1u << white(4)); keyboard_block();   /* (C4 up, no UI pass after) */
+    pm_blocks(80);
+    ok &= !sgf.live;
+    fm1_in.notes &= ~(1u << white(5)); keyboard_block();
+    frame();
+    ok &= !sg.fk && !sgf.live;
+    sg_run_ms(3000);
+    ok &= !sgf.live && !sgf.bar && !sgf.crash && !sg.farm;
+    sg_to_step(6);
+    sg_c4_down();
+    sg_run_ms(200);
+    fm1_in.notes &= ~(1u << white(5)); keyboard_block();   /* (D4 up first, no UI pass) */
+    pm_blocks(80);
+    ok &= !sgf.live;
+    key_up(white(4)); frame();
+    sg_run_ms(3000);
+    ok &= !sgf.live && !sgf.bar && !sgf.crash;
+    {
+        uint32_t m = 0;
+        sgf_bar_start();                                /* (a bar's fill, no UI pass at all: two bar lines at most) */
+        for (n = 0; n < 40000u && sgf.bar; n++, m++) pm_blocks(1);
+        ok &= !sgf.bar && m * CTL < 3u * 16u * div_samples(2);   /* (under three bars) */
+        if (!ok) printf("    fill end: live %u bar %u crash %u farm %u fk %u, %u blocks\n", sgf.live, sgf.bar, sgf.crash, sg.farm, sg.fk, (unsigned)m);
+    }
+    sg_stop();
+    bad += check("  (bug) FILL ends with D4 or C4 up, the UI's pass or not; a bar's fill by the second bar line; SEQ lock, no SEQ held", ok);
+    sg_close();
+    /* 0.18.1 (device and emulator: "S96 VERSE" left behind the strip): the action box closed while playing, the
+     * screen as a full draw of the same state would be; any pixel of the box's rect different: a redraw gap */
+    sg_open((uint32_t)sg_genre("TRANCE"), 42);
+    btn_up(B_SEQ); frame();
+    sg_play();
+    sg_run_ms(300);
+    {
+        static uint16_t was[240 * 240];
+        uint32_t x, y, diff = 0;
+        song_pop(SOV_POP, "PART C", "S42 VERSE", "", -1, 0);
+        ui_draw();
+        ok = sg.ov == SOV_POP;
+        sg_run_ms(3000);
+        ui_draw();
+        ok &= sg.ov == SOV_NONE && song.playing;
+        memcpy(was, host_screen, sizeof was);
+        sv.shown = 0;
+        ui_draw();
+        for (y = SV_BOX_Y; y < SV_BOX_Y + SV_BOX_H; y++)
+            for (x = SV_BOX_X; x < SV_BOX_X + SV_BOX_W; x++)
+                diff += was[y * 240u + x] != host_screen[y * 240u + x] && !sv_in_meter(x, y);
+        ok &= diff == 0u;
+        if (!ok) printf("    box closed: %u pixels differ from a full draw (meters aside)\n", (unsigned)diff);
+    }
+    sg_stop();
+    bad += check("  (bug) the action box closed while playing: nothing of it left (as a full draw)", ok);
+    sg_close();
+    return bad;
+}
+
 int main(void)
 {
-    int bad = test_open() + test_styles() + test_evolve() + test_names() + test_chords() + test_reroll() + test_golden() + test_drum() + test_051() + test_starter() + test_perform() + test_roles() + test_song() + test_song_fix() + test_song_fx() + test_song_perf() + test_song_v06() + test_song_view() + test_song_v07() + test_song_v08();
+    int bad = test_open() + test_styles() + test_evolve() + test_names() + test_chords() + test_reroll() + test_golden() + test_drum() + test_051() + test_starter() + test_perform() + test_roles() + test_song() + test_song_fix() + test_song_fx() + test_song_perf() + test_song_v06() + test_song_view() + test_song_v07() + test_song_v08() + test_song_v09();
     printf("%s\n", bad ? "FORGE TEST FAILED" : "forge tests passed");
     return bad != 0;
 }

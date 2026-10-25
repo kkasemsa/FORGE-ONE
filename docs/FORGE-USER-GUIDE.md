@@ -207,8 +207,8 @@ tracks and writes a pattern for each, all from one seed:
    starter's own scale, or set one to use yours.
 2. Hold **SEQ** and tap **G5** (on any track). Four sounds load and four patterns are written at once; the tempo goes
    to the starter's BPM (not when the FM-1 follows an external MIDI clock).
-3. Turn **K4 GENRE** to choose one of 13 genres, and press **black keys 1–4** (F#3 G#3 A#3 C#4) to choose the
-   genre's variation (3 or 4 each, 45 in all; the screen shows them as a row of cells, the keys light up). Each loads
+3. Turn **K4 GENRE** to choose one of 16 genres, and press **black keys 1–4** (F#3 G#3 A#3 C#4) to choose the
+   genre's variation (3 or 4 each, 54 in all; the screen shows them as a row of cells, the keys light up). Each loads
    its own four sounds, tempo, scale and swing. Turn **K1 SEED** for another song idea in the same starter. **K2 DENSITY** makes all four busier or sparser (50–150 % of each part's own), and **K3 EVOLVE**
    works as in FORGE. **C4** gives all four new notes, **D4** new rhythms.
 4. Press **OCT+** (or G5 again) to keep it, or **OCT−** to put all four tracks back exactly as they were: sounds,
@@ -263,6 +263,15 @@ The screen shows a row a track: its preset and its first 16 steps. Under them, t
 |  | 2 **EQUI** | LOFI WAVE BASS | TRIO ARP LEAD | *CHOIR AAH* | *MINI KIT* · Electro | 120 | MIN | – |
 |  | 3 **FIELD** | FM6 FM BASS | *BRASS STAB* | ANALOG PWM STR | *MINI KIT* · Rhythm box | 112 | DOR | – |
 |  | 4 **ZOO** | VOICE WOW BASS | *VOX CHANT* | GRAIN SHIMMER | DRUM TIGHT KIT · Electro | 118 | PHRY | – |
+| Chiptune (0.18) | 1 **LEVEL** | LOFI WAVE BASS | *8BIT LEAD* | *CHIP ARP* | *MINI KIT* · Chip | 150 | MAJ | – |
+|  | 2 **BOSS** | LOFI WAVE BASS | LOFI PULSE LD | TRIO CHIP CHOIR | DRUM TIGHT KIT · Chip | 140 | MIN | – |
+|  | 3 **MENU** | LOFI WAVE BASS | LOFI ARP 8BIT | TRIO CHIP CHOIR | *MINI KIT* · Chip | 120 | MAJ | – |
+| Minimal (0.18) | 1 **LOOP** | *DEEP BASS* | PHASE RESO | *DUB PAD* | *909 KIT* · Minimal | 128 | MIN | – |
+|  | 2 **HYPNO** | ANALOG SUB BASS | *BERLIN RESO* | GRAIN FROZEN | DRUM TIGHT KIT · Minimal | 130 | PHRY | – |
+|  | 3 **CLICK** | FM6 FM BASS | FM6 BELL | ANALOG SOFT PAD | DRUM PERC KIT · Minimal | 124 | DOR | 5 |
+| Electro (0.18) | 1 **MIAMI** | *ELECTRO BASS* | LOFI PULSE LD | *WARM STAB* | *808 KIT* · Electro | 128 | MIN | – |
+|  | 2 **ROBOT** | *ELECTRO BASS* | VOICE VOX LEAD | PHASE STRING | *808 KIT* · Electro | 122 | PHRY | – |
+|  | 3 **FREAK** | *OCTAVE BASS* | TRIO SYNC LEAD | FM6 PAD | DRUM DEEP KIT · Electro | 126 | MIN | 5 |
 
 \* The starter's SCALE is used only when the selected track's SCALE is CHR (the default). Any other SCALE you set is kept.
 
@@ -399,14 +408,14 @@ stopped, on part A (`NORMAL`, the default, does not).
 | D4 | ALT: held alone, K1–K4 are T1–T4 LEVEL, a mixer (a tap does nothing) | – | – |
 | E4 F4 G4 A4 B4 C5 | Held: REPEAT 1/16, LPF, HPF, TAPE STOP, REV THROW, ECHO THROW (no FX button needed) | same | same |
 | D5 / E5 | Tap: recall SCENE 1 / 2 at the next 1/16; **held 0.5 s: store** | – | Store SCENE 1 / 2 |
-| F5 | **TAP tempo** (the last 4 taps; 2 s starts over); **held 0.5 s: CLICK on / off** | same | same |
+| F5 | **TAP tempo** (the last 4 taps; 2 s starts over); **held 0.5 s: CLICK on / off** | same | **AUTO EVOLVE on / off** (0.18) |
 | G5 | Applies STARTER, leaves SONG (0.17: back to the play screen in one press) | same | same |
 | SELECT | **Tempo** ±1 BPM | same | ±5 BPM |
-| ALGORITHM | **Key** ±1 semitone, at the next bar | **CHAIN bars** of the part shown (1 2 4 8 16) | **Scale**, at the next bar |
+| ALGORITHM | **Key** round the circle of fifths (0.18: right a fifth up, left a fourth up), at the next bar | **CHAIN bars** of the part shown (1 2 4 8 16) | **Scale**, at the next bar |
 | OCT− | Cancel a change waiting; KEEP; cancel / done (0.35 s later) | – | – |
 | OCT− twice (within 0.35 s) | **UNDO** the last reroll, preset, favourite or KEY / SCALE change (one level) | – | – |
 | PRESETS | **Every sound of the focus track's category** (0.17; T4 on drums: the drum list), loaded at the next bar (OCT−: cancel) | same | **the next / previous category** (T4 drums: the next group) |
-| KNOB 1–4 | SEED DENSITY EVOLVE GENRE; FOCUS on: the track's four (below) | T1–T4 LEVEL (they stay when D4 is let go) | FX macros FILTER CRUSH THROW DEPTH (back to 0 when FX is let go) |
+| KNOB 1–4 | SEED DENSITY EVOLVE and K4 every starter (0.18: genre by genre, variation by variation); FOCUS on: the track's four (below) | T1–T4 LEVEL (they stay when D4 is let go) | FX macros FILTER CRUSH THROW DEPTH (back to 0 when FX is let go) |
 
 - A locked track ignores its own reroll key (`T3 LOCKED`). Before the song is written a per-track reroll says
   `NEW T3`; after, it asks `SAVE X?` like C4. (0.13 / spec v0.5: D4's reroll of every track's rhythm is gone; D4 +
@@ -442,6 +451,15 @@ stopped, on part A (`NORMAL`, the default, does not).
   (SEQ held, F#5, BOOT = SONG), and across parts and rerolls. A song's own sounds come back only when the song changes
   (SEED, GENRE, variation). After a power-off, BOOT = SONG and SEQ held load the presets and kits you last picked; knob
   edits of a song never saved are not kept over a power-off (the orange dots say it is unsaved).
+- **HELP (0.18):** tap **D4 with FX held** (nothing else): every key then says in the box what it does (alone, with D4,
+  with FX) instead of doing it, the effect keys too; the state line says `HELP  FX+D4: OFF`. Tap FX + D4 again to play.
+- **K4 in SONG (0.18):** steps through every starter, genre by genre and variation by variation (`TRANCE LIFT 2/3`): a
+  new song with its sounds and tempo. (STARTER keeps K4 GENRE and the black keys.)
+- **AUTO EVOLVE (0.18):** FX + F5 turns it on (`EVO` in the header): every part-length of bars (CHAIN's bars of the
+  part, 8 at first) one unlocked track's notes, or T4's beat, change a little at the bar line, round the four. Quiet: no
+  SAVE X? question, no undo, the part's orange dot. Locked tracks never change.
+- **Keys light up (0.18):** a part waiting for the bar line blinks fast; with CHAIN on, the next part blinks slowly; C4
+  blinks while a FILL is armed and stays lit while one plays; F5 lights on each beat with CLICK on.
 - **UNDO (0.16):** press OCT− twice quickly. It takes back the last reroll (C4 or one track), the last preset or
   favourite loaded, or the last KEY / SCALE change (one level: then `NOTHING TO UNDO`). A single OCT− still does
   what it did, 0.35 s later (it waits to see if a second press comes).

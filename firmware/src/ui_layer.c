@@ -156,7 +156,7 @@ static void layer_masks(void)
     {   /* (0.13 SONG, spec v0.4.1: its effect keys with SEQ held, the mutes with FX held too; not at the confirm) */
         uint32_t on = m && ui.ly == LAYER_SEQ && fs.on && sg.on && sg.stage != SG_CONFIRM;
         perf_song = (uint8_t)on;
-        sg_fxmask = on ? song_keymask(song_fx_btn()) : 0u;
+        sg_fxmask = on && !sg.help ? song_keymask(song_fx_btn()) : 0u;   /* (0.18 HELP: the keys only say) */
         song_fx_poll(on, song_fx_btn());                /* (FX let go: the macros snap back) */
     }
 }
@@ -816,7 +816,10 @@ static void layer_key(uint32_t l, uint32_t k)
             ui.force = 1;                               /* (0.13 SONG: effects, per-track rerolls, mutes) */
         else if (!key_black(k))
             tools_key(p);
-        else if (fs.on && p == 10u && sg.on && song_d4()) {   /* (0.16: D4 + F#5 the auto-chain) */
+        else if (fs.on && sg.on && sg.help && sg.stage != SG_CONFIRM) {
+            song_help_key(k);                           /* (0.18 HELP: what it does, nothing done) */
+            ui.force = 1;
+        } else if (fs.on && p == 10u && sg.on && song_d4()) {   /* (0.16: D4 + F#5 the auto-chain) */
             sg.d4_used = 1;
             song_chain_toggle();
             ui.force = 1;
