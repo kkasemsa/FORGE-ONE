@@ -65,6 +65,9 @@ static struct {
     /* 0.17 (spec v0.8 §2): FILL. fk: C4 held for a live fill (+ 1), fms its down; farm: a bar-end fill armed, fwait the
      * bar lines to its bar; fbars: the fills' count (their type's salt). The sequencer's side: seq.c sgf */
     uint8_t fk, farm, fwait, fbars, barhit;
+    /* 0.18: help (FX + D4 tapped: every key says what it does instead of doing it); evolve (FX + F5: every evo bars
+     * line a track's notes or beat changed a little, round the unlocked tracks: ebar the bars counted, etrk the next) */
+    uint8_t help, evolve, ebar, etrk;
     /* 0.17 (spec v0.8 §2b): the sound browsed (sref_t: pkind, pe, pk), in category pcat or the drum list (pdrum);
      * pjump: the last turn was FX's (a category / group) */
     uint8_t pkind, pe, pdrum, pcat, pjump;
@@ -427,6 +430,11 @@ static void song_d4_poll(uint32_t on);
 static void song_poll(void);
 static void song_hold_poll(void);
 static void song_fill_down(uint32_t k);
+static void song_help_toggle(void);
+static void song_help_key(uint32_t k);
+static void song_starter_turn(int32_t s);
+static void song_evolve_toggle(void);
+static void song_evolve_bar(void);
 static void song_fill_set(uint32_t salt);
 static void song_fill_refuse(const char *r);
 static uint32_t song_pack_of(const track_t *t);
@@ -486,8 +494,8 @@ static void song_toggle(void)
     sg.lastf = 0;                                       /* params and the scenes stay) */
     sg.d4 = 0;
     sg.kpend = sg.ppend = sg.fpend = sg.ov = 0;
-    sg.qpart = sg.hk = sg.octpend = 0;
-    sg.chain = sg.cbar = 0;
+    sg.qpart = sg.hk = sg.octpend = sg.help = 0;
+    sg.chain = sg.cbar = sg.evolve = sg.ebar = 0;
     song_fill_stop();
     for (x = 0; x < SG_N; x++)
         sg.cbars[x] = SG_CBAR_DEF;
@@ -747,6 +755,8 @@ static void song_d4_poll(uint32_t on)
 {
     if (!sg.d4 || (on && song_d4_down()))
         return;
+    if (on && !sg.d4_used && song_fx_btn())             /* (0.18: FX + D4 tapped, nothing else: HELP on / off) */
+        song_help_toggle();
     sg.d4 = 0;
     ui.force = 1;
 }
@@ -880,7 +890,7 @@ static void song_keyturn(int32_t s)
         i = i >= NELEM(SG_SCALES) ? 0u : (i + NELEM(SG_SCALES) + (s > 0 ? 1u : NELEM(SG_SCALES) - 1u)) % NELEM(SG_SCALES);
         sc = SG_SCALES[i];
     } else {
-        r = (r + 12u + (s > 0 ? 1u : 11u)) % 12u;
+        r = (r + (s > 0 ? 7u : 5u)) % 12u;          /* (0.18: round the circle of fifths, C G D .. / C F Bb ..) */
     }
     sg.kroot = (uint8_t)r;
     sg.kscale = (uint8_t)sc;
@@ -1396,8 +1406,10 @@ static void song_poll(void)
     if (bar && sg.chain && !sg.qpart &&
         ++sg.cbar >= SG_CBARS[sg.cbars[sg.part] % NELEM(SG_CBARS)])   /* (0.16 auto-chain: the next part at the bar) */
         sg.qpart = (uint8_t)((sg.part + 1u) % SG_N + 1u);
-    if (bar)
-        song_fill_bar();                                /* (0.17: a bar-end fill's bar begins) */
+    if (bar) {
+        song_fill_bar();
+        song_evolve_bar();                              /* (0.18) */
+    }                                /* (0.17: a bar-end fill's bar begins) */
     if (sg.qpart && (bar || !song.playing) && !sgf.bar) {   /* (0.16: a part at the bar; 0.17: after a fill's bar) */
         uint32_t x = sg.qpart - 1u;
         sg.qpart = 0;
@@ -1478,6 +1490,10 @@ static int song_cards(void)
 static int song_wkey(uint32_t k)
 {
     uint32_t p = key_place(k);
+    if (sg.help && p != TL_COOK) {                      /* (0.18 HELP: what the key does, nothing done) */
+        song_help_key(k);
+        return 1;
+    }
     if (p >= SG_FX_KEY0 && p < SG_FX_KEY0 + 6u) {
         song_pop(SOV_POP, "FX", song_fx_name(SG_FX[p - SG_FX_KEY0]), "", -1, 0);   /* (0.16: the ISR's, while held) */
         return 1;
@@ -1505,6 +1521,10 @@ static int song_wkey(uint32_t k)
     if (p == TL_COOK) {                         /* D4: ALT (held alone: the levels; a tap: nothing, 0.15) */
         sg.d4 = 1;
         sg.d4_used = (kb_layer & 0x55u) != 0u;
+        return 1;
+    }
+    if (p == TL_FORGE && song_fx_btn()) {       /* 0.18 FX + F5: AUTO EVOLVE on / off */
+        song_evolve_toggle();
         return 1;
     }
     if (p == TL_FORGE) {                        /* 0.15 F5: TAP tempo; 0.16: held, the visual CLICK */
@@ -2058,6 +2078,92 @@ static void song_fill_bar(void)                         /* at a bar line, after 
         sgf.bar = 1;
     }
 }
+/* 0.18: HELP. FX + D4 tapped turns it on (and off): each key then says in the box what it does (alone, with D4 and
+ * FX held) instead of doing it; the effect keys and mutes too (layer_masks: no key mask). Leaving SONG ends it */
+static const char *const HELP_W[16][2] = {
+    {"FOCUS T1", "D4 REROLL  FX MUTE"}, {"FOCUS T2", "D4 REROLL  FX MUTE"}, {"FOCUS T3", "D4 REROLL  FX MUTE"},
+    {"FOCUS T4", "D4 REROLL  FX MUTE"}, {"NEW NOTES", "D4 + C4: FILL"}, {"ALT / MIXER", "HELD: K1-K4 LEVELS"},
+    {0, "HOLD: THE EFFECT"}, {0, "HOLD: THE EFFECT"}, {0, "HOLD: THE EFFECT"}, {0, "HOLD: THE EFFECT"},
+    {0, "HOLD: THE EFFECT"}, {0, "HOLD: THE EFFECT"}, {"SCENE 1", "HOLD: STORE"}, {"SCENE 2", "HOLD: STORE"},
+    {"TAP TEMPO", "HOLD CLICK FX EVOLVE"}, {"STARTER", "KEEP IT AND EXIT"}};
+static const char *const HELP_B[11][2] = {
+    {"PART A", "HOLD FAV  D4 LOAD"}, {"PART B", "HOLD FAV  D4 LOAD"}, {"PART C", "HOLD FAV  D4 LOAD"},
+    {"PART D", "HOLD FAV  D4 LOAD"}, {"LOCK T1", "NOTES KEPT"}, {"LOCK T2", "NOTES KEPT"}, {"LOCK T3", "NOTES KEPT"},
+    {"LOCK T4", "BEAT KEPT"}, {"CLEAR", "EVERY EFFECT OFF"}, {"DUCK", "ON / OFF"}, {"SONG OFF", "D4 + F#5: CHAIN"}};
+static void song_help_toggle(void)
+{
+    sg.help = (uint8_t)!sg.help;
+    song_pop(SOV_POP, "HELP", sg.help ? "ON" : "OFF", sg.help ? "KEYS SAY WHAT" : "", -1, 0);
+}
+static void song_help_key(uint32_t k)                   /* (key k: the box says what it does) */
+{
+    static const char WN[16] = {'F', 'G', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'A', 'B', 'C', 'D', 'E', 'F', 'G'};
+    static const char BN[11][4] = {"F#3", "G#3", "A#3", "C#4", "D#4", "F#4", "G#4", "A#4", "C#5", "D#5", "F#5"};
+    uint32_t p = key_place(k);
+    char n[4] = {0, 0, 0, 0};
+    if (key_black(k)) {
+        if (p < 11u)
+            song_pop(SOV_POP, BN[p], HELP_B[p][0], HELP_B[p][1], -1, 0);
+        return;
+    }
+    if (p >= 16u)
+        return;
+    n[0] = WN[p];
+    n[1] = (char)('3' + (p >= 4u) + (p >= 11u));
+    song_pop(SOV_POP, n, HELP_W[p][0] ? HELP_W[p][0] : song_fx_name(SG_FX[(p - SG_FX_KEY0) % 6u]), HELP_W[p][1], -1, 0);
+}
+
+/* 0.18: K4 in SONG steps through every starter, genre by genre (BERLIN SEQ, DRIFT .. DETROIT STABS ..): a new song,
+ * its sounds and tempo (STARTER keeps K4 GENRE and the black keys' variations) */
+static void song_starter_turn(int32_t s)
+{
+    uint32_t i = fs_idx(), g;
+    i = (uint32_t)(((int32_t)i + (int32_t)FS_NSTART * 8 + clamp(s, -8, 8)) % (int32_t)FS_NSTART);   /* (a detent a starter) */
+    for (g = 0; g + 1u < FS_NGENRE && i >= (uint32_t)FS_GENRE[g].first + FS_GENRE[g].n; g++)
+        ;
+    fs.genre = (uint8_t)g;
+    fs.var = (uint8_t)(i - FS_GENRE[g].first);
+    fg.nvar = fg.rvar = 0;
+    fs_sounds();
+    fs_tempo();
+    undo.trk = 0;
+}
+
+/* 0.18: EVOLVE on its own (FX + F5): every part-length of bars (CHAIN's bars of the part, 8 at first) at the bar
+ * line one unlocked track's notes (T4: its beat) change a little (its reroll, as D4 + F3..B3, quietly: no undo, no
+ * SAVE X?, the part's dot), round the four */
+static void song_evolve_toggle(void)
+{
+    char b[16] = "ON ";
+    sg.evolve = (uint8_t)!sg.evolve;
+    sg.ebar = 0;
+    fmt_int(b + 3, SG_CBARS[sg.cbars[sg.part] % NELEM(SG_CBARS)]);
+    str_cpy(b + str_len(b), " BARS", sizeof b - str_len(b));
+    song_pop(SOV_POP, "AUTO EVOLVE", sg.evolve ? b : "OFF", "", -1, 0);
+}
+static void song_evolve_bar(void)
+{
+    uint32_t n, i;
+    if (!sg.evolve || ++sg.ebar < SG_CBARS[sg.cbars[sg.part] % NELEM(SG_CBARS)])
+        return;
+    sg.ebar = 0;
+    for (n = 0; n < NTRK; n++) {
+        i = (sg.etrk + n) % NTRK;
+        if (!((sg.lock >> i) & 1u)) {
+            char b[12] = "EVOLVE T1";
+            b[8] = (char)('1' + i);
+            if (i < FP_DRUM)
+                sg.nvar[sg.part][i] = (uint8_t)((sg.nvar[sg.part][i] + 1u) % 100u);
+            else
+                sg.rvar[sg.part][i] = (uint8_t)((sg.rvar[sg.part][i] + 1u) % 100u);
+            song_render(sg.part);
+            sg.dirty |= (uint8_t)(1u << sg.part);
+            sg.etrk = (uint8_t)((i + 1u) % NTRK);
+            ui_message(b);
+            return;
+        }
+    }
+}
 static uint32_t song_sig(void)
 {
     uint32_t fl = sg.flash && fm1_ms - sg.flash_ms < 300u ? sg.flash : 0u;
@@ -2108,8 +2214,13 @@ static void layer_song(void)
 /* the LEDs of the black keys in SONG: the part shown lit (the others breathe), a lock lit (free: breathes), F#5 lit */
 static void song_led(uint32_t p, uint32_t *on, uint32_t *can)
 {
+    uint32_t fast = (fm1_ms / 125u) & 1u, slow = (fm1_ms / 400u) & 1u;
     *on = (p < SG_N && p == sg.part) || (p >= 4u && p < 8u && ((sg.lock >> (p - 4u)) & 1u)) || p == 10u ||
           (p == 9u && (perf_latched & PF_BIT(PF_DUCK)));
+    if (p < SG_N && sg.qpart == p + 1u)
+        *on = fast;                                     /* (0.18: the part waiting for the bar line blinks) */
+    else if (p < SG_N && sg.chain && !sg.qpart && p == (sg.part + 1u) % SG_N && p != sg.part)
+        *on = slow;                                     /* (.. CHAIN's next, slowly) */
     *can = p < 10u;
 }
 /* the white keys' LEDs in SONG: an effect on (held or latched) lit, the others breathe; F3..B3 breathe (locked:
@@ -2122,6 +2233,12 @@ static void song_led_w(uint32_t p, uint32_t *on, uint32_t *can)
           (p < NTRK && (((held >> (PF_M1 + p)) & 1u) || sg.focus == p + 1u)) || (p == TL_COOK && (sg.focus || song_d4())) ||
           ((p == SG_FX_KEY0 + 6u || p == SG_FX_KEY0 + 7u) && ((sg.scenes >> (p - SG_FX_KEY0 - 6u)) & 1u));
     *can = (p < NTRK && !((sg.lock >> p) & 1u)) || p == TL_RANDOM || p == TL_COOK || (p >= SG_FX_KEY0 && p < SG_FX_KEY0 + 8u);
+    if (p == TL_RANDOM && (sg.farm || sgf.live || sgf.bar))   /* (0.18: C4 a FILL armed blinks, playing lit) */
+        *on = sg.farm ? (fm1_ms / 125u) & 1u : 1u;
+    if (p == TL_FORGE)                                  /* (.. F5: the CLICK's beat, lit on each) */
+        *on = sg.click && song.playing && !(clk_step & 3u);
+    if (sg.help)
+        *can = 1;                                       /* (HELP: every key breathes, each says what it does) */
 }
 
 /* STARTER or SONG closed some other way (the layer let go, another tool): SONG with it, nothing written */
@@ -2131,7 +2248,7 @@ static void song_off(void)
         song_fx_clear();
         song_remember();                                /* (0.16: the last song, for SEQ held and BOOT = SONG) */
     }
-    sg.qpart = sg.hk = sg.octpend = 0;
+    sg.qpart = sg.hk = sg.octpend = sg.help = 0;
     song_fill_stop();                                   /* (0.17: an armed or playing FILL; spec v0.4.1: leaving SONG
                                                          * turns its effects off) */
     perf_song = 0;
@@ -2146,11 +2263,14 @@ static void song_off(void)
 /* KNOB 1..4 in SONG: as STARTER's (SEED DENSITY EVOLVE GENRE), then the part shown again; a new song is not written */
 static void song_knob(uint32_t k, int32_t s)
 {
-    uint8_t seed = fg.seed, genre = fs.genre;
-    fs_knob(k, s);
+    uint8_t seed = fg.seed, genre = fs.genre, var = fs.var;
+    if (k == 3u)
+        song_starter_turn(s);                           /* (0.18: every starter, not the genres' first) */
+    else
+        fs_knob(k, s);
     if (fg.seed != seed)
         fs_sounds();                                    /* (0.17 spec v0.8 §2c: another song, its sounds; GENRE: fs_knob) */
-    if (fg.seed != seed || fs.genre != genre)
+    if (fg.seed != seed || fs.genre != genre || fs.var != var)
         song_reset();                                   /* (another song: EDIT, not written; DENSITY / EVOLVE: the */
     sg.dirty = 0xFu;
     song_render(sg.part);                               /* same song, still written, a reroll still asks SAVE X?) */
@@ -2161,8 +2281,18 @@ static void song_knob(uint32_t k, int32_t s)
         int32_t r = k == 0u ? fg.seed * 1000 / 99 : k == 1u ? (fs.dens - 50) * 10 : k == 2u ? fg.evolve * 250 :
                     (int32_t)(fs.genre * 1000u / (FS_NGENRE - 1u));
         str_cpy(b, N[k & 3u], sizeof b);
-        if (k == 3u)
-            str_cpy(b, FS_GENRE[fs.genre % FS_NGENRE].name, sizeof b);
+        if (k == 3u) {                                  /* ("BERLIN DRIFT 2/4") */
+            char n[4];
+            str_cpy(b, FS_GENRE[fs.genre % FS_NGENRE].card, sizeof b);
+            str_cpy(b + str_len(b), " ", sizeof b - str_len(b));
+            str_cpy(b + str_len(b), FORGE_STARTER[fs_idx()].name, sizeof b - str_len(b));
+            str_cpy(b + str_len(b), " ", sizeof b - str_len(b));
+            fmt_int(n, fs.var + 1u);
+            str_cpy(b + str_len(b), n, sizeof b - str_len(b));
+            str_cpy(b + str_len(b), "/", sizeof b - str_len(b));
+            fmt_int(n, FS_GENRE[fs.genre % FS_NGENRE].n);
+            str_cpy(b + str_len(b), n, sizeof b - str_len(b));
+        }
         else
             fmt_int(b + str_len(b), k == 0u ? fg.seed : k == 1u ? fs.dens : fg.evolve);
         song_pop(SOV_POP, "SONG", b, "", r, 0);

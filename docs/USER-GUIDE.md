@@ -384,8 +384,8 @@ seed: **T1 BASS, T2 LEAD, T3 PAD, T4 DRUM** (T4 becomes a DRUM track). All four 
 SCALE is yours if you set one, or the starter's if the track is on CHR. The tempo goes to the starter's BPM, unless
 the FM-1 follows an external clock.
 
-K1 SEED, K2 DENSITY (50–150 % of each part's own), K3 EVOLVE and K4 GENRE (13 genres). Black keys 1–4 pick the
-genre's variation (3 or 4 each, 45 starters in all); each loads its own sounds, tempo, scale and swing. Sounds in
+K1 SEED, K2 DENSITY (50–150 % of each part's own), K3 EVOLVE and K4 GENRE (16 genres). Black keys 1–4 pick the
+genre's variation (3 or 4 each, 54 starters in all); each loads its own sounds, tempo, scale and swing. Sounds in
 *italics* are from the **FORGE PACK** (0.9): 43 sounds (0.14) built on factory presets with their own settings (the full
 list is in the FORGE User Guide); they save and load as ordinary edited sounds, and SAVE > USER keeps one. C4 rerolls the notes of all four, D4 the rhythms. **OCT+** (or G5 again) keeps it; **OCT−** puts
 all four tracks back as they were, sounds, steps, automation and tempo included. SAVE-held undo cannot undo

@@ -110,7 +110,7 @@ static void sv_head(void)                               /* 128 BPM .. A MIN */
     uint32_t pend = sg.kpend;
     fmt_int(b, (uint32_t)song.g[G_BPM]);
     song_key_name(k, sizeof k);
-    if (!sv_dirty(SV_HEAD, str_hash(pend + 3u * (uint32_t)song.g[G_CLOCK] + 7u * sg.click + 17u * song_d4(), b) * 31u +
+    if (!sv_dirty(SV_HEAD, str_hash(pend + 3u * (uint32_t)song.g[G_CLOCK] + 7u * sg.click + 17u * song_d4() + 37u * sg.evolve, b) * 31u +
                                str_hash(1u, k) + ux.gen))
         return;
     if (song_d4()) {                                    /* (0.16 spec v0.7 §2.1: D4 held, the mixer: large) */
@@ -127,7 +127,10 @@ static void sv_head(void)                               /* 128 BPM .. A MIN */
         x = cv_text_on(x + 3, CAP_IN(L, 36) + AF_L_CAP_Y + AF_L_CAP_H - AF_S_CAP_Y - AF_S_CAP_H, &AF_S,
                        song.g[G_CLOCK] ? "EXT" : "BPM", T_MID, T_BG);
         if (sg.click)                                   /* (0.16: the visual CLICK on) */
-            cv_text_on(x + 6, CAP_IN(L, 36) + AF_L_CAP_Y + AF_L_CAP_H - AF_S_CAP_Y - AF_S_CAP_H, &AF_S, "CLK",
+            x = cv_text_on(x + 6, CAP_IN(L, 36) + AF_L_CAP_Y + AF_L_CAP_H - AF_S_CAP_Y - AF_S_CAP_H, &AF_S, "CLK",
+                           T_THEME, T_BG);
+        if (sg.evolve)                                  /* (0.18: AUTO EVOLVE on) */
+            cv_text_on(x + 6, CAP_IN(L, 36) + AF_L_CAP_Y + AF_L_CAP_H - AF_S_CAP_Y - AF_S_CAP_H, &AF_S, "EVO",
                        T_THEME, T_BG);
     }
     GFX_HOOK_ALIGN(0, 0, 0, 36, AL_V, "song view head on its middle");
@@ -331,6 +334,8 @@ static void sv_rows(uint32_t from)                     /* the rows from track fr
 /* the scenes row's text: D4 held the faders' track ("FADER T1 (D4)"), else the last message, SAVE X?, the state */
 static const char *sv_state(char *b)                    /* (b: 20 bytes) */
 {
+    if (sg.help)
+        return "HELP  FX+D4: OFF";                      /* (0.18) */
     if (song_d4()) {
         str_cpy(b, "K1-K4: T1-T4 LEVEL", 20);
         return b;
@@ -361,7 +366,7 @@ static void sv_scenes(void)                             /* SC [1] [2], then the 
     const char *s = sv_state(q);
     uint32_t fl = sg.ov == SOV_SCENE || sg.ov == SOV_SCENE2 ? sg.ov - SOV_SCENE + 1u : 0u, i;
     if (!sv_dirty(SV_SCN, str_hash(sg.scenes + fl * 4u + ux.gen * 16u + (ui.msg_t && ui.msg[0]) * 64u + fad * 128u +
-                                       sg.chain * 256u, s)))
+                                       sg.chain * 256u + sg.help * 512u, s)))
         return;
     cv_begin(240, 16, T_BG);
     GFX_HOOK_ALIGN(0, 0, 0, 16, AL_V, "song view scenes on their middle");

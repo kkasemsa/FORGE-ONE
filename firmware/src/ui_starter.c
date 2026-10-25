@@ -3,7 +3,7 @@
 /* FORGE ONE 0.6: SEQ TOOLS G5 STARTER (TL_STARTER, ui_tools.c), a song starter: one press writes all four tracks, the
  * sound and the pattern of each, from one SEED. Included by ui_layer.c after ui_forge.c, whose generator it drives.
  *
- * The parts: T1 BASS, T2 LEAD, T3 PAD, T4 DRUM. 0.8: 45 starters in 13 genres (FS_GENRE, KNOB 4), 1..4 variations
+ * The parts: T1 BASS, T2 LEAD, T3 PAD, T4 DRUM. 0.8: 45 starters in 13 genres (0.18: 54 in 16: CHIPTUNE MINIMAL ELECTRO) (FS_GENRE, KNOB 4), 1..4 variations
  * each (black keys 1..4 while open). Each names a factory preset for each part (engine and preset by name, resolved
  * at load: tests/forge_test.c checks they all exist), a row of forge_style_t for each melodic part (fg_ovr) and a beat
  * for the drums (FORGE_BEAT or FS_BEAT_X: fg_bovr), each part's LEN, a SCALE (used when the selected track's SCALE is
@@ -28,7 +28,7 @@ typedef struct { const char *name, *card; uint8_t first, n; } fs_genre_t;   /* n
 
 /* 0.8: the drum beats, FORGE's eight (FORGE_BEAT) and six of the starters' own (as forge_beat_t: core / optional hits a
  * lane, bit i = step i + 1, DENSITY's default, ratchet %) */
-enum { FB_DEEPH = FS_N, FB_BREAK, FB_LOFI, FB_SYNTHW, FB_POPS, FB_ELECTRO, FB_N };
+enum { FB_DEEPH = FS_N, FB_BREAK, FB_LOFI, FB_SYNTHW, FB_POPS, FB_ELECTRO, FB_MINIMAL, FB_CHIP, FB_N };
 static const forge_beat_t FS_BEAT_X[FB_N - FS_N] = {
     /*          KICK    SNARE   CLAP    HATC    HATO    TOM     RIM     BELL     (core)  */
     {{0x1111, 0x0000, 0x1010, 0x0000, 0x4444, 0x0000, 0x0000, 0x0000},   /* DEEP HOUSE: four, clap 2 4, open hat off */
@@ -43,6 +43,10 @@ static const forge_beat_t FS_BEAT_X[FB_N - FS_N] = {
      {0x0000, 0x1010, 0x0000, 0xAAAA, 0x0000, 0x8000, 0x0000, 0x0101}, 60, 0},
     {{0x0841, 0x1010, 0x0000, 0x5555, 0x0000, 0x0000, 0x0000, 0x0000},   /* ELECTRO: kick 1, 7, 12 */
      {0x0004, 0x0000, 0x1010, 0xAAAA, 0x0000, 0x0080, 0x0202, 0x0000}, 70, 10},
+    {{0x1111, 0x0000, 0x0000, 0x4444, 0x0000, 0x0000, 0x0808, 0x0000},   /* 0.18 MINIMAL: four, the off-beat hat, a rim */
+     {0x0000, 0x0000, 0x1000, 0xAAAA, 0x0400, 0x0000, 0x2020, 0x0000}, 65, 5},
+    {{0x0101, 0x1010, 0x0000, 0x5555, 0x0000, 0x0000, 0x0000, 0x0000},   /* 0.18 CHIPTUNE: 1 and 3, snare 2 4, 8th hats */
+     {0x0400, 0x8000, 0x0000, 0xAAAA, 0x0000, 0x0000, 0x0000, 0x0000}, 75, 15},
 };
 static const forge_beat_t *fs_beat(uint32_t b) { return b < FS_N ? &FORGE_BEAT[b] : &FS_BEAT_X[(b - FS_N) % (FB_N - FS_N)]; }
 
@@ -193,6 +197,27 @@ static const forge_starter_t FORGE_STARTER[] = {
      {B_8TH5, L_STAB4, P_HALF}, {16, 16, 32, 16}, 3, 112, FB_POPS, 0, 12},
     {"ZOO",   SND("VOICE", "WOW BASS", "FORGE", "VOX CHANT", "GRAIN", "SHIMMER", "DRUM", "TIGHT KIT"),
      {B_ELEC, L_DOTS, P_WIDE}, {16, 16, 64, 16}, 8, 118, FB_ELECTRO, 0, 16},
+    /* 0.18 CHIPTUNE: the 8-bit sounds, fast and major */
+    {"LEVEL", SND("LOFI", "WAVE BASS", "FORGE", "8BIT LEAD", "FORGE", "CHIP ARP", "FORGE", "MINI KIT"),
+     {B_OCT16, L_WALK, L_ARP16}, {16, 16, 16, 16}, 1, 150, FB_CHIP, 0, 16},
+    {"BOSS",  SND("LOFI", "WAVE BASS", "LOFI", "PULSE LD", "TRIO", "CHIP CHOIR", "DRUM", "TIGHT KIT"),
+     {B_8TH5, L_RIFF5, P_HALF}, {16, 16, 32, 16}, 2, 140, FB_CHIP, 0, 18},
+    {"MENU",  SND("LOFI", "WAVE BASS", "LOFI", "ARP 8BIT", "TRIO", "CHIP CHOIR", "FORGE", "MINI KIT"),
+     {B_PED16, L_ARP8, P_BAR}, {16, 16, 32, 16}, 1, 120, FB_CHIP, 0, 14},
+    /* 0.18 MINIMAL / HYPNOTIC: few parts, long loops, the off-beat */
+    {"LOOP",  SND("FORGE", "DEEP BASS", "PHASE", "RESO", "FORGE", "DUB PAD", "FORGE", "909 KIT"),
+     {B_ROLL, L_DOTS, P_BAR}, {16, 16, 64, 16}, 2, 128, FB_MINIMAL, 0, 14},
+    {"HYPNO", SND("ANALOG", "SUB BASS", "FORGE", "BERLIN RESO", "GRAIN", "FROZEN", "DRUM", "TIGHT KIT"),
+     {B_OFF, L_HISEQ, P_WIDE}, {16, 16, 64, 16}, 8, 130, FB_MINIMAL, 0, 16},
+    {"CLICK", SND("FM6", "FM BASS", "FM6", "BELL", "ANALOG", "SOFT PAD", "DRUM", "PERC KIT"),
+     {B_SUB, L_DOTS, P_BAR}, {16, 32, 64, 16}, 3, 124, FB_MINIMAL, 5, 12},
+    /* 0.18 ELECTRO: the 808, the broken kick, robot leads */
+    {"MIAMI", SND("FORGE", "ELECTRO BASS", "LOFI", "PULSE LD", "FORGE", "WARM STAB", "FORGE", "808 KIT"),
+     {B_ELEC, L_RIFF5, P_STAB4}, {16, 16, 16, 16}, 2, 128, FB_ELECTRO, 0, 20},
+    {"ROBOT", SND("FORGE", "ELECTRO BASS", "VOICE", "VOX LEAD", "PHASE", "STRING", "FORGE", "808 KIT"),
+     {B_ELEC, L_DOTS, P_BAR}, {16, 16, 32, 16}, 8, 122, FB_ELECTRO, 0, 18},
+    {"FREAK", SND("FORGE", "OCTAVE BASS", "TRIO", "SYNC LEAD", "FM6", "PAD", "DRUM", "DEEP KIT"),
+     {B_OCT16, L_WALK, P_HALF}, {16, 16, 32, 16}, 2, 126, FB_ELECTRO, 5, 20},
 };
 #define FS_NSTART (sizeof FORGE_STARTER / sizeof FORGE_STARTER[0])
 /* the genres (K4): their full names (the message), the card, the variations (black keys 1..4) */
@@ -201,6 +226,7 @@ static const fs_genre_t FS_GENRE[] = {
     {"MELODIC", "MELO", 12, 4}, {"ACID HOUSE", "ACID H", 16, 3}, {"ACID TECHNO", "ACID T", 19, 3},
     {"TRANCE", "TRANCE", 22, 3}, {"DEEP HOUSE", "DEEP H", 25, 3}, {"SYNTHWAVE", "SYNTH", 28, 3},
     {"BREAKBEAT", "BREAKS", 31, 3}, {"AMBIENT", "AMBI", 34, 4}, {"LO-FI", "LO-FI", 38, 3}, {"JARRE", "JARRE", 41, 4},
+    {"CHIPTUNE", "CHIP", 45, 3}, {"MINIMAL", "MINI", 48, 3}, {"ELECTRO", "ELECT", 51, 3},   /* (0.18) */
 };
 #define FS_NGENRE (sizeof FS_GENRE / sizeof FS_GENRE[0])
 /* 0.13 SONG (ui_song.c): part D of a generated song by genre (Song Mode spec v0.3 §3a): LIFT, a bigger last chorus, or
@@ -210,6 +236,7 @@ static const uint8_t FS_GENRE_D[] = {
     SD_LIFT,  SD_BREAK, SD_BREAK, SD_BREAK,             /* BERLIN DETROIT DUB-TECHNO MELODIC */
     SD_BREAK, SD_BREAK, SD_BREAK, SD_LIFT,              /* ACID-HOUSE ACID-TECHNO TRANCE DEEP-HOUSE */
     SD_LIFT,  SD_BREAK, SD_LIFT,  SD_BREAK, SD_LIFT,    /* SYNTHWAVE BREAKBEAT AMBIENT LO-FI JARRE */
+    SD_LIFT,  SD_BREAK, SD_BREAK,                       /* (0.18) CHIPTUNE MINIMAL ELECTRO */
 };
 typedef char fs_genre_d_n[sizeof FS_GENRE_D == FS_NGENRE ? 1 : -1];
 static const char *const FP_ROLE[FP_N] = {"BASS", "LEAD", "PAD", "DRUM"};
