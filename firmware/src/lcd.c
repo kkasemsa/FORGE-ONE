@@ -20,10 +20,18 @@ static void lcd_spin(uint32_t n)
         ;
 }
 
+static uint8_t lcd_serve;           /* main.c: 1 while the main loop's ui_draw() runs (LCD_WAIT_SERVE below) */
+
 static void lcd_sync(void)          /* finish the running transfer (before touching its buffer) */
 {
     if (!lcd_busy)
         return;
+#ifdef LCD_WAIT_SERVE
+    if (lcd_serve)                  /* a frame waiting on its last strip (~29 ms for the scope's on HOME): the
+                                     * editor's reads are answered meanwhile (editor.c ed_lcd_wait); returns when the
+                                     * transfer is done (or after 100 ms), and fm1_lcd_wait below finishes it as before */
+        LCD_WAIT_SERVE();
+#endif
     fm1_lcd_wait();
     fm1_lcd_deselect();
     lcd_busy = 0;

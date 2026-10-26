@@ -317,7 +317,9 @@ static void fm1_main(void)
         autosave_poll();                              /* (1.2) the music, stopped and idle: project.c */
         felucca_dbg.stage = 2;
         ui_leds();
+        lcd_serve = 1;                                /* (its LCD waits answer the editor's reads: lcd.c, editor.c) */
         ui_draw();
+        lcd_serve = 0;
         felucca_dbg.stage = 9;
         while (fm1_ms - m < 15u) {                               /* ~60 UI frames/s at most */
             ui_input();

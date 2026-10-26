@@ -64,6 +64,21 @@ static int st_read(uint32_t off, void *p, uint32_t n) { (void)off; (void)p; (voi
 static int st_prog(uint32_t off, const void *p, uint32_t n) { (void)off; (void)p; (void)n; return -1; }
 static int st_erase(uint32_t off) { (void)off; return -1; }
 #include "../firmware/src/storage.c"
+/* fix/lcd-wait-serve: the LCD's SPI as a counter (busy for host_spi_busy polls, then done; every poll is 1 ms) and
+ * the firmware's hook on, so editor.c builds ed_lcd_wait as felucca.c does */
+static uint32_t host_spi_busy;
+static uint32_t host_spi_poll(void)
+{
+    fm1_ms++;
+    if (host_spi_busy) {
+        host_spi_busy--;
+        return 0;
+    }
+    return 0x8000u;
+}
+#undef FM1_LCD_SPI_CON
+#define FM1_LCD_SPI_CON host_spi_poll()
+#define LCD_WAIT_SERVE() ed_lcd_wait()
 #include "../firmware/src/editor.c"
 
 static int check(const char *what, int ok)
@@ -1332,9 +1347,53 @@ static int custom_palette(void)
 }
 
 #ifndef EDITOR_TEST_NO_MAIN                              /* (robust_test.c, fuzz_*.c: this file is their base) */
+/* fix/lcd-wait-serve: while a UI frame waits on the LCD (lcd.c lcd_sync, main.c lcd_serve), ed_lcd_wait answers
+ * the read-only requests and leaves every other one in the frame buffer for the main loop's ed_service */
+static void queue_req(uint32_t cmd, const uint8_t *a, uint32_t n)
+{
+    uint32_t i;
+    host_wire_n = 0; ota_frame_done();
+    sysex_byte(0xF0); sysex_byte(ED_HDR0); sysex_byte(ED_HDR1); sysex_byte(ED_HDR2); sysex_byte((uint8_t)cmd);
+    for (i = 0; i < n; i++) sysex_byte(a[i]);
+    sysex_byte(0xF7);
+}
+static int lcd_wait_serve(void)
+{
+    int bad = 0;
+    uint8_t a[4];
+    int16_t lvl;
+    reset();
+    queue_req(ED_PING, a, 0); host_spi_busy = 5; ed_lcd_wait(); host_drain();
+    bad += check("LCD wait: a PING is answered while the SPI is busy", host_wire_n == 7u && host_wire[4] == ED_PING && !sx_ready);
+    queue_req(ED_DUMP, a, 0); host_spi_busy = 5; ed_lcd_wait(); host_drain();
+    bad += check("LCD wait: a DUMP is answered (a read)", host_wire_n > 100u && host_wire[4] == ED_DUMP && !sx_ready);
+    lvl = TSEL->p[P_LEVEL];
+    a[0] = 0; a[1] = P_LEVEL; a[2] = (uint8_t)((lvl - 10 + 8192) & 127); a[3] = (uint8_t)((lvl - 10 + 8192) >> 7);
+    queue_req(ED_SET, a, 4); host_spi_busy = 5; ed_lcd_wait(); host_drain();
+    bad += check("LCD wait: a SET is left for the main loop (no reply, nothing set, frame kept)",
+                 host_wire_n == 0u && sx_ready && TSEL->p[P_LEVEL] == lvl);
+    ed_service(); host_drain();
+    bad += check("  .. and the main loop's ed_service then sets it and replies",
+                 host_wire_n > 0u && host_wire[4] == ED_SET && TSEL->p[P_LEVEL] == lvl - 10 && !sx_ready);
+    a[0] = 2; queue_req(ED_TRACK, a, 1); host_spi_busy = 5; ed_lcd_wait(); host_drain();
+    bad += check("LCD wait: TRACK with a track (it selects) is left for the main loop", host_wire_n == 0u && sx_ready &&
+                 song.sel == 0u);
+    ed_service(); host_drain();
+    queue_req(ED_TRACK, a, 0); host_spi_busy = 5; ed_lcd_wait(); host_drain();
+    bad += check("LCD wait: TRACK without one (the query) is answered", host_wire_n > 0u && host_wire[4] == ED_TRACK && !sx_ready);
+    queue_req(ED_PING, a, 0); host_spi_busy = 0; ed_lcd_wait(); host_drain();
+    bad += check("LCD wait: SPI already done: returns at once, the request stays for the main loop", host_wire_n == 0u && sx_ready);
+    ota_frame_done();
+    host_spi_busy = 1000u; ed_lcd_wait();
+    bad += check("LCD wait: an SPI that never finishes: back after 100 ms (fm1_lcd_wait then times out as before)",
+                 host_spi_busy > 800u);
+    host_spi_busy = 0;
+    return bad;
+}
+
 int main(void)
 {
-    int bad = preferences() + motion_locks() + framing() + uart_recovery() + steps() + samples() + song_protocol() + malformed_saves() +
+    int bad = lcd_wait_serve() + preferences() + motion_locks() + framing() + uart_recovery() + steps() + samples() + song_protocol() + malformed_saves() +
               fm6_patches() + user_preset_roundtrip() + live_sync() + usb_burst() + menu_protocol() + drum_kit_retired() +
               learn_protocol() + custom_palette();
     printf("%s\n", bad ? "EDITOR TEST FAILED" : "editor test passed");

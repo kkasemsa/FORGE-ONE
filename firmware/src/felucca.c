@@ -67,6 +67,10 @@
 
 /* ----------------------------------------------------- base, display --- */
 #include "libc.c"
+#if FELUCCA_OTA                 /* (fix/lcd-wait-serve) editor.c: while a UI frame waits on the LCD's DMA, answer the */
+static void ed_lcd_wait(void);  /* editor's read-only requests instead of spinning (lcd.c lcd_sync, main.c lcd_serve) */
+#define LCD_WAIT_SERVE() ed_lcd_wait()
+#endif
 #include "lcd.c"
 #include "gfx.c"
 

@@ -907,6 +907,50 @@ static void ed_handle(const uint8_t *f, uint32_t n)   /* f: the bytes between F0
 }
 
 /* main loop: editor frames first; anything else stays for ota_service() */
+/* The editor's read-only requests, answered while a UI frame waits on the LCD's DMA (lcd.c lcd_sync with lcd_serve
+ * set: only the main loop's ui_draw, never inside ed_service, OTA or a dialog). Without it a request that arrives as a
+ * heavy frame starts waits the whole frame: on HOME the scope strip is resent every other frame and a frame waits
+ * ~29 ms for it, so about 1 request in 10 back to back, and ~60 % of requests at random times, waited 15-30 ms
+ * (Forge Remote link test, 26 Oct 2026; none on a still MENU page). Only commands that read state are taken here:
+ * the rest (SET, PRESET, saves, transfers, a TRACK that selects) stay in the frame buffer for the main loop. */
+#ifdef LCD_WAIT_SERVE                                    /* (the firmware: felucca.c; host tests have no LCD) */
+static int ed_read_only(uint32_t cmd, uint32_t na)
+{
+    switch (cmd) {
+    case ED_INFO: case ED_GET: case ED_DUMP: case ED_DESC: case ED_STEP_GET: case ED_NAMES: case ED_PING:
+    case ED_TRACK_DUMP:
+        return 1;
+    case ED_TRACK: return na == 0u;                     /* (a track number selects it) */
+    case ED_TRACK_MIX: return na == 1u;                 /* (level and mute set them) */
+    case ED_TRACK_STEP: case ED_TRACK_PARAM: return na == 2u;   /* (more: a write) */
+    default: return 0;
+    }
+}
+static void ed_lcd_wait(void)
+{
+    static uint8_t in;
+    uint32_t t0 = fm1_ms;
+    if (in)
+        return;
+    in = 1;
+    while (!(FM1_LCD_SPI_CON & 0x8000u) && fm1_ms - t0 < 100u) {
+        const uint8_t *p;
+        uint32_t n;
+        if (ota_frame_get(&p, &n) && n >= 4u && n <= 64u && p[0] == ED_HDR0 && p[1] == ED_HDR1 && p[2] == ED_HDR2 &&
+            ed_read_only(p[3], n - 4u)) {
+            static uint8_t f[64];
+            uint32_t i;
+            ed_w.last_ms = fm1_ms;                       /* (as ed_service: a request keeps WATCH alive) */
+            for (i = 0; i < n; i++)
+                f[i] = p[i];
+            ota_frame_done();
+            ed_handle(f, n);
+        }
+    }
+    in = 0;
+}
+#endif
+
 static void ed_service(void)
 {
     const uint8_t *p;
