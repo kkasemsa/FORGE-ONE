@@ -76,8 +76,7 @@ static uint32_t host_spi_poll(void)
     }
     return 0x8000u;
 }
-#undef FM1_LCD_SPI_CON
-#define FM1_LCD_SPI_CON host_spi_poll()
+static uint32_t fm1_lcd_done(void) { return host_spi_poll(); }
 #define LCD_WAIT_SERVE() ed_lcd_wait()
 #include "../firmware/src/editor.c"
 

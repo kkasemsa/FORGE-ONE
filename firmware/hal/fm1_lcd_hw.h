@@ -8,6 +8,7 @@
  *   fm1_lcd_send_cmd(c)        D/C low, CS low, one byte (then fm1_lcd_wait)
  *   fm1_lcd_send_data(p, n)    D/C high, CS low, DMA n bytes from RAM p
  *   fm1_lcd_wait()             SPI done (or timeout, counted), pending cleared
+ *   fm1_lcd_done()             nonzero once the SPI transfer has finished (no wait, nothing cleared)
  *   fm1_lcd_deselect()         CS high
  *   fm1_lcd_backlight(on)      PA2 low (on) / high (off); the TIMER5 scan writes port A too: IRQs off around it
  */
@@ -54,6 +55,8 @@ FM1_INLINE void fm1_lcd_backlight(uint32_t on)
 }
 
 FM1_INLINE void fm1_lcd_baud(uint32_t b) { FM1_LCD_SPI_BAUD = b; }
+
+FM1_INLINE uint32_t fm1_lcd_done(void) { return FM1_LCD_SPI_CON & 0x8000u; }   /* the transfer finished (editor.c ed_lcd_wait) */
 
 static void fm1_lcd_wait(void)
 {

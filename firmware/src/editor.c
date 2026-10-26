@@ -933,7 +933,7 @@ static void ed_lcd_wait(void)
     if (in)
         return;
     in = 1;
-    while (!(FM1_LCD_SPI_CON & 0x8000u) && fm1_ms - t0 < 100u) {
+    while (!fm1_lcd_done() && fm1_ms - t0 < 100u) {
         const uint8_t *p;
         uint32_t n;
         if (ota_frame_get(&p, &n) && n >= 4u && n <= 64u && p[0] == ED_HDR0 && p[1] == ED_HDR1 && p[2] == ED_HDR2 &&
