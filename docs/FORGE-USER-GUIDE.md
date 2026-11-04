@@ -460,6 +460,31 @@ stopped, on part A (`NORMAL`, the default, does not).
   SAVE X? question, no undo, the part's orange dot. Locked tracks never change.
 - **Keys light up (0.18):** a part waiting for the bar line blinks fast; with CHAIN on, the next part blinks slowly; C4
   blinks while a FILL is armed and stays lit while one plays; F5 lights on each beat with CLICK on.
+- **BREAK (0.19):** hold **D4** and tap **C#5**: at the next bar line T1–T3 drop out for one bar (the PERFORM mutes,
+  with their ramps) while T4 plays a fill; at the bar line after, everything comes back with a crash. The box says
+  `BREAK @ NEXT BAR` (or `@ PART B` when a part is queued: the break is the old part's last bar, the new part starts
+  clean). Tap again before the bar: `BREAK OFF`. Refused (red) when stopped, with no drum on T4, with T4 muted or while
+  an ENDING or INTRO is on. C#5 blinks while armed, lit during the bar. C#5 alone is still CLEAR. Never saved.
+- **ENDING and INTRO (0.19):** hold **D4** and tap **D#5**. **Playing: ENDING** — from the next bar line two bars that
+  thin out: bar 1 T3 out and the FILTER closing (the FX layer's macro, swept down over the bar), bar 2 T2 out too with a
+  CRASH END fill; at the bar line after, the crash lands on T4's first step and the song **stops** a 1/16 later (a drum
+  hit never ends, so the crash rings): `ENDING DONE`, the macro back where it was. CHAIN does not change parts during
+  the two bars. Tap again before it ends: `ENDING OFF`, the song goes on; an armed BREAK is dropped by an ENDING.
+  **Stopped: INTRO** — `INTRO 2 BARS / PRESS PLAY`: PLAY then starts with T4 and T1 alone for two bars, a fill ends the
+  second, the crash opens the third with everything in; CHAIN counts from there. Tap again: off; leaving SONG or
+  changing the song clears it. With no drum on T4 (or T4 muted) both skip the fill and the crash and keep the rest.
+  D#5 alone is still DUCK.
+- **SCENE MORPH (0.19):** D5 / E5 recall a scene at the next 1/16, a jump. Hold **D4** and tap **D5 / E5**: the knob
+  values glide from where they are to the scene over **one bar**, a 1/16 a step (`SCENE 1 MORPH 1 BAR`). A track
+  whose sound is not the one stored with the scene is skipped (the box says `SKIP T2`) and its preset is never loaded
+  by a morph. A second recall mid-glide starts from where the values are; STOP reaches the scene at once; stopped, a
+  morph is a plain recall. Holding D5 / E5 (or FX + D5 / E5) still stores.
+- **A track's own DENSITY (0.19):** DEN (K2) sets all four tracks. Hold **D4** and tap a track's **LOCK key** (black
+  5–8: D#4 F#4 G#4 A#4 for T1–T4) to step that track's own density **1 → 2 → 3 → 1** in the part shown (`T2 DENSITY
+  3/3 HIGH`): 1 is 70 % of DEN, 2 is DEN itself, 3 is 140 %. Only that track is written again, with its variants kept,
+  so the same seed and 2 again give the pattern you had. It counts as a reroll: the orange dot, `SAVE X?` after the
+  song is written, OCT− twice undoes it; each part keeps its own, kept across leaving SONG and power-off with the last
+  song. A locked track refuses (`T2 LOCKED`). AUTO EVOLVE keeps it. A new song puts all back to 2.
 - **UNDO (0.16):** press OCT− twice quickly. It takes back the last reroll (C4 or one track), the last preset or
   favourite loaded, or the last KEY / SCALE change (one level: then `NOTHING TO UNDO`). A single OCT− still does
   what it did, 0.35 s later (it waits to see if a second press comes).
