@@ -827,7 +827,13 @@ static void layer_key(uint32_t l, uint32_t k)
             song_toggle();
             ui.force = 1;
         } else if (fs.on && sg.on) {                    /* (SONG: black 1..4 a part, 5..8 a track's lock, 9 CLEAR, */
-            if (sg.stage != SG_CONFIRM && p < SG_N && song_d4()) {   /* 10 DUCK; 0.15: D4 + 1..4 a favourite, */
+            if ((p == 8u || p == 9u) && song_d4_down() && sg.stage == SG_CONFIRM)   /* (0.19: D4 + C#5 BREAK, D4 + D#5 */
+                song_refuse("ANSWER FIRST", "OCT+ / OCT-");                   /* ENDING / INTRO; not at the confirm) */
+            else if (p == 8u && song_d4())
+                song_break_tap();
+            else if (p == 9u && song_d4())
+                song_xtap();
+            else if (sg.stage != SG_CONFIRM && p < SG_N && song_d4()) {   /* 10 DUCK; 0.15: D4 + 1..4 a favourite, */
                 sg.d4_used = 1;                         /* FX too: stored) */
                 song_fav(p, song_fx_btn());
             } else if (sg.stage != SG_CONFIRM && p < SG_N)

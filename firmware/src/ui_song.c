@@ -71,6 +71,11 @@ static struct {
     /* 0.17 (spec v0.8 §2b): the sound browsed (sref_t: pkind, pe, pk), in category pcat or the drum list (pdrum);
      * pjump: the last turn was FX's (a category / group) */
     uint8_t pkind, pe, pdrum, pcat, pjump;
+    /* 0.19 (spec v0.9): brk: a BREAK armed (D4 + C#5), bbar its bar playing; endg: ENDING (D4 + D#5 playing: 1 armed,
+     * 2 its first bar, 3 its second, 4 the crash played, the stop a 1/16 on); intro: INTRO (D4 + D#5 stopped: 1 set,
+     * 2 and 3 its bars); ek0: the FILTER macro before the ending's sweep. The mutes: perform.c sg_bmask (song_xmask) */
+    uint8_t brk, bbar, endg, intro, wasplay;
+    int8_t ek0;
     uint32_t fms;
     uint8_t nvar[SG_N][NTRK], rvar[SG_N][NTRK];
 } sg;
@@ -406,6 +411,7 @@ static void song_reset(void)                            /* a new song: its rerol
     memset(sg.rvar, 0, sizeof sg.rvar);
     sg.stage = SG_EDIT;
     sg.pend = 0;
+    sg.intro = 0;                                       /* (0.19: an INTRO set is this song's) */
 }
 /* 0.13 (spec v0.4.1 §B2): SONG's punch-in effects, routed through perform.c as FX held routes them: E4..C5 the six
  * of seq.c SG_FX held (no FX button), FX held + F3..B3 the T1..T4 mutes (the choice at the key's down: seq.c kb_fx
@@ -442,6 +448,9 @@ static void song_snd_put(void);
 static void song_fill_stop(void);
 static void song_fill_poll(uint32_t bar);
 static void song_fill_bar(void);
+static void song_x_poll(uint32_t bar);
+static uint32_t song_xon(void);
+static void song_x_stop(void);
 static void song_chain_bars(int32_t s);
 enum { SH_PART = 1, SH_SCENE, SH_TAP };
 static void song_hold_start(uint32_t k, uint32_t kind, uint32_t p);
@@ -1408,13 +1417,14 @@ static void song_poll(void)
     }
     song_hold_poll();
     song_fill_poll(bar);
-    if (bar && sg.chain && !sg.qpart &&
+    if (bar && sg.chain && !sg.qpart && !song_xon() &&     /* (0.19: not through an ENDING or INTRO) */
         ++sg.cbar >= SG_CBARS[sg.cbars[sg.part] % NELEM(SG_CBARS)])   /* (0.16 auto-chain: the next part at the bar) */
         sg.qpart = (uint8_t)((sg.part + 1u) % SG_N + 1u);
     if (bar) {
         song_fill_bar();
         song_evolve_bar();                              /* (0.18) */
     }                                /* (0.17: a bar-end fill's bar begins) */
+    song_x_poll(bar);                                   /* (0.19: BREAK, ENDING, INTRO) */
     if (sg.qpart && (bar || !song.playing) && !sgf.bar) {   /* (0.16: a part at the bar; 0.17: after a fill's bar) */
         uint32_t x = sg.qpart - 1u;
         sg.qpart = 0;
@@ -2084,6 +2094,140 @@ static void song_fill_bar(void)                         /* at a bar line, after 
         sgf_bar_start();
     }
 }
+/* 0.19 (spec v0.9 §1 §2): BREAK, ENDING and INTRO. BREAK (D4 + C#5, playing): at the next bar line T1..T3 muted the
+ * PERFORM way (perform.c sg_bmask, its ramps) and a bar fill on T4; at the bar line after, all back with a crash.
+ * ENDING (D4 + D#5, playing): from the next bar line two bars, the first T3 out and the FILTER macro closing over it,
+ * the second T2 out too with a CRASH END fill; at the bar line after, the crash on T4's first step and the transport
+ * stopped a 1/16 later (a hit never ends: the crash rings), the macro back: "ENDING DONE". INTRO (D4 + D#5, stopped):
+ * PLAY starts with T4 and T1 alone for two bars, a fill ends the second, the crash on the third's first step. No drum
+ * on T4 (or T4 muted): the ending's and the intro's fills and crash are skipped, the mutes and the stop stay. A BREAK
+ * while an ENDING or INTRO is armed or runs: refused; an ENDING armed drops a BREAK. None of them saved or undone */
+static uint32_t song_xmask(void)                        /* the tracks the three mute now (bit i: T(i+1)) */
+{
+    uint32_t m = sg.bbar ? 7u : 0u;
+    m |= sg.endg == 2u ? 4u : sg.endg >= 3u ? 6u : 0u;
+    m |= sg.intro >= 2u ? 6u : 0u;
+    return m;
+}
+static void song_xsync(void) { sg_bmask = (uint8_t)song_xmask(); }
+static void song_x_stop(void)                           /* leaving SONG, stopped: nothing armed, nothing runs */
+{
+    if (sg.endg >= 2u)
+        perf_k[0] = sg.ek0;                             /* (the macro as before the sweep) */
+    sg.brk = sg.bbar = sg.endg = 0;
+    if (sg.intro >= 2u)
+        sg.intro = 0;
+    song_xsync();
+}
+static uint32_t song_xon(void) { return sg.endg || sg.intro >= 2u; }   /* (an ENDING armed or on, an INTRO on) */
+static void song_break_tap(void)                        /* D4 + C#5 */
+{
+    const char *r;
+    sg.d4_used = 1;
+    if (sg.brk) {
+        sg.brk = 0;
+        song_pop(SOV_POP, "BREAK", "OFF", "", -1, 0);
+        return;
+    }
+    if ((r = song_fill_no()) == 0 && song_xon())
+        r = sg.endg ? "ENDING ON" : "INTRO ON";
+    if (r) {
+        song_pop(SOV_POP, "BREAK", r, "", -1, 1);
+        ui_message(r);
+        return;
+    }
+    sg.brk = 1;
+    {
+        char b[12] = "@ PART A";
+        b[7] = (char)('A' + (sg.qpart ? sg.qpart - 1u : 0u));
+        song_pop(SOV_POP, "BREAK", sg.qpart ? b : "@ NEXT BAR", "", -1, 0);
+    }
+}
+static void song_xtap(void)                             /* D4 + D#5: playing ENDING, stopped INTRO (again: off) */
+{
+    sg.d4_used = 1;
+    if (song.playing) {
+        if (sg.endg) {
+            song_x_stop();                              /* (armed or on: off, the mutes back) */
+            song_pop(SOV_POP, "ENDING", "OFF", "", -1, 0);
+            return;
+        }
+        sg.brk = 0;                                     /* (a BREAK armed: dropped) */
+        sg.endg = 1;
+        song_pop(SOV_POP, "ENDING", "2 BARS", "@ NEXT BAR", -1, 0);
+        return;
+    }
+    sg.intro = (uint8_t)(sg.intro == 1u ? 0u : 1u);
+    song_pop(SOV_POP, "INTRO", sg.intro ? "2 BARS" : "OFF", sg.intro ? "PRESS PLAY" : "", -1, 0);
+}
+static void song_xfill(uint32_t crash)                  /* a bar fill (CRASH END when asked), none without a drum */
+{
+    if (song_fill_no())
+        return;
+    sg.farm = 0;
+    song_fill_set(++sg.fbars);
+    if (crash)
+        sgf.type = FILL_CRASH;
+    sgf_bar_start();
+}
+static void song_x_poll(uint32_t bar)                   /* song_poll: after the fill's and the chain's bar work */
+{
+    uint32_t started = song.playing && !sg.wasplay;
+    sg.wasplay = (uint8_t)song.playing;
+    if (!song.playing) {
+        if (sg.endg == 4u) {                            /* (its own stop) */
+            sg.endg = 0;
+            perf_k[0] = sg.ek0;
+            song_pop(SOV_POP, "ENDING", "DONE", "", -1, 0);
+        }
+        song_x_stop();
+        return;
+    }
+    if (started && sg.intro == 1u)
+        sg.intro = 2;
+    if (sg.endg == 2u)                                  /* (the first bar: the FILTER macro closing, a 1/16 a step) */
+        perf_k[0] = (int8_t)(sg.ek0 + (-100 - (int32_t)sg.ek0) * (int32_t)(clk_step + 1u) / 16);
+    if (sg.endg == 4u && clk_step >= 1u && clk_step < 8u) {   /* (the crash played on step 1: stop) */
+        transport_req = 2;
+        return;
+    }
+    if (bar) {
+        if (sg.bbar) {                                  /* (the break's bar done: all back, the crash) */
+            sg.bbar = 0;
+            if (!song_fill_no())
+                sgf_crash_start();
+        } else if (sg.brk) {
+            sg.brk = 0;
+            sg.bbar = 1;
+            song_xfill(0);
+        }
+        if (sg.endg == 1u) {
+            sg.endg = 2;
+            sg.intro = 0;                               /* (an intro still on: cut) */
+            sg.ek0 = perf_k[0];
+            song_pop(SOV_POP, "ENDING", "BAR 1/2", "", -1, 0);
+        } else if (sg.endg == 2u) {
+            sg.endg = 3;
+            perf_k[0] = -100;
+            song_xfill(1);
+            song_pop(SOV_POP, "ENDING", "BAR 2/2", "", -1, 0);
+        } else if (sg.endg == 3u) {
+            sg.endg = 4;
+            if (!song_fill_no())
+                sgf_crash_start();
+        }
+        if (sg.intro == 2u) {
+            sg.intro = 3;
+            song_xfill(0);
+        } else if (sg.intro == 3u) {
+            sg.intro = 0;
+            sg.cbar = 0;                                /* (CHAIN counts from here) */
+            if (!song_fill_no())
+                sgf_crash_start();
+        }
+    }
+    song_xsync();
+}
 /* 0.18: HELP. FX + D4 tapped turns it on (and off): each key then says in the box what it does (alone, with D4 and
  * FX held) instead of doing it; the effect keys and mutes too (layer_masks: no key mask). Leaving SONG ends it */
 static const char *const HELP_W[16][2] = {
@@ -2095,7 +2239,7 @@ static const char *const HELP_W[16][2] = {
 static const char *const HELP_B[11][2] = {
     {"PART A", "HOLD FAV  D4 LOAD"}, {"PART B", "HOLD FAV  D4 LOAD"}, {"PART C", "HOLD FAV  D4 LOAD"},
     {"PART D", "HOLD FAV  D4 LOAD"}, {"LOCK T1", "NOTES KEPT"}, {"LOCK T2", "NOTES KEPT"}, {"LOCK T3", "NOTES KEPT"},
-    {"LOCK T4", "BEAT KEPT"}, {"CLEAR", "EVERY EFFECT OFF"}, {"DUCK", "ON / OFF"}, {"SONG OFF", "D4 + F#5: CHAIN"}};
+    {"LOCK T4", "BEAT KEPT"}, {"CLEAR", "D4: BREAK 1 BAR"}, {"DUCK", "D4: ENDING / INTRO"}, {"SONG OFF", "D4 + F#5: CHAIN"}};
 static void song_help_toggle(void)
 {
     sg.help = (uint8_t)!sg.help;
@@ -2223,6 +2367,10 @@ static void song_led(uint32_t p, uint32_t *on, uint32_t *can)
     uint32_t fast = (fm1_ms / 125u) & 1u, slow = (fm1_ms / 400u) & 1u;
     *on = (p < SG_N && p == sg.part) || (p >= 4u && p < 8u && ((sg.lock >> (p - 4u)) & 1u)) || p == 10u ||
           (p == 9u && (perf_latched & PF_BIT(PF_DUCK)));
+    if (p == 8u && (sg.brk || sg.bbar))                 /* (0.19: C#5 a BREAK armed blinks, its bar lit; D#5 the */
+        *on = sg.brk ? fast : 1u;                       /* same for an ENDING or INTRO) */
+    if (p == 9u && (sg.endg || sg.intro))
+        *on = sg.endg == 1u || sg.intro == 1u ? fast : 1u;
     if (p < SG_N && sg.qpart == p + 1u)
         *on = fast;                                     /* (0.18: the part waiting for the bar line blinks) */
     else if (p < SG_N && sg.chain && !sg.qpart && p == (sg.part + 1u) % SG_N && p != sg.part)
@@ -2255,6 +2403,8 @@ static void song_off(void)
         song_remember();                                /* (0.16: the last song, for SEQ held and BOOT = SONG) */
     }
     sg.qpart = sg.hk = sg.octpend = sg.help = 0;
+    song_x_stop();                                      /* (0.19: a BREAK, ENDING or INTRO) */
+    sg.intro = 0;
     song_fill_stop();                                   /* (0.17: an armed or playing FILL; spec v0.4.1: leaving SONG
                                                          * turns its effects off) */
     perf_song = 0;

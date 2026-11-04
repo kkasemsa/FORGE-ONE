@@ -102,6 +102,7 @@ static volatile uint32_t kb_mask;     /* main: the button bits whose hold makes 
 static volatile uint8_t kb_lock;      /* main: a layer locked open (#83, no button held): 1 keys are the layer's, 2 FX's */
 static volatile uint8_t perf_solo;    /* main: tracks soloed in the GLO layer (the others muted as by a black key) */
 static volatile uint8_t perf_psolo;   /* main (0.7): tracks soloed in PERFORM, latched (as perf_solo) */
+static volatile uint8_t sg_bmask;     /* main (FORGE ONE 0.19 SONG): bit i, T(i+1) muted by BREAK / ENDING / INTRO (ui_song.c) */
 static volatile uint8_t perf_pmode;   /* main (0.7): PERFORM (the FX layer locked): black keys are the UI's, not mutes */
 static volatile uint8_t perf_song;    /* main (0.13 SONG, ui_song.c): the white keys are SONG's map (SG_FX, the mutes) */
 static volatile uint32_t sg_fxmask;   /* main (0.13 SONG): the keys that take an effect at key-down with no FX layer:
@@ -337,7 +338,8 @@ static void perf_buf_select(uint32_t e)
 static __attribute__((noinline)) int perf_begin(uint32_t n)
 {
     uint32_t so = perf_solo | perf_psolo;
-    uint32_t held = perf_kill ? 0u : (perf_held | perf_latched | (so ? (~so & 15u) << PF_M1 : 0u)) & perf_avail();
+    uint32_t held = perf_kill ? 0u : (perf_held | perf_latched | (so ? (~so & 15u) << PF_M1 : 0u) |
+                                      (uint32_t)(sg_bmask & 15u) << PF_M1) & perf_avail();   /* (0.19: SONG's BREAK) */
     uint32_t q, k, ph0, bnd;
     int32_t m;
     if (!held && !pf.busy && !(perf_k[0] | perf_k[1] | perf_k[2])) {   /* idle: the clock only */
