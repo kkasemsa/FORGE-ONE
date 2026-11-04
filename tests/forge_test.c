@@ -3947,6 +3947,103 @@ static int test_song_v10(void)
         if (!ok) printf("    morph + ending: endg %u playing %u now %d v0 %d\n", sg.endg, song.playing, trk[0].p[id], v0);
     }
     bad += check("  143. empty: red; stores unchanged; HELP: MORPH; a MORPH through an ENDING: both run, the ending stops", ok);
+    /* 144-145. DENSITY: D4 + black 6 on T2: 3/3, T2 busier (more NOTE steps), T1 T3 T4 unchanged; again 1/3 sparser;
+     * again 2/3: the pattern before (deterministic); the dot; T2's row flashes */
+    {
+        static step_t st[NTRK][NSTEP];
+        uint32_t i, n2, n3, n1, notes;
+        sg_close();
+        sg_open((uint32_t)sg_genre("TRANCE"), 42);
+        btn_up(B_SEQ); frame();
+        sg.dirty = 0;
+        for (i = 0; i < NTRK; i++) memcpy(st[i], trk[i].step, sizeof st[i]);
+        for (notes = 0, i = 0; i < NSTEP; i++) notes += trk[1].step[i].time == ST_NOTE;
+        n2 = notes;
+        sg_d4_black(5, 0);
+        ok = song_tdens(sg.part, 1) == 3u && sg_popped("T2 DENSITY", "3/3") && str_eq(sg_pop.note, "HIGH") &&
+             (sg.dirty & (1u << sg.part)) && sg.flash == 2u;
+        for (notes = 0, i = 0; i < NSTEP; i++) notes += trk[1].step[i].time == ST_NOTE;
+        n3 = notes;
+        ok &= n3 >= n2 && (n3 > n2 || n2 >= tl_len(&trk[1])) &&   /* (16 of 16 already: saturated) */ !memcmp(st[0], trk[0].step, sizeof st[0]) &&
+              !memcmp(st[2], trk[2].step, sizeof st[2]) && !memcmp(st[3], trk[3].step, sizeof st[3]);
+        sg_d4_black(5, 0);
+        ok &= song_tdens(sg.part, 1) == 1u && sg_popped("T2 DENSITY", "1/3") && str_eq(sg_pop.note, "LOW");
+        for (notes = 0, i = 0; i < NSTEP; i++) notes += trk[1].step[i].time == ST_NOTE;
+        n1 = notes;
+        ok &= n1 < n2;
+        sg_d4_black(5, 0);
+        ok &= song_tdens(sg.part, 1) == 2u && sg_popped("T2 DENSITY", "2/3") && !memcmp(st[1], trk[1].step, sizeof st[1]);
+        sg_d4_black(5, 0); sg_d4_black(5, 0); sg_d4_black(5, 0);
+        ok &= song_tdens(sg.part, 1) == 2u && !memcmp(st[1], trk[1].step, sizeof st[1]);
+        if (!ok) printf("    density: notes %u %u %u tdens %u\n", (unsigned)n1, (unsigned)n2, (unsigned)n3, (unsigned)song_tdens(sg.part, 1));
+    }
+    bad += check("  144-145. DENSITY (D4 + black 6): T2 3/3 busier, the rest unchanged; 1/3 sparser; 2/3 the pattern before, round again the same", ok);
+    /* 146. T2 locked: red T2 LOCKED, nothing; black 6 alone still LOCK T2; other parts keep their own */
+    {
+        static step_t st[NSTEP];
+        sg_tap(5);
+        ok = (sg.lock >> 1) & 1u;
+        memcpy(st, trk[1].step, sizeof st);
+        sg_d4_black(5, 0);
+        ok &= song_tdens(sg.part, 1) == 2u && sg_popped("T2 LOCKED", "DENSITY") && sg_pop.red && !memcmp(st, trk[1].step, sizeof st);
+        sg_tap(5);
+        ok &= !((sg.lock >> 1) & 1u);
+        sg_d4_black(5, 0);
+        ok &= song_tdens(SG_A, 1) == 3u && song_tdens(SG_B, 1) == 2u;
+        sg_tap(1); sg_run_ms(100);                      /* (stopped: part B at once) */
+        ok &= sg.part == SG_B && song_tdens(SG_B, 1) == 2u;
+        sg_tap(0); sg_run_ms(100);
+        ok &= sg.part == SG_A && song_tdens(SG_A, 1) == 3u;
+    }
+    bad += check("  146. T2 locked: red, nothing; black 6 alone still LOCK; each part its own densities", ok);
+    /* 147. OCT- x2: the density and the pattern before; after SG_WRITTEN: SAVE X? */
+    {
+        static step_t st[NSTEP];
+        memcpy(st, trk[1].step, sizeof st);
+        sg_d4_black(5, 0);
+        ok = song_tdens(SG_A, 1) == 1u && memcmp(st, trk[1].step, sizeof st) != 0;
+        sg_oct2();
+        ok &= song_tdens(SG_A, 1) == 3u && !memcmp(st, trk[1].step, sizeof st) && sg_popped("UNDO", "T2 DENSITY");
+        sg.stage = SG_WRITTEN; sg.pend = 0;
+        sg_d4_black(5, 0);
+        ok &= sg.pend == SG_A + 1u;
+        sg.stage = SG_EDIT; sg.pend = 0;
+    }
+    bad += check("  147. OCT- x2: the density and pattern before; written: SAVE X?", ok);
+    /* 148. leave / re-enter: kept; power off (the settings) and BOOT = SONG: kept; 0xFF (an old song) reads as 2 */
+    {
+        static step_t st[NSTEP];
+        sg_d4_black(6, 0);                              /* (T3 3/3) */
+        memcpy(st, trk[2].step, sizeof st);
+        sg_leave();
+        sg_hold_in();
+        ok = song_tdens(SG_A, 2) == 3u && song_tdens(SG_A, 1) == 1u && !memcmp(st, trk[2].step, sizeof st);
+        sg_leave();
+        ok &= sg_last_tdens[0] == sg.tdens[0] && sg_last_tdens[0] != 0u;
+        memset(&sg, 0, sizeof sg);                      /* (a power-off: SONG's RAM gone, the settings kept) */
+        sg_hold_in();
+        ok &= sg.on && song_tdens(SG_A, 2) == 3u && !memcmp(st, trk[2].step, sizeof st);
+        sg_leave();
+        sg_last_tdens[0] = 0xFF;
+        memset(&sg, 0, sizeof sg);
+        sg_hold_in();
+        ok &= sg.on && song_tdens(SG_A, 2) == 2u && song_tdens(SG_A, 1) == 2u;
+        if (!ok) printf("    density kept: %u %u\n", (unsigned)song_tdens(SG_A, 2), (unsigned)sg_last_tdens[0]);
+    }
+    bad += check("  148. leave / re-enter and power off: the densities kept; an old song's 0xFF: 2", ok);
+    /* 149. AUTO EVOLVE with T2 at 3/3: its evolves keep 3/3; a new song (SEED): back to 2 */
+    sg_d4_black(5, 0);
+    ok = song_tdens(SG_A, 1) == 3u;
+    sg_play();
+    btn_down(B_FX); frame(); sg_wtap(TL_FORGE); btn_up(B_FX); frame();
+    ok &= sg.evolve;
+    for (n = 0; n < 12u; n++) sg_to_bar();
+    ok &= song_tdens(SG_A, 1) == 3u;
+    btn_down(B_FX); frame(); sg_wtap(TL_FORGE); btn_up(B_FX); frame();
+    sg_stop();
+    kt(EN_K1, 1);
+    ok &= song_tdens(SG_A, 1) == 2u && !sg.tdens[0];
+    bad += check("  149. AUTO EVOLVE keeps the density; another song: 2 again", ok);
     sg_close();
     return bad;
 }

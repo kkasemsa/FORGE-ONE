@@ -838,6 +838,8 @@ static void layer_key(uint32_t l, uint32_t k)
                 song_fav(p, song_fx_btn());
             } else if (sg.stage != SG_CONFIRM && p < SG_N)
                 song_hold_start(k, SH_PART, p);         /* (0.16: a tap the part at the bar, held FAV STORE) */
+            else if (sg.stage != SG_CONFIRM && p >= 4u && p < 8u && song_d4())
+                song_tdens_tap(p - 4u);                 /* (0.19: D4 + a LOCK key, the track's own density) */
             else if (sg.stage != SG_CONFIRM && p >= 4u && p < 8u)
                 song_lock(p - 4u);
             else if (p == 8u) {

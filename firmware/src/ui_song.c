@@ -76,6 +76,7 @@ static struct {
      * 2 and 3 its bars); ek0: the FILTER macro before the ending's sweep. The mutes: perform.c sg_bmask (song_xmask) */
     uint8_t brk, bbar, endg, intro, wasplay;
     int8_t ek0;
+    uint8_t tdens[SG_N];                    /* 0.19 (spec v0.9 §4): part x's tracks' own density, 2 bits each (1..3; 0: 2) */
     uint32_t fms;
     uint8_t nvar[SG_N][NTRK], rvar[SG_N][NTRK];
 } sg;
@@ -122,7 +123,7 @@ static const uint8_t SG_CBARS[5] = {1, 2, 4, 8, 16};    /* 0.16 auto-chain: a pa
 enum { SU_NONE, SU_REROLL, SU_SOUND, SU_KEY };
 static struct {
     uint8_t kind, what, trk, eng, pre, usr, root, scale, pack;   /* what: the tracks a reroll took (bit i), 0xF C4 */
-    uint8_t nvar[SG_N][NTRK], rvar[SG_N][NTRK];
+    uint8_t nvar[SG_N][NTRK], rvar[SG_N][NTRK], tdens[SG_N];      /* (0.19: the densities with the rerolls) */
     int16_t p[P_COUNT];
 } sgu;
 static void song_undo_take(uint32_t kind, uint32_t what)
@@ -132,6 +133,7 @@ static void song_undo_take(uint32_t kind, uint32_t what)
     if (kind == SU_REROLL) {
         memcpy(sgu.nvar, sg.nvar, sizeof sgu.nvar);
         memcpy(sgu.rvar, sg.rvar, sizeof sgu.rvar);
+        memcpy(sgu.tdens, sg.tdens, sizeof sgu.tdens);
     } else if (kind == SU_SOUND) {
         const track_t *t = &trk[what % NTRK];
         sgu.trk = (uint8_t)(what % NTRK);
@@ -242,6 +244,7 @@ static void song_sweep(track_t *t, uint32_t len, uint32_t id, int32_t lo, int32_
     }
 }
 
+static uint32_t song_tdens_pct(uint32_t x, uint32_t i);
 /* part x of the song into the four tracks (their steps, LEN, DIV, SWING, ROOT, SCALE and automation; the sounds stay) */
 static void song_render(uint32_t x)
 {
@@ -272,7 +275,7 @@ static void song_render(uint32_t x)
         motion_clear(t);                                /* (each part its own automation: BREAK's PAD sweep) */
         fg.trk = (uint8_t)i;
         fg.style = (uint8_t)fs_idx();
-        fg.dens = (uint8_t)clamp((int32_t)(own * fs.dens / 100u * m / 100u), 10, 100);
+        fg.dens = (uint8_t)clamp((int32_t)(own * fs.dens / 100u * m / 100u * song_tdens_pct(x, i) / 100u), 10, 100);
         fg.evolve = (uint8_t)(ev > 4u ? 4u : ev);
         fg.nvar = sg.nvar[x][i];
         fg.rvar = sg.rvar[x][i];
@@ -412,6 +415,7 @@ static void song_reset(void)                            /* a new song: its rerol
     sg.stage = SG_EDIT;
     sg.pend = 0;
     sg.intro = 0;                                       /* (0.19: an INTRO set is this song's) */
+    memset(sg.tdens, 0, sizeof sg.tdens);               /* (.. the densities: the song's DEN alone) */
 }
 /* 0.13 (spec v0.4.1 §B2): SONG's punch-in effects, routed through perform.c as FX held routes them: E4..C5 the six
  * of seq.c SG_FX held (no FX button), FX held + F3..B3 the T1..T4 mutes (the choice at the key's down: seq.c kb_fx
@@ -549,6 +553,41 @@ static void song_lock(uint32_t i)                       /* black 5..8: T1..T4 lo
     ui_message(b);
     b[2] = 0;
     song_pop(SOV_POP, (sg.lock >> i) & 1u ? "LOCK" : "UNLOCK", b, "", -1, 0);
+}
+/* 0.19 (spec v0.9 §4): a track's own density in a part, D4 + its LOCK key (black 5..8): 1 2 3 round, 2 the song's
+ * DEN alone (70 %, 100 %, 140 % of it); the track rendered again with its variants kept (the same seed: 2 again is the
+ * pattern before). With the rerolls in the undo and the settings (song_remember); 0 and 0xFF read as 2 */
+static uint32_t song_tdens(uint32_t x, uint32_t i)
+{
+    uint32_t d = (sg.tdens[x % SG_N] >> (2u * (i % NTRK))) & 3u;
+    return d ? d : 2u;
+}
+static uint32_t song_tdens_pct(uint32_t x, uint32_t i) { return song_tdens(x, i) == 1u ? 70u : song_tdens(x, i) == 3u ? 140u : 100u; }
+static void song_tdens_tap(uint32_t i)
+{
+    char b[12] = {'T', (char)('1' + i), ' ', 0}, v[4] = "2/3";
+    uint32_t d = song_tdens(sg.part, i) % 3u + 1u;
+    sg.d4_used = 1;
+    if ((sg.lock >> i) & 1u) {
+        str_cpy(b + 3, "LOCKED", sizeof b - 3u);
+        ui_message(b);
+        song_pop(SOV_POP, b, "DENSITY", "", -1, 1);
+        return;
+    }
+    song_undo_take(SU_REROLL, 0x10u | 1u << i);
+    sg.tdens[sg.part] = (uint8_t)((sg.tdens[sg.part] & ~(3u << (2u * i))) | d << (2u * i));
+    song_render(sg.part);
+    sg.dirty |= (uint8_t)(1u << sg.part);
+    sg.flash = (uint8_t)(i + 1u);
+    sg.flash_ms = fm1_ms;
+    str_cpy(b + 3, "DENSITY", sizeof b - 3u);
+    v[0] = (char)('0' + d);
+    song_pop(SOV_POP, b, v, d == 1u ? "LOW" : d == 3u ? "HIGH" : "AS DEN", -1, 0);
+    if (sg.stage == SG_WRITTEN) {
+        sg.pend = (uint8_t)(sg.part + 1u);
+        song_say();
+    } else
+        ui_message(b);
 }
 static void song_reroll(void)                           /* C4: the part shown's notes, its tracks not locked */
 {
@@ -1794,6 +1833,8 @@ static void song_snd_ids(void)
 #define sg_last (&favorites.factory[2][8])
 #define sg_last_nvar (&favorites.factory[3][8])
 #define sg_last_rvar (&favorites.factory[4][8])
+#define sg_last_tdens (&favorites.factory[2][24])       /* 0.19: the parts' track densities (engine 2's bits of presets
+                                                         * 192..223, which no engine has); 0 or 0xFF: all 2 */
 enum { SL_MAGIC, SL_SEED, SL_GENRE, SL_VAR, SL_ROOT, SL_SCALE, SL_BPM0, SL_BPM1, SL_LOCKPART, SL_DENS, SL_EVOL, SL_CB0,
        SL_CB1, SL_FLAGS, SL_DIRTY, SL_OUTKEY, SL_N };   /* (SL_OUTKEY 0.17: the selected track's ROOT | SCALE << 4 as
                                                           * SONG was left; SL_FLAGS bit 3: it is set) */
@@ -1822,11 +1863,13 @@ static void song_remember(void)
                             (song_snd_same() ? 4u : 0u) | 8u);   /* (0.17: sg_ids are this song's; SL_OUTKEY set) */
     h[SL_OUTKEY] = (uint8_t)((TSEL->p[P_ROOT] % 12) | (TSEL->p[P_SCALE] & 15) << 4);
     h[SL_DIRTY] = sg.dirty;
-    for (x = 0; x < SG_N; x++)
+    for (x = 0; x < SG_N; x++) {
         for (i = 0; i < NTRK; i++) {
             sg_last_nvar[x * NTRK + i] = sg.nvar[x][i];
             sg_last_rvar[x * NTRK + i] = sg.rvar[x][i];
         }
+        sg_last_tdens[x] = sg.tdens[x];
+    }
     settings_later();
 }
 /* the last song back into STARTER (open) and SONG (on), as it was left; none kept: the song STARTER has. 1 = restored */
@@ -1854,11 +1897,13 @@ static int song_restore(void)
     }
     song_toggle();                                      /* (SONG on: part A, the rerolls 0) */
     if (ok) {
-        for (x = 0; x < SG_N; x++)
+        for (x = 0; x < SG_N; x++) {
             for (i = 0; i < NTRK; i++) {
                 sg.nvar[x][i] = (uint8_t)(sg_last_nvar[x * NTRK + i] % 100u);
                 sg.rvar[x][i] = (uint8_t)(sg_last_rvar[x * NTRK + i] % 100u);
             }
+            sg.tdens[x] = (uint8_t)(sg_last_tdens[x] == 0xFFu ? 0u : sg_last_tdens[x]);   /* (0.19; an old song: 2) */
+        }
         sg.lock = (uint8_t)(h[SL_LOCKPART] & 0xFu);
         sg.part = (uint8_t)((h[SL_LOCKPART] >> 4) & 3u);
         sg.cbars[0] = (uint8_t)(h[SL_CB0] & 7u);
@@ -2246,8 +2291,8 @@ static const char *const HELP_W[16][2] = {
     {"TAP TEMPO", "HOLD CLICK FX EVOLVE"}, {"STARTER", "KEEP IT AND EXIT"}};
 static const char *const HELP_B[11][2] = {
     {"PART A", "HOLD FAV  D4 LOAD"}, {"PART B", "HOLD FAV  D4 LOAD"}, {"PART C", "HOLD FAV  D4 LOAD"},
-    {"PART D", "HOLD FAV  D4 LOAD"}, {"LOCK T1", "NOTES KEPT"}, {"LOCK T2", "NOTES KEPT"}, {"LOCK T3", "NOTES KEPT"},
-    {"LOCK T4", "BEAT KEPT"}, {"CLEAR", "D4: BREAK 1 BAR"}, {"DUCK", "D4: ENDING / INTRO"}, {"SONG OFF", "D4 + F#5: CHAIN"}};
+    {"PART D", "HOLD FAV  D4 LOAD"}, {"LOCK T1", "KEPT, D4: DENSITY"}, {"LOCK T2", "KEPT, D4: DENSITY"}, {"LOCK T3", "KEPT, D4: DENSITY"},
+    {"LOCK T4", "KEPT, D4: DENSITY"}, {"CLEAR", "D4: BREAK 1 BAR"}, {"DUCK", "D4: ENDING / INTRO"}, {"SONG OFF", "D4 + F#5: CHAIN"}};
 static void song_help_toggle(void)
 {
     sg.help = (uint8_t)!sg.help;
@@ -2481,10 +2526,15 @@ static void song_undo(void)
     if (sgu.kind == SU_REROLL) {
         memcpy(sg.nvar, sgu.nvar, sizeof sg.nvar);
         memcpy(sg.rvar, sgu.rvar, sizeof sg.rvar);
+        memcpy(sg.tdens, sgu.tdens, sizeof sg.tdens);
         song_render(sg.part);
         if (sgu.what == 0xFu)
             str_cpy(b, "NOTES", sizeof b);
-        else {
+        else if (sgu.what & 0x10u) {
+            b[0] = 'T';
+            b[1] = (char)('1' + (__builtin_ctz(sgu.what) & 3));
+            str_cpy(b + 2, " DENSITY", sizeof b - 2u);
+        } else {
             b[0] = 'T';
             b[1] = (char)('1' + (__builtin_ctz(sgu.what) & 3));
             str_cpy(b + 2, " REROLL", sizeof b - 2u);
