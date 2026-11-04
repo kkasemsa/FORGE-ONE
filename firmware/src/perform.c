@@ -123,6 +123,11 @@ static int sc_differs(const sg_scene_t *c, uint32_t i)
 }
 static sg_scene_t sg_scene[2];
 static volatile uint8_t sc_pend;
+/* FORGE ONE 0.19 (spec v0.9 §3) MORPH: D4 + D5 / E5 glides to the scene over a bar instead of jumping. sc_morph: the
+ * recall waiting in sc_pend is a morph; sc_run: the scene gliding (+ 1), sc_at its 1/16s done (16 a bar), sc_from the
+ * values it left from (seq.c sc_apply, each 1/16) */
+static volatile uint8_t sc_morph, sc_run, sc_at;
+static int16_t sc_from[SC_MAX];
 static volatile uint8_t pq_pend, pq_mute, pq_solo;   /* main (0.7): PERFORM's QUANT: mutes and solos the ISR puts in at
                                        * the next bar (seq.c events_block, before the bar's first step) */
 static volatile uint8_t perf_kill;    /* main: every effect off (the menu, a dialog, UBOOT) */

@@ -3638,7 +3638,7 @@ static uint32_t sg_crash_seen(void)                     /* T4's first step of th
 static int test_song_v10(void)
 {
     int bad = 0, ok;
-    uint32_t m;
+    uint32_t m, n;
     sg_close();
     sg_open((uint32_t)sg_genre("TRANCE"), 42);
     fx_latch &= ~1u; perf_latch_on = 0;
@@ -3836,6 +3836,117 @@ static int test_song_v10(void)
     }
     if (!ok) printf("    r2: endg %u intro %u brk %u\n", sg.endg, sg.intro, sg.brk);
     bad += check("  r2. BREAK during ENDING / INTRO: refused; no drum on T4: INTRO and ENDING mute and stop, no fill, no crash", ok);
+    /* 140. MORPH: SCENE 1 stored with a value, the value moved, D4 + D5 playing: over a bar it glides back, 16 steps,
+     * not at once; plain D5 still jumps */
+    {
+        uint8_t fm[4][2];
+        int16_t v0, v1, now, last, mono = 1;
+        uint32_t id, moved = 0, steps = 0;
+        song_fmap(0, fm);
+        id = fm[0][0];
+        sg_play();
+        sg_to_step(2);
+        v0 = trk[0].p[id];
+        btn_down(B_FX); frame(); sg_wtap(SG_D5); btn_up(B_FX); frame();   /* (stored: v0) */
+        ok = msg_is("SCENE 1 STORED");
+        v1 = (int16_t)(v0 > 50 ? v0 - 40 : v0 + 40);
+        trk[0].p[id] = v1;
+        key_down(white(5)); frame(); sg_wtap(SG_D5); key_up(white(5)); frame();
+        ok &= sg_popped("SCENE 1", "MORPH") && str_eq(sg_pop.note, "1 BAR") && (sc_pend || sc_run);
+        last = v1;
+        for (n = 0; n < 4000u && (sc_pend || sc_run); n++) {
+            pm_blocks(1);
+            now = trk[0].p[id];
+            if (now != last) { steps++; if ((v0 > v1) != (now > last)) mono = 0; moved |= now != v0 && now != v1; }
+            last = now;
+            if (n % 22u == 21u) frame();
+        }
+        ok &= !sc_run && !sc_pend && trk[0].p[id] == v0 && steps >= 8u && mono && moved;
+        if (!ok) printf("    morph: v0 %d v1 %d now %d steps %u mono %d moved %u\n", v0, v1, trk[0].p[id], (unsigned)steps, mono, (unsigned)moved);
+        trk[0].p[id] = v1;
+        sg_wtap(SG_D5);
+        for (n = 0; n < 400u && sc_pend; n++) pm_blocks(1);
+        ok &= !sc_run && trk[0].p[id] == v0;        /* (a plain tap: the jump at the next 1/16) */
+    }
+    bad += check("  140. MORPH (D4 + D5): the scene reached over a bar, a 1/16 a step; D5 alone still jumps", ok);
+    /* 141. a track whose sound changed since the store: skipped, its preset never loaded; the others morph */
+    {
+        uint8_t fm[4][2], pre = trk[1].preset, eng = trk[1].eng_req;
+        int16_t v0, v1;
+        uint32_t id;
+        song_fmap(0, fm);
+        id = fm[0][0];
+        v0 = trk[0].p[id];
+        btn_down(B_FX); frame(); sg_wtap(SG_D5); btn_up(B_FX); frame();
+        sg_scene[0].pre[1] = (uint8_t)(pre + 1u);        /* (T2's sound not the stored one) */
+        v1 = (int16_t)(v0 > 50 ? v0 - 40 : v0 + 40);
+        trk[0].p[id] = v1;
+        key_down(white(5)); frame(); sg_wtap(SG_D5); key_up(white(5)); frame();
+        ok = strstr(ui.msg, "SKIP T2") != 0;
+        for (n = 0; n < 4000u && (sc_pend || sc_run); n++) { pm_blocks(1); if (n % 22u == 21u) frame(); }
+        ok &= trk[0].p[id] == v0 && trk[1].preset == pre && trk[1].eng_req == eng;
+        sg_scene[0].pre[1] = pre;
+    }
+    bad += check("  141. MORPH: a track with another sound skipped (said), its preset not loaded; the rest glide", ok);
+    /* 142. a second recall mid-glide starts from where it is; stopped: the scene at once */
+    {
+        uint8_t fm[4][2];
+        int16_t v0, v1, mid;
+        uint32_t id;
+        song_fmap(0, fm);
+        id = fm[0][0];
+        v0 = trk[0].p[id];
+        v1 = (int16_t)(v0 > 50 ? v0 - 40 : v0 + 40);
+        trk[0].p[id] = v1;
+        key_down(white(5)); frame(); sg_wtap(SG_D5); key_up(white(5)); frame();
+        for (n = 0; n < 800u; n++) pm_blocks(1);
+        mid = trk[0].p[id];
+        ok = sc_run && mid != v0 && mid != v1;
+        key_down(white(5)); frame(); sg_wtap(SG_D5); key_up(white(5)); frame();
+        for (n = 0; n < 400u; n++) pm_blocks(1);
+        ok &= sc_run && sc_from[0] != v1;
+        sg_stop();
+        ok &= !sc_run && trk[0].p[id] == v0;         /* (the stop: the scene reached) */
+        trk[0].p[id] = v1;
+        key_down(white(5)); frame(); sg_wtap(SG_D5); key_up(white(5)); frame();
+        ok &= !sc_run && !sc_pend && trk[0].p[id] == v0;   /* (stopped: at once) */
+        if (!ok) printf("    morph 2: run %u from %d v1 %d now %d\n", sc_run, sc_from[0], v1, trk[0].p[id]);
+    }
+    bad += check("  142. MORPH again mid-glide: from where it is; STOP reaches it; stopped: at once", ok);
+    /* 143. an empty scene: red EMPTY; hold D5 and FX + D5 still store; HELP says MORPH; MORPH during an ENDING */
+    sg_scene[1].n = 0; sg.scenes &= 1u;
+    key_down(white(5)); frame(); sg_wtap(SG_D5 + 1u); key_up(white(5)); frame();
+    ok = sg_popped("EMPTY", "SCENE 2") && sg_pop.red && !sc_pend && !sc_run;
+    btn_down(B_FX); frame(); sg_wtap(SG_D5 + 1u); btn_up(B_FX); frame();
+    ok &= msg_is("SCENE 2 STORED");
+    btn_down(B_FX); frame(); sg_wtap(TL_COOK); btn_up(B_FX); frame();
+    sg_wtap(SG_D5);
+    ok &= sg.help && sg_popped("D5", "SCENE 1") && str_eq(sg_pop.note, "HOLD STORE D4 MORPH") && !sc_pend;
+    btn_down(B_FX); frame(); sg_wtap(TL_COOK); btn_up(B_FX); frame();
+    {
+        uint8_t fm[4][2];
+        int16_t v0, v1;
+        uint32_t id;
+        song_fmap(0, fm);
+        id = fm[0][0];
+        sg_play();
+        sg_to_step(2);
+        v0 = trk[0].p[id];
+        btn_down(B_FX); frame(); sg_wtap(SG_D5); btn_up(B_FX); frame();
+        v1 = (int16_t)(v0 > 50 ? v0 - 40 : v0 + 40);
+        trk[0].p[id] = v1;
+        sg_d4_black(9, 0);                              /* (ENDING armed, then the morph) */
+        key_down(white(5)); frame(); sg_wtap(SG_D5); key_up(white(5)); frame();
+        ok &= sg.endg == 1u && (sc_pend || sc_run);
+        ok &= sg_to_bar() && sg.endg == 2u;
+        for (n = 0; n < 4000u && (sc_pend || sc_run); n++) { pm_blocks(1); if (n % 22u == 21u) frame(); }
+        ok &= trk[0].p[id] == v0 && sg.endg >= 2u && song.playing;
+        ok &= sg_to_bar() && sg_to_bar();
+        sg_run_ms(600);
+        ok &= !song.playing && !sg.endg && trk[0].p[id] == v0;
+        if (!ok) printf("    morph + ending: endg %u playing %u now %d v0 %d\n", sg.endg, song.playing, trk[0].p[id], v0);
+    }
+    bad += check("  143. empty: red; stores unchanged; HELP: MORPH; a MORPH through an ENDING: both run, the ending stops", ok);
     sg_close();
     return bad;
 }

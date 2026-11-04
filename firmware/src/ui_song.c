@@ -774,14 +774,15 @@ static void song_d4_poll(uint32_t on)
     sg.d4 = 0;
     ui.force = 1;
 }
-static void song_scene(uint32_t x, uint32_t store)      /* D5 / E5: recall, FX held: store */
+static void song_scene(uint32_t x, uint32_t store)      /* D5 / E5: recall (0.19: D4 held, a MORPH), FX held: store */
 {
     char b[28] = "SCENE 1 ";
     sg_scene_t *c = &sg_scene[x & 1u];
+    uint32_t morph = !store && song_d4();
     b[6] = (char)('1' + (x & 1u));
     if (store) {
         uint32_t i, k, j;
-        sc_pend = 0;                            /* (the ISR never puts in one being written) */
+        sc_pend = sc_run = 0;                   /* (the ISR never puts in one being written, nor glides to it) */
         c->n = 0;
         for (i = 0; i < NTRK; i++) {
             uint8_t m[4][2];
@@ -817,10 +818,15 @@ static void song_scene(uint32_t x, uint32_t store)      /* D5 / E5: recall, FX h
                 str_cpy(b + str_len(b), n, sizeof b - str_len(b));
                 sg.ov_skip |= (uint8_t)(1u << i);
             }
-        sc_pend = (uint8_t)((x & 1u) + 1u);
+        sc_morph = (uint8_t)morph;              /* (0.19: D4 held, over a bar; a track whose sound differs: skipped, */
+        sc_pend = (uint8_t)((x & 1u) + 1u);     /* its preset never loaded) */
         if (!song.playing)
             sc_apply();                         /* (stopped: no 1/16 to wait for) */
-        song_ov(SOV_SCENE + (x & 1u));
+        if (morph) {
+            sg.d4_used = 1;
+            song_pop(SOV_POP, b, "MORPH", "1 BAR", -1, 0);
+        } else
+            song_ov(SOV_SCENE + (x & 1u));
     }
     ui_message(b);
 }
@@ -1549,8 +1555,10 @@ static int song_wkey(uint32_t k)
         return 1;
     }
     if (p == SG_FX_KEY0 + 6u || p == SG_FX_KEY0 + 7u) {   /* D5 / E5: the scenes (0.16: a tap recalls, held stores; */
-        if (song_fx_btn())                                 /* FX held: stored at once) */
+        if (song_fx_btn())                                 /* FX held: stored at once; 0.19: D4 held, a MORPH) */
             song_scene(p - SG_FX_KEY0 - 6u, 1);
+        else if (song_d4())
+            song_scene(p - SG_FX_KEY0 - 6u, 0);
         else
             song_hold_start(k, SH_SCENE, p - SG_FX_KEY0 - 6u);
         return 1;
@@ -2234,7 +2242,7 @@ static const char *const HELP_W[16][2] = {
     {"FOCUS T1", "D4 REROLL  FX MUTE"}, {"FOCUS T2", "D4 REROLL  FX MUTE"}, {"FOCUS T3", "D4 REROLL  FX MUTE"},
     {"FOCUS T4", "D4 REROLL  FX MUTE"}, {"NEW NOTES", "D4 + C4: FILL"}, {"ALT / MIXER", "HELD: K1-K4 LEVELS"},
     {0, "HOLD: THE EFFECT"}, {0, "HOLD: THE EFFECT"}, {0, "HOLD: THE EFFECT"}, {0, "HOLD: THE EFFECT"},
-    {0, "HOLD: THE EFFECT"}, {0, "HOLD: THE EFFECT"}, {"SCENE 1", "HOLD: STORE"}, {"SCENE 2", "HOLD: STORE"},
+    {0, "HOLD: THE EFFECT"}, {0, "HOLD: THE EFFECT"}, {"SCENE 1", "HOLD STORE D4 MORPH"}, {"SCENE 2", "HOLD STORE D4 MORPH"},
     {"TAP TEMPO", "HOLD CLICK FX EVOLVE"}, {"STARTER", "KEEP IT AND EXIT"}};
 static const char *const HELP_B[11][2] = {
     {"PART A", "HOLD FAV  D4 LOAD"}, {"PART B", "HOLD FAV  D4 LOAD"}, {"PART C", "HOLD FAV  D4 LOAD"},
