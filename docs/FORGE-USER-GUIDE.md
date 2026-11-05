@@ -394,20 +394,20 @@ while SEQ is held cancels it. Entering SONG by any way locks the layer open, so 
 SEQ again (or HOME, or any page button). **MENU > SYSTEM > BOOT** `SONG` opens SONG with the last song at power-on,
 stopped, on part A (`NORMAL`, the default, does not).
 
-**SONG's keys** (spec v0.6, FORGE ONE 0.15; 0.16: spec v0.7). The columns: the key alone, with D4 held, with FX held.
+**SONG's keys** (spec v0.6, FORGE ONE 0.15; 0.16: spec v0.7; 0.19: spec v0.9). The columns: the key alone, with D4 held, with FX held.
 
 | Key | Alone | D4 held | FX held |
 | --- | --- | --- | --- |
 | Black 1–4 (F#3 G#3 A#3 C#4) | Tap: part A–D (playing: at the next bar); **held 0.5 s: store FAV 1–4** (the part stays) | Load FAV 1–4 (at the bar) | Part A–D (D4 + FX: store FAV 1–4) |
-| Black 5–8 (D#4 F#4 G#4 A#4) | Lock T1–T4 | same | same |
-| Black 9 (C#5) | CLEAR: every effect, latch, mute and DUCK off | same | same |
-| Black 10 (D#5) | DUCK on / off (non-drum tracks pump on the kick) | same | same |
+| Black 5–8 (D#4 F#4 G#4 A#4) | Lock T1–T4 | **T1–T4's own DENSITY** 1 → 2 → 3 (0.19) | same as alone |
+| Black 9 (C#5) | CLEAR: every effect, latch, mute and DUCK off | **BREAK** at the next bar (0.19) | same as alone |
+| Black 10 (D#5) | DUCK on / off (non-drum tracks pump on the kick) | **ENDING** while playing, **INTRO** when stopped (0.19) | same as alone |
 | Black 11 (F#5) | SONG on / off | **CHAIN on / off** | same |
 | F3 G3 A3 B3 | **FOCUS T1–T4** (the same key again: off) | Reroll T1 / T2 / T3 notes, T4 drum rhythm | Mute T1–T4 while held |
 | C4 | Reroll notes, every unlocked track | **FILL on T4** (0.17: held a live fill, tapped a full bar at the bar end) | same |
 | D4 | ALT: held alone, K1–K4 are T1–T4 LEVEL, a mixer (a tap does nothing) | – | – |
 | E4 F4 G4 A4 B4 C5 | Held: REPEAT 1/16, LPF, HPF, TAPE STOP, REV THROW, ECHO THROW (no FX button needed) | same | same |
-| D5 / E5 | Tap: recall SCENE 1 / 2 at the next 1/16; **held 0.5 s: store** | – | Store SCENE 1 / 2 |
+| D5 / E5 | Tap: recall SCENE 1 / 2 at the next 1/16; **held 0.5 s: store** | **MORPH** to SCENE 1 / 2 over a bar (0.19) | Store SCENE 1 / 2 |
 | F5 | **TAP tempo** (the last 4 taps; 2 s starts over); **held 0.5 s: CLICK on / off** | same | **AUTO EVOLVE on / off** (0.18) |
 | G5 | Applies STARTER, leaves SONG (0.17: back to the play screen in one press) | same | same |
 | SELECT | **Tempo** ±1 BPM | same | ±5 BPM |
