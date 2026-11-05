@@ -245,6 +245,7 @@ static void song_sweep(track_t *t, uint32_t len, uint32_t id, int32_t lo, int32_
 }
 
 static uint32_t song_tdens_pct(uint32_t x, uint32_t i);
+static uint8_t sg_rdens[NTRK];                          /* 0.19: each track's density as rendered, before its own factor */
 /* part x of the song into the four tracks (their steps, LEN, DIV, SWING, ROOT, SCALE and automation; the sounds stay) */
 static void song_render(uint32_t x)
 {
@@ -275,6 +276,7 @@ static void song_render(uint32_t x)
         motion_clear(t);                                /* (each part its own automation: BREAK's PAD sweep) */
         fg.trk = (uint8_t)i;
         fg.style = (uint8_t)fs_idx();
+        sg_rdens[i] = (uint8_t)clamp((int32_t)(own * fs.dens / 100u * m / 100u), 10, 100);   /* (0.19: before the track's own) */
         fg.dens = (uint8_t)clamp((int32_t)(own * fs.dens / 100u * m / 100u * song_tdens_pct(x, i) / 100u), 10, 100);
         fg.evolve = (uint8_t)(ev > 4u ? 4u : ev);
         fg.nvar = sg.nvar[x][i];
@@ -582,7 +584,8 @@ static void song_tdens_tap(uint32_t i)
     sg.flash_ms = fm1_ms;
     str_cpy(b + 3, "DENSITY", sizeof b - 3u);
     v[0] = (char)('0' + d);
-    song_pop(SOV_POP, b, v, d == 1u ? "LOW" : d == 3u ? "HIGH" : "AS DEN", -1, 0);
+    song_pop(SOV_POP, b, v, d == 1u ? (sg_rdens[i] <= 10u ? "MIN" : "LOW") :   /* (r2 review: at the clamp already, */
+                            d == 3u ? (sg_rdens[i] >= 100u ? "MAX" : "HIGH") : "AS DEN", -1, 0);   /* nothing changed) */
     if (sg.stage == SG_WRITTEN) {
         sg.pend = (uint8_t)(sg.part + 1u);
         song_say();
@@ -1833,8 +1836,12 @@ static void song_snd_ids(void)
 #define sg_last (&favorites.factory[2][8])
 #define sg_last_nvar (&favorites.factory[3][8])
 #define sg_last_rvar (&favorites.factory[4][8])
-#define sg_last_tdens (&favorites.factory[2][24])       /* 0.19: the parts' track densities (engine 2's bits of presets
-                                                         * 192..223, which no engine has); 0 or 0xFF: all 2 */
+#define sg_last_tdens (&favorites.factory[2][24])       /* 0.19: the parts' track densities, 4 bytes (engine 2's favourite
+                                                         * bits of presets 192..223: relies on engine 2 having 192 presets
+                                                         * or fewer, tests/forge_test.c checks); byte 28 SG_TD_MAGIC says
+                                                         * they were written (r2 review: all four at 3 is 0xFF, so neither
+                                                         * 0xFF nor the byte can mean "unwritten"); a 2-bit field of 0: 2 */
+#define SG_TD_MAGIC 0x5Au
 enum { SL_MAGIC, SL_SEED, SL_GENRE, SL_VAR, SL_ROOT, SL_SCALE, SL_BPM0, SL_BPM1, SL_LOCKPART, SL_DENS, SL_EVOL, SL_CB0,
        SL_CB1, SL_FLAGS, SL_DIRTY, SL_OUTKEY, SL_N };   /* (SL_OUTKEY 0.17: the selected track's ROOT | SCALE << 4 as
                                                           * SONG was left; SL_FLAGS bit 3: it is set) */
@@ -1870,6 +1877,7 @@ static void song_remember(void)
         }
         sg_last_tdens[x] = sg.tdens[x];
     }
+    sg_last_tdens[SG_N] = SG_TD_MAGIC;
     settings_later();
 }
 /* the last song back into STARTER (open) and SONG (on), as it was left; none kept: the song STARTER has. 1 = restored */
@@ -1902,8 +1910,8 @@ static int song_restore(void)
                 sg.nvar[x][i] = (uint8_t)(sg_last_nvar[x * NTRK + i] % 100u);
                 sg.rvar[x][i] = (uint8_t)(sg_last_rvar[x * NTRK + i] % 100u);
             }
-            sg.tdens[x] = (uint8_t)(sg_last_tdens[x] == 0xFFu ? 0u : sg_last_tdens[x]);   /* (0.19; an old song: 2) */
-        }
+            sg.tdens[x] = (uint8_t)(sg_last_tdens[SG_N] == SG_TD_MAGIC ? sg_last_tdens[x] : 0u);   /* (0.19; an old */
+        }                                                                                          /* song: all 2) */
         sg.lock = (uint8_t)(h[SL_LOCKPART] & 0xFu);
         sg.part = (uint8_t)((h[SL_LOCKPART] >> 4) & 3u);
         sg.cbars[0] = (uint8_t)(h[SL_CB0] & 7u);

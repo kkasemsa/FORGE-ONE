@@ -481,7 +481,8 @@ stopped, on part A (`NORMAL`, the default, does not).
   morph is a plain recall. Holding D5 / E5 (or FX + D5 / E5) still stores.
 - **A track's own DENSITY (0.19):** DEN (K2) sets all four tracks. Hold **D4** and tap a track's **LOCK key** (black
   5–8: D#4 F#4 G#4 A#4 for T1–T4) to step that track's own density **1 → 2 → 3 → 1** in the part shown (`T2 DENSITY
-  3/3 HIGH`): 1 is 70 % of DEN, 2 is DEN itself, 3 is 140 %. Only that track is written again, with its variants kept,
+  3/3 HIGH`): 1 is 70 % of DEN, 2 is DEN itself, 3 is 140 %. A track already at the top (or bottom) of its range says
+  `MAX` (or `MIN`) instead: the step changed nothing. Only that track is written again, with its variants kept,
   so the same seed and 2 again give the pattern you had. It counts as a reroll: the orange dot, `SAVE X?` after the
   song is written, OCT− twice undoes it; each part keeps its own, kept across leaving SONG and power-off with the last
   song. A locked track refuses (`T2 LOCKED`). AUTO EVOLVE keeps it. A new song puts all back to 2.

@@ -48,8 +48,11 @@ SONG to the Song Mode spec v0.9 (r2 decisions). After the `size-ui` merge (FORGE
   (decision); a second recall mid-glide starts from where it is; the stop reaches the scene; stopped: at once.
 - **DENSITY** (§4, D4 + a track's LOCK key): 1 → 2 → 3 → 1 per track per part (70 / 100 / 140 % of DEN), the track
   rendered again with its variants kept (deterministic), at once as the rerolls are; in the undo with the rerolls; kept
-  in the settings (`favorites.factory[2][24..27]`, free: no engine has 192 presets; 0 and 0xFF read as 2, decision).
-  A locked track: red `T2 LOCKED`. AUTO EVOLVE keeps it; another song: 2.
+  in the settings (`favorites.factory[2][24..27]`: engine 2's bits of presets 192..223, so it relies on engine 2 having
+  192 presets or fewer, the test checks; byte 28 is a marker that they were written, since all four at 3 is 0xFF (r2
+  review); a 2-bit field of 0 reads as 2). A locked track: red `T2 LOCKED`. At the clamp already (a track at 100 % or
+  10 % before its own factor) the box says `MAX` / `MIN` instead of `HIGH` / `LOW`: nothing changed (r2 review). AUTO
+  EVOLVE keeps it; another song: 2.
 - HELP: C#5, D#5, the LOCK keys and D5 / E5 say their D4 action. Keymap, manual, tutorial updated.
 - Tests 129–149 and the r2 cases (a BREAK during an ENDING / INTRO, a MORPH through an ENDING, INTRO with no drum) in
   `test_song_v10`; ui_render: an ENDING's box and HELP on a LOCK key.

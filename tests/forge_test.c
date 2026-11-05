@@ -3960,8 +3960,8 @@ static int test_song_v10(void)
         for (notes = 0, i = 0; i < NSTEP; i++) notes += trk[1].step[i].time == ST_NOTE;
         n2 = notes;
         sg_d4_black(5, 0);
-        ok = song_tdens(sg.part, 1) == 3u && sg_popped("T2 DENSITY", "3/3") && str_eq(sg_pop.note, "HIGH") &&
-             (sg.dirty & (1u << sg.part)) && sg.flash == 2u;
+        ok = song_tdens(sg.part, 1) == 3u && sg_popped("T2 DENSITY", "3/3") && (sg.dirty & (1u << sg.part)) && sg.flash == 2u;
+        ok &= str_eq(sg_pop.note, sg_rdens[1] >= 100u ? "MAX" : "HIGH");   /* (r2 review: at the clamp already: MAX) */
         for (notes = 0, i = 0; i < NSTEP; i++) notes += trk[1].step[i].time == ST_NOTE;
         n3 = notes;
         ok &= n3 >= n2 && (n3 > n2 || n2 >= tl_len(&trk[1])) &&   /* (16 of 16 already: saturated) */ !memcmp(st[0], trk[0].step, sizeof st[0]) &&
@@ -4013,6 +4013,7 @@ static int test_song_v10(void)
     /* 148. leave / re-enter: kept; power off (the settings) and BOOT = SONG: kept; 0xFF (an old song) reads as 2 */
     {
         static step_t st[NSTEP];
+        uint32_t i;
         sg_d4_black(6, 0);                              /* (T3 3/3) */
         memcpy(st, trk[2].step, sizeof st);
         sg_leave();
@@ -4024,14 +4025,25 @@ static int test_song_v10(void)
         sg_hold_in();
         ok &= sg.on && song_tdens(SG_A, 2) == 3u && !memcmp(st, trk[2].step, sizeof st);
         sg_leave();
+        sg_last_tdens[SG_N] = 0xFF;                     /* (an old song, erased flash: no marker, 0xFF bytes) */
         sg_last_tdens[0] = 0xFF;
         memset(&sg, 0, sizeof sg);
         sg_hold_in();
         ok &= sg.on && song_tdens(SG_A, 2) == 2u && song_tdens(SG_A, 1) == 2u;
+        for (i = 0; i < NTRK; i++) sg_d4_black(4u + i, 0);   /* (2 -> 3 each; r2 review: all four at 3 is 0xFF) */
+        for (i = 0; i < NTRK; i++) ok &= song_tdens(SG_A, i) == 3u;
+        ok &= sg.tdens[0] == 0xFFu;
+        sg_leave();
+        ok &= sg_last_tdens[0] == 0xFFu && sg_last_tdens[SG_N] == SG_TD_MAGIC;
+        memset(&sg, 0, sizeof sg);
+        sg_hold_in();
+        for (i = 0; i < NTRK; i++) ok &= song_tdens(SG_A, i) == 3u;
+        ok &= ENGINES[2]->npresets <= 192u;             /* (the bytes: engine 2's bits of presets 192..255) */
         if (!ok) printf("    density kept: %u %u\n", (unsigned)song_tdens(SG_A, 2), (unsigned)sg_last_tdens[0]);
     }
-    bad += check("  148. leave / re-enter and power off: the densities kept; an old song's 0xFF: 2", ok);
+    bad += check("  148. leave / re-enter and power off: the densities kept, all four at 3 (0xFF) too; an old song (no marker): 2", ok);
     /* 149. AUTO EVOLVE with T2 at 3/3: its evolves keep 3/3; a new song (SEED): back to 2 */
+    sg.tdens[0] = 0;
     sg_d4_black(5, 0);
     ok = song_tdens(SG_A, 1) == 3u;
     sg_play();
