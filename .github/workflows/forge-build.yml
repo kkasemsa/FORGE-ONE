@@ -89,6 +89,7 @@ jobs:
           ./build.sh 2>&1 | tee build.log
           # (the memory budget as a notice: readable without the log)
           grep -o "image [0-9]* B; RAM .* of [0-9]*" build.log | sed 's/^/::notice title=Memory::/' || true
+          grep -o "RAM symbols: .*" build.log | sed 's/^/::notice title=RAM symbols::/' || true
 
       - name: Host tests
         run: |
