@@ -4,6 +4,7 @@ Newest first. FORGE is the SEQ TOOLS F5 motif generator in FORGE ONE (based on F
 
 | Version | Date | Theme |
 | --- | --- | --- |
+| 0.19 | 5 Nov 2026 | SONG spec v0.9: BREAK, ENDING / INTRO, scene MORPH, a track's own DENSITY; the UI built for size |
 | 0.18 | 25 Oct 2026 | SONG: HELP, K4 every starter, keys by fifths, AUTO EVOLVE, LEDs; CHIPTUNE MINIMAL ELECTRO |
 | 0.17 | 24 Oct 2026 | SONG spec v0.8: G5 one-press exit, FILL on D4 + C4, PRESETS by category, sounds kept |
 | 0.16 | 24 Oct 2026 | SONG spec v0.7: SEQ held opens SONG, every action on screen, holds, UNDO, CLICK, CHAIN |
@@ -26,6 +27,35 @@ Newest first. FORGE is the SEQ TOOLS F5 motif generator in FORGE ONE (based on F
 | 0.3 | 21 Oct 2026 | Safe live turns, chords in every scale, pinned seeds |
 | 0.2 | 21 Oct 2026 | The generator: SEED, DENSITY, EVOLVE, 8 styles |
 | 0.1 | 21 Oct 2026 | Scaffold: F5 FORGE cell, CI build |
+
+## 0.19
+
+SONG to the Song Mode spec v0.9 (r2 decisions). After the `size-ui` merge (FORGE ONE's UI files built for size, −5,368 B).
+
+- **BREAK** (§1, D4 + C#5): at the next bar line T1–T3 muted the PERFORM way (`perform.c sg_bmask`, their ramps) and a
+  bar fill on T4; at the bar line after, all back with a crash. `@ PART B` when a part is queued: the break is the old
+  part's last bar (the part waits for the fill's bar, 0.17's rule). Tap again: `OFF`. Refused red: `PLAY FIRST`, the
+  FILL refusals, `ANSWER FIRST`, `ENDING ON` / `INTRO ON`. C#5 blinks armed, lit in the bar.
+- **ENDING** (§2, D4 + D#5 playing): two bars from the next bar line, T3 out and the FILTER macro closing over the
+  first, T2 out and a CRASH END fill in the second; then the crash on T4's first step and the stop a 1/16 later
+  (`transport_req`, the hit rings): `ENDING DONE`, the macro back. CHAIN pauses through it. Again: `OFF` (the mutes
+  back at once). An ENDING drops a BREAK armed; a BREAK during either is refused.
+- **INTRO** (§2b, D4 + D#5 stopped, fixed 2 bars): PLAY with T4 and T1 alone, a fill ends bar 2, the crash opens bar
+  3, CHAIN counts from there. Off on a tap again, leaving SONG or another song.
+- No drum on T4 or T4 muted: ENDING and INTRO skip the fill and the crash, the mutes and the stop stay (decision).
+- **MORPH** (§3, D4 + D5 / E5): `seq.c sc_apply` glides every stored value from where it is to the scene over a bar, a
+  1/16 a step (`sc_run`, `sc_at`, `sc_from`); a track whose sound differs is skipped and its preset never loaded
+  (decision); a second recall mid-glide starts from where it is; the stop reaches the scene; stopped: at once.
+- **DENSITY** (§4, D4 + a track's LOCK key): 1 → 2 → 3 → 1 per track per part (70 / 100 / 140 % of DEN), the track
+  rendered again with its variants kept (deterministic), at once as the rerolls are; in the undo with the rerolls; kept
+  in the settings (`favorites.factory[2][24..27]`: engine 2's bits of presets 192..223, so it relies on engine 2 having
+  192 presets or fewer, the test checks; byte 28 is a marker that they were written, since all four at 3 is 0xFF (r2
+  review); a 2-bit field of 0 reads as 2). A locked track: red `T2 LOCKED`. At the clamp already (a track at 100 % or
+  10 % before its own factor) the box says `MAX` / `MIN` instead of `HIGH` / `LOW`: nothing changed (r2 review). AUTO
+  EVOLVE keeps it; another song: 2.
+- HELP: C#5, D#5, the LOCK keys and D5 / E5 say their D4 action. Keymap, manual, tutorial updated.
+- Tests 129–149 and the r2 cases (a BREAK during an ENDING / INTRO, a MORPH through an ENDING, INTRO with no drum) in
+  `test_song_v10`; ui_render: an ENDING's box and HELP on a LOCK key.
 
 ## 0.18
 

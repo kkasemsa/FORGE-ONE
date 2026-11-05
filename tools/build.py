@@ -257,6 +257,23 @@ def build_app():
     return bytes(img), syms, dis, rt
 
 
+# objdump -t: "addr flags section size name" (the flags are seven characters). The sizes of a few of FORGE ONE's
+# RAM objects, and the largest in .data / .bss: the CI note says where the RAM goes (0.19 review: the section total
+# alone did not follow the variables added)
+SYM = re.compile(r"^([0-9a-f]+)\s.{7}\s(\.\S+)\s+([0-9a-f]+)\s+(\S+)$", re.M)
+RAM_WATCH = ("sg", "sgu", "sg_rdens", "sc_from", "sg_scene", "sgf", "sv", "fs", "fg")
+
+
+def ram_symbols(syms, largest=8):
+    objs = {}
+    for addr, sect, size, name in SYM.findall(syms):
+        if sect in (".data", ".bss", ".sdata", ".sbss") and int(size, 16):
+            objs[name] = int(size, 16)
+    watch = ", ".join(f"{n} {objs[n]}" for n in RAM_WATCH if n in objs)
+    big = ", ".join(f"{n} {v}" for n, v in sorted(objs.items(), key=lambda kv: -kv[1])[:largest])
+    return f"RAM symbols: {watch or 'none of the watched'}; largest: {big}"
+
+
 def check(img, syms, dis, rt):
     errors, notes = [], []
     m = re.search(r"^([0-9a-f]+) .*\s_start$", syms, re.M)
@@ -318,6 +335,7 @@ def check(img, syms, dis, rt):
     bss = sym("_bss_end") - ram_org
     pool = sym("_pool_end") - sym("_pool_start")
     notes.append(f"image {len(img)} B; RAM .data+.bss {bss} B of {ram_len}; pool {pool} B of {pool_len}")
+    notes.append(ram_symbols(syms))
     if region["RAM"][0] + ram_len != region["POOL"][0]:
         errors.append("app.ld: POOL does not start where RAM ends")
     if ram_len - bss < 4096:                      # keep >= 4 KiB of .bss spare (state the audio side touches)

@@ -71,6 +71,12 @@ static struct {
     /* 0.17 (spec v0.8 §2b): the sound browsed (sref_t: pkind, pe, pk), in category pcat or the drum list (pdrum);
      * pjump: the last turn was FX's (a category / group) */
     uint8_t pkind, pe, pdrum, pcat, pjump;
+    /* 0.19 (spec v0.9): brk: a BREAK armed (D4 + C#5), bbar its bar playing; endg: ENDING (D4 + D#5 playing: 1 armed,
+     * 2 its first bar, 3 its second, 4 the crash played, the stop a 1/16 on); intro: INTRO (D4 + D#5 stopped: 1 set,
+     * 2 and 3 its bars); ek0: the FILTER macro before the ending's sweep. The mutes: perform.c sg_bmask (song_xmask) */
+    uint8_t brk, bbar, endg, intro, wasplay;
+    int8_t ek0;
+    uint8_t tdens[SG_N];                    /* 0.19 (spec v0.9 §4): part x's tracks' own density, 2 bits each (1..3; 0: 2) */
     uint32_t fms;
     uint8_t nvar[SG_N][NTRK], rvar[SG_N][NTRK];
 } sg;
@@ -117,7 +123,7 @@ static const uint8_t SG_CBARS[5] = {1, 2, 4, 8, 16};    /* 0.16 auto-chain: a pa
 enum { SU_NONE, SU_REROLL, SU_SOUND, SU_KEY };
 static struct {
     uint8_t kind, what, trk, eng, pre, usr, root, scale, pack;   /* what: the tracks a reroll took (bit i), 0xF C4 */
-    uint8_t nvar[SG_N][NTRK], rvar[SG_N][NTRK];
+    uint8_t nvar[SG_N][NTRK], rvar[SG_N][NTRK], tdens[SG_N];      /* (0.19: the densities with the rerolls) */
     int16_t p[P_COUNT];
 } sgu;
 static void song_undo_take(uint32_t kind, uint32_t what)
@@ -127,6 +133,7 @@ static void song_undo_take(uint32_t kind, uint32_t what)
     if (kind == SU_REROLL) {
         memcpy(sgu.nvar, sg.nvar, sizeof sgu.nvar);
         memcpy(sgu.rvar, sg.rvar, sizeof sgu.rvar);
+        memcpy(sgu.tdens, sg.tdens, sizeof sgu.tdens);
     } else if (kind == SU_SOUND) {
         const track_t *t = &trk[what % NTRK];
         sgu.trk = (uint8_t)(what % NTRK);
@@ -237,6 +244,8 @@ static void song_sweep(track_t *t, uint32_t len, uint32_t id, int32_t lo, int32_
     }
 }
 
+static uint32_t song_tdens_pct(uint32_t x, uint32_t i);
+static uint8_t sg_rdens[NTRK];                          /* 0.19: each track's density as rendered, before its own factor */
 /* part x of the song into the four tracks (their steps, LEN, DIV, SWING, ROOT, SCALE and automation; the sounds stay) */
 static void song_render(uint32_t x)
 {
@@ -267,7 +276,8 @@ static void song_render(uint32_t x)
         motion_clear(t);                                /* (each part its own automation: BREAK's PAD sweep) */
         fg.trk = (uint8_t)i;
         fg.style = (uint8_t)fs_idx();
-        fg.dens = (uint8_t)clamp((int32_t)(own * fs.dens / 100u * m / 100u), 10, 100);
+        sg_rdens[i] = (uint8_t)clamp((int32_t)(own * fs.dens / 100u * m / 100u), 10, 100);   /* (0.19: before the track's own) */
+        fg.dens = (uint8_t)clamp((int32_t)(own * fs.dens / 100u * m / 100u * song_tdens_pct(x, i) / 100u), 10, 100);
         fg.evolve = (uint8_t)(ev > 4u ? 4u : ev);
         fg.nvar = sg.nvar[x][i];
         fg.rvar = sg.rvar[x][i];
@@ -406,6 +416,8 @@ static void song_reset(void)                            /* a new song: its rerol
     memset(sg.rvar, 0, sizeof sg.rvar);
     sg.stage = SG_EDIT;
     sg.pend = 0;
+    sg.intro = 0;                                       /* (0.19: an INTRO set is this song's) */
+    memset(sg.tdens, 0, sizeof sg.tdens);               /* (.. the densities: the song's DEN alone) */
 }
 /* 0.13 (spec v0.4.1 §B2): SONG's punch-in effects, routed through perform.c as FX held routes them: E4..C5 the six
  * of seq.c SG_FX held (no FX button), FX held + F3..B3 the T1..T4 mutes (the choice at the key's down: seq.c kb_fx
@@ -442,6 +454,9 @@ static void song_snd_put(void);
 static void song_fill_stop(void);
 static void song_fill_poll(uint32_t bar);
 static void song_fill_bar(void);
+static void song_x_poll(uint32_t bar);
+static uint32_t song_xon(void);
+static void song_x_stop(void);
 static void song_chain_bars(int32_t s);
 enum { SH_PART = 1, SH_SCENE, SH_TAP };
 static void song_hold_start(uint32_t k, uint32_t kind, uint32_t p);
@@ -540,6 +555,42 @@ static void song_lock(uint32_t i)                       /* black 5..8: T1..T4 lo
     ui_message(b);
     b[2] = 0;
     song_pop(SOV_POP, (sg.lock >> i) & 1u ? "LOCK" : "UNLOCK", b, "", -1, 0);
+}
+/* 0.19 (spec v0.9 §4): a track's own density in a part, D4 + its LOCK key (black 5..8): 1 2 3 round, 2 the song's
+ * DEN alone (70 %, 100 %, 140 % of it); the track rendered again with its variants kept (the same seed: 2 again is the
+ * pattern before). With the rerolls in the undo and the settings (song_remember); 0 and 0xFF read as 2 */
+static uint32_t song_tdens(uint32_t x, uint32_t i)
+{
+    uint32_t d = (sg.tdens[x % SG_N] >> (2u * (i % NTRK))) & 3u;
+    return d ? d : 2u;
+}
+static uint32_t song_tdens_pct(uint32_t x, uint32_t i) { return song_tdens(x, i) == 1u ? 70u : song_tdens(x, i) == 3u ? 140u : 100u; }
+static void song_tdens_tap(uint32_t i)
+{
+    char b[12] = {'T', (char)('1' + i), ' ', 0}, v[4] = "2/3";
+    uint32_t d = song_tdens(sg.part, i) % 3u + 1u;
+    sg.d4_used = 1;
+    if ((sg.lock >> i) & 1u) {
+        str_cpy(b + 3, "LOCKED", sizeof b - 3u);
+        ui_message(b);
+        song_pop(SOV_POP, b, "DENSITY", "", -1, 1);
+        return;
+    }
+    song_undo_take(SU_REROLL, 0x10u | 1u << i);
+    sg.tdens[sg.part] = (uint8_t)((sg.tdens[sg.part] & ~(3u << (2u * i))) | d << (2u * i));
+    song_render(sg.part);
+    sg.dirty |= (uint8_t)(1u << sg.part);
+    sg.flash = (uint8_t)(i + 1u);
+    sg.flash_ms = fm1_ms;
+    str_cpy(b + 3, "DENSITY", sizeof b - 3u);
+    v[0] = (char)('0' + d);
+    song_pop(SOV_POP, b, v, d == 1u ? (sg_rdens[i] <= 10u ? "MIN" : "LOW") :   /* (r2 review: at the clamp already, */
+                            d == 3u ? (sg_rdens[i] >= 100u ? "MAX" : "HIGH") : "AS DEN", -1, 0);   /* nothing changed) */
+    if (sg.stage == SG_WRITTEN) {
+        sg.pend = (uint8_t)(sg.part + 1u);
+        song_say();
+    } else
+        ui_message(b);
 }
 static void song_reroll(void)                           /* C4: the part shown's notes, its tracks not locked */
 {
@@ -765,14 +816,15 @@ static void song_d4_poll(uint32_t on)
     sg.d4 = 0;
     ui.force = 1;
 }
-static void song_scene(uint32_t x, uint32_t store)      /* D5 / E5: recall, FX held: store */
+static void song_scene(uint32_t x, uint32_t store)      /* D5 / E5: recall (0.19: D4 held, a MORPH), FX held: store */
 {
     char b[28] = "SCENE 1 ";
     sg_scene_t *c = &sg_scene[x & 1u];
+    uint32_t morph = !store && song_d4();
     b[6] = (char)('1' + (x & 1u));
     if (store) {
         uint32_t i, k, j;
-        sc_pend = 0;                            /* (the ISR never puts in one being written) */
+        sc_pend = sc_run = 0;                   /* (the ISR never puts in one being written, nor glides to it) */
         c->n = 0;
         for (i = 0; i < NTRK; i++) {
             uint8_t m[4][2];
@@ -808,10 +860,15 @@ static void song_scene(uint32_t x, uint32_t store)      /* D5 / E5: recall, FX h
                 str_cpy(b + str_len(b), n, sizeof b - str_len(b));
                 sg.ov_skip |= (uint8_t)(1u << i);
             }
-        sc_pend = (uint8_t)((x & 1u) + 1u);
+        sc_morph = (uint8_t)morph;              /* (0.19: D4 held, over a bar; a track whose sound differs: skipped, */
+        sc_pend = (uint8_t)((x & 1u) + 1u);     /* its preset never loaded) */
         if (!song.playing)
             sc_apply();                         /* (stopped: no 1/16 to wait for) */
-        song_ov(SOV_SCENE + (x & 1u));
+        if (morph) {
+            sg.d4_used = 1;
+            song_pop(SOV_POP, b, "MORPH", "1 BAR", -1, 0);
+        } else
+            song_ov(SOV_SCENE + (x & 1u));
     }
     ui_message(b);
 }
@@ -1408,13 +1465,14 @@ static void song_poll(void)
     }
     song_hold_poll();
     song_fill_poll(bar);
-    if (bar && sg.chain && !sg.qpart &&
+    if (bar && sg.chain && !sg.qpart && !song_xon() &&     /* (0.19: not through an ENDING or INTRO) */
         ++sg.cbar >= SG_CBARS[sg.cbars[sg.part] % NELEM(SG_CBARS)])   /* (0.16 auto-chain: the next part at the bar) */
         sg.qpart = (uint8_t)((sg.part + 1u) % SG_N + 1u);
     if (bar) {
         song_fill_bar();
         song_evolve_bar();                              /* (0.18) */
     }                                /* (0.17: a bar-end fill's bar begins) */
+    song_x_poll(bar);                                   /* (0.19: BREAK, ENDING, INTRO) */
     if (sg.qpart && (bar || !song.playing) && !sgf.bar) {   /* (0.16: a part at the bar; 0.17: after a fill's bar) */
         uint32_t x = sg.qpart - 1u;
         sg.qpart = 0;
@@ -1539,8 +1597,10 @@ static int song_wkey(uint32_t k)
         return 1;
     }
     if (p == SG_FX_KEY0 + 6u || p == SG_FX_KEY0 + 7u) {   /* D5 / E5: the scenes (0.16: a tap recalls, held stores; */
-        if (song_fx_btn())                                 /* FX held: stored at once) */
+        if (song_fx_btn())                                 /* FX held: stored at once; 0.19: D4 held, a MORPH) */
             song_scene(p - SG_FX_KEY0 - 6u, 1);
+        else if (song_d4())
+            song_scene(p - SG_FX_KEY0 - 6u, 0);
         else
             song_hold_start(k, SH_SCENE, p - SG_FX_KEY0 - 6u);
         return 1;
@@ -1776,6 +1836,12 @@ static void song_snd_ids(void)
 #define sg_last (&favorites.factory[2][8])
 #define sg_last_nvar (&favorites.factory[3][8])
 #define sg_last_rvar (&favorites.factory[4][8])
+#define sg_last_tdens (&favorites.factory[2][24])       /* 0.19: the parts' track densities, 4 bytes (engine 2's favourite
+                                                         * bits of presets 192..223: relies on engine 2 having 192 presets
+                                                         * or fewer, tests/forge_test.c checks); byte 28 SG_TD_MAGIC says
+                                                         * they were written (r2 review: all four at 3 is 0xFF, so neither
+                                                         * 0xFF nor the byte can mean "unwritten"); a 2-bit field of 0: 2 */
+#define SG_TD_MAGIC 0x5Au
 enum { SL_MAGIC, SL_SEED, SL_GENRE, SL_VAR, SL_ROOT, SL_SCALE, SL_BPM0, SL_BPM1, SL_LOCKPART, SL_DENS, SL_EVOL, SL_CB0,
        SL_CB1, SL_FLAGS, SL_DIRTY, SL_OUTKEY, SL_N };   /* (SL_OUTKEY 0.17: the selected track's ROOT | SCALE << 4 as
                                                           * SONG was left; SL_FLAGS bit 3: it is set) */
@@ -1804,11 +1870,14 @@ static void song_remember(void)
                             (song_snd_same() ? 4u : 0u) | 8u);   /* (0.17: sg_ids are this song's; SL_OUTKEY set) */
     h[SL_OUTKEY] = (uint8_t)((TSEL->p[P_ROOT] % 12) | (TSEL->p[P_SCALE] & 15) << 4);
     h[SL_DIRTY] = sg.dirty;
-    for (x = 0; x < SG_N; x++)
+    for (x = 0; x < SG_N; x++) {
         for (i = 0; i < NTRK; i++) {
             sg_last_nvar[x * NTRK + i] = sg.nvar[x][i];
             sg_last_rvar[x * NTRK + i] = sg.rvar[x][i];
         }
+        sg_last_tdens[x] = sg.tdens[x];
+    }
+    sg_last_tdens[SG_N] = SG_TD_MAGIC;
     settings_later();
 }
 /* the last song back into STARTER (open) and SONG (on), as it was left; none kept: the song STARTER has. 1 = restored */
@@ -1836,11 +1905,13 @@ static int song_restore(void)
     }
     song_toggle();                                      /* (SONG on: part A, the rerolls 0) */
     if (ok) {
-        for (x = 0; x < SG_N; x++)
+        for (x = 0; x < SG_N; x++) {
             for (i = 0; i < NTRK; i++) {
                 sg.nvar[x][i] = (uint8_t)(sg_last_nvar[x * NTRK + i] % 100u);
                 sg.rvar[x][i] = (uint8_t)(sg_last_rvar[x * NTRK + i] % 100u);
             }
+            sg.tdens[x] = (uint8_t)(sg_last_tdens[SG_N] == SG_TD_MAGIC ? sg_last_tdens[x] : 0u);   /* (0.19; an old */
+        }                                                                                          /* song: all 2) */
         sg.lock = (uint8_t)(h[SL_LOCKPART] & 0xFu);
         sg.part = (uint8_t)((h[SL_LOCKPART] >> 4) & 3u);
         sg.cbars[0] = (uint8_t)(h[SL_CB0] & 7u);
@@ -2084,18 +2155,152 @@ static void song_fill_bar(void)                         /* at a bar line, after 
         sgf_bar_start();
     }
 }
+/* 0.19 (spec v0.9 §1 §2): BREAK, ENDING and INTRO. BREAK (D4 + C#5, playing): at the next bar line T1..T3 muted the
+ * PERFORM way (perform.c sg_bmask, its ramps) and a bar fill on T4; at the bar line after, all back with a crash.
+ * ENDING (D4 + D#5, playing): from the next bar line two bars, the first T3 out and the FILTER macro closing over it,
+ * the second T2 out too with a CRASH END fill; at the bar line after, the crash on T4's first step and the transport
+ * stopped a 1/16 later (a hit never ends: the crash rings), the macro back: "ENDING DONE". INTRO (D4 + D#5, stopped):
+ * PLAY starts with T4 and T1 alone for two bars, a fill ends the second, the crash on the third's first step. No drum
+ * on T4 (or T4 muted): the ending's and the intro's fills and crash are skipped, the mutes and the stop stay. A BREAK
+ * while an ENDING or INTRO is armed or runs: refused; an ENDING armed drops a BREAK. None of them saved or undone */
+static uint32_t song_xmask(void)                        /* the tracks the three mute now (bit i: T(i+1)) */
+{
+    uint32_t m = sg.bbar ? 7u : 0u;
+    m |= sg.endg == 2u ? 4u : sg.endg >= 3u ? 6u : 0u;
+    m |= sg.intro >= 2u ? 6u : 0u;
+    return m;
+}
+static void song_xsync(void) { sg_bmask = (uint8_t)song_xmask(); }
+static void song_x_stop(void)                           /* leaving SONG, stopped: nothing armed, nothing runs */
+{
+    if (sg.endg >= 2u)
+        perf_k[0] = sg.ek0;                             /* (the macro as before the sweep) */
+    sg.brk = sg.bbar = sg.endg = 0;
+    if (sg.intro >= 2u)
+        sg.intro = 0;
+    song_xsync();
+}
+static uint32_t song_xon(void) { return sg.endg || sg.intro >= 2u; }   /* (an ENDING armed or on, an INTRO on) */
+static void song_break_tap(void)                        /* D4 + C#5 */
+{
+    const char *r;
+    sg.d4_used = 1;
+    if (sg.brk) {
+        sg.brk = 0;
+        song_pop(SOV_POP, "BREAK", "OFF", "", -1, 0);
+        return;
+    }
+    if ((r = song_fill_no()) == 0 && song_xon())
+        r = sg.endg ? "ENDING ON" : "INTRO ON";
+    if (r) {
+        song_pop(SOV_POP, "BREAK", r, "", -1, 1);
+        ui_message(r);
+        return;
+    }
+    sg.brk = 1;
+    {
+        char b[12] = "@ PART A";
+        b[7] = (char)('A' + (sg.qpart ? sg.qpart - 1u : 0u));
+        song_pop(SOV_POP, "BREAK", sg.qpart ? b : "@ NEXT BAR", "", -1, 0);
+    }
+}
+static void song_xtap(void)                             /* D4 + D#5: playing ENDING, stopped INTRO (again: off) */
+{
+    sg.d4_used = 1;
+    if (song.playing) {
+        if (sg.endg) {
+            song_x_stop();                              /* (armed or on: off, the mutes back) */
+            song_pop(SOV_POP, "ENDING", "OFF", "", -1, 0);
+            return;
+        }
+        sg.brk = 0;                                     /* (a BREAK armed: dropped) */
+        sg.endg = 1;
+        song_pop(SOV_POP, "ENDING", "2 BARS", "@ NEXT BAR", -1, 0);
+        return;
+    }
+    sg.intro = (uint8_t)(sg.intro == 1u ? 0u : 1u);
+    song_pop(SOV_POP, "INTRO", sg.intro ? "2 BARS" : "OFF", sg.intro ? "PRESS PLAY" : "", -1, 0);
+}
+static void song_xfill(uint32_t crash)                  /* a bar fill (CRASH END when asked), none without a drum */
+{
+    if (song_fill_no())
+        return;
+    sg.farm = 0;
+    song_fill_set(++sg.fbars);
+    if (crash)
+        sgf.type = FILL_CRASH;
+    sgf_bar_start();
+}
+static void song_x_poll(uint32_t bar)                   /* song_poll: after the fill's and the chain's bar work */
+{
+    uint32_t started = song.playing && !sg.wasplay;
+    sg.wasplay = (uint8_t)song.playing;
+    if (!song.playing) {
+        if (sg.endg == 4u) {                            /* (its own stop) */
+            sg.endg = 0;
+            perf_k[0] = sg.ek0;
+            song_pop(SOV_POP, "ENDING", "DONE", "", -1, 0);
+        }
+        song_x_stop();
+        return;
+    }
+    if (started && sg.intro == 1u)
+        sg.intro = 2;
+    if (sg.endg == 2u)                                  /* (the first bar: the FILTER macro closing, a 1/16 a step) */
+        perf_k[0] = (int8_t)(sg.ek0 + (-100 - (int32_t)sg.ek0) * (int32_t)(clk_step + 1u) / 16);
+    if (sg.endg == 4u && clk_step >= 1u && clk_step < 8u) {   /* (the crash played on step 1: stop) */
+        transport_req = 2;
+        return;
+    }
+    if (bar) {
+        if (sg.bbar) {                                  /* (the break's bar done: all back, the crash) */
+            sg.bbar = 0;
+            if (!song_fill_no())
+                sgf_crash_start();
+        } else if (sg.brk) {
+            sg.brk = 0;
+            sg.bbar = 1;
+            song_xfill(0);
+        }
+        if (sg.endg == 1u) {
+            sg.endg = 2;
+            sg.intro = 0;                               /* (an intro still on: cut) */
+            sg.ek0 = perf_k[0];
+            song_pop(SOV_POP, "ENDING", "BAR 1/2", "", -1, 0);
+        } else if (sg.endg == 2u) {
+            sg.endg = 3;
+            perf_k[0] = -100;
+            song_xfill(1);
+            song_pop(SOV_POP, "ENDING", "BAR 2/2", "", -1, 0);
+        } else if (sg.endg == 3u) {
+            sg.endg = 4;
+            if (!song_fill_no())
+                sgf_crash_start();
+        }
+        if (sg.intro == 2u) {
+            sg.intro = 3;
+            song_xfill(0);
+        } else if (sg.intro == 3u) {
+            sg.intro = 0;
+            sg.cbar = 0;                                /* (CHAIN counts from here) */
+            if (!song_fill_no())
+                sgf_crash_start();
+        }
+    }
+    song_xsync();
+}
 /* 0.18: HELP. FX + D4 tapped turns it on (and off): each key then says in the box what it does (alone, with D4 and
  * FX held) instead of doing it; the effect keys and mutes too (layer_masks: no key mask). Leaving SONG ends it */
 static const char *const HELP_W[16][2] = {
     {"FOCUS T1", "D4 REROLL  FX MUTE"}, {"FOCUS T2", "D4 REROLL  FX MUTE"}, {"FOCUS T3", "D4 REROLL  FX MUTE"},
     {"FOCUS T4", "D4 REROLL  FX MUTE"}, {"NEW NOTES", "D4 + C4: FILL"}, {"ALT / MIXER", "HELD: K1-K4 LEVELS"},
     {0, "HOLD: THE EFFECT"}, {0, "HOLD: THE EFFECT"}, {0, "HOLD: THE EFFECT"}, {0, "HOLD: THE EFFECT"},
-    {0, "HOLD: THE EFFECT"}, {0, "HOLD: THE EFFECT"}, {"SCENE 1", "HOLD: STORE"}, {"SCENE 2", "HOLD: STORE"},
+    {0, "HOLD: THE EFFECT"}, {0, "HOLD: THE EFFECT"}, {"SCENE 1", "HOLD STORE D4 MORPH"}, {"SCENE 2", "HOLD STORE D4 MORPH"},
     {"TAP TEMPO", "HOLD CLICK FX EVOLVE"}, {"STARTER", "KEEP IT AND EXIT"}};
 static const char *const HELP_B[11][2] = {
     {"PART A", "HOLD FAV  D4 LOAD"}, {"PART B", "HOLD FAV  D4 LOAD"}, {"PART C", "HOLD FAV  D4 LOAD"},
-    {"PART D", "HOLD FAV  D4 LOAD"}, {"LOCK T1", "NOTES KEPT"}, {"LOCK T2", "NOTES KEPT"}, {"LOCK T3", "NOTES KEPT"},
-    {"LOCK T4", "BEAT KEPT"}, {"CLEAR", "EVERY EFFECT OFF"}, {"DUCK", "ON / OFF"}, {"SONG OFF", "D4 + F#5: CHAIN"}};
+    {"PART D", "HOLD FAV  D4 LOAD"}, {"LOCK T1", "KEPT, D4: DENSITY"}, {"LOCK T2", "KEPT, D4: DENSITY"}, {"LOCK T3", "KEPT, D4: DENSITY"},
+    {"LOCK T4", "KEPT, D4: DENSITY"}, {"CLEAR", "D4: BREAK 1 BAR"}, {"DUCK", "D4: ENDING / INTRO"}, {"SONG OFF", "D4 + F#5: CHAIN"}};
 static void song_help_toggle(void)
 {
     sg.help = (uint8_t)!sg.help;
@@ -2223,6 +2428,10 @@ static void song_led(uint32_t p, uint32_t *on, uint32_t *can)
     uint32_t fast = (fm1_ms / 125u) & 1u, slow = (fm1_ms / 400u) & 1u;
     *on = (p < SG_N && p == sg.part) || (p >= 4u && p < 8u && ((sg.lock >> (p - 4u)) & 1u)) || p == 10u ||
           (p == 9u && (perf_latched & PF_BIT(PF_DUCK)));
+    if (p == 8u && (sg.brk || sg.bbar))                 /* (0.19: C#5 a BREAK armed blinks, its bar lit; D#5 the */
+        *on = sg.brk ? fast : 1u;                       /* same for an ENDING or INTRO) */
+    if (p == 9u && (sg.endg || sg.intro))
+        *on = sg.endg == 1u || sg.intro == 1u ? fast : 1u;
     if (p < SG_N && sg.qpart == p + 1u)
         *on = fast;                                     /* (0.18: the part waiting for the bar line blinks) */
     else if (p < SG_N && sg.chain && !sg.qpart && p == (sg.part + 1u) % SG_N && p != sg.part)
@@ -2255,6 +2464,8 @@ static void song_off(void)
         song_remember();                                /* (0.16: the last song, for SEQ held and BOOT = SONG) */
     }
     sg.qpart = sg.hk = sg.octpend = sg.help = 0;
+    song_x_stop();                                      /* (0.19: a BREAK, ENDING or INTRO) */
+    sg.intro = 0;
     song_fill_stop();                                   /* (0.17: an armed or playing FILL; spec v0.4.1: leaving SONG
                                                          * turns its effects off) */
     perf_song = 0;
@@ -2323,10 +2534,15 @@ static void song_undo(void)
     if (sgu.kind == SU_REROLL) {
         memcpy(sg.nvar, sgu.nvar, sizeof sg.nvar);
         memcpy(sg.rvar, sgu.rvar, sizeof sg.rvar);
+        memcpy(sg.tdens, sgu.tdens, sizeof sg.tdens);
         song_render(sg.part);
         if (sgu.what == 0xFu)
             str_cpy(b, "NOTES", sizeof b);
-        else {
+        else if (sgu.what & 0x10u) {
+            b[0] = 'T';
+            b[1] = (char)('1' + (__builtin_ctz(sgu.what) & 3));
+            str_cpy(b + 2, " DENSITY", sizeof b - 2u);
+        } else {
             b[0] = 'T';
             b[1] = (char)('1' + (__builtin_ctz(sgu.what) & 3));
             str_cpy(b + 2, " REROLL", sizeof b - 2u);

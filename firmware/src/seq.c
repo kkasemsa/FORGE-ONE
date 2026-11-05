@@ -882,20 +882,39 @@ static void pq_apply(void)
 static void sc_apply(void)
 {
     const sg_scene_t *c;
-    uint32_t i;
-    if (!sc_pend)
+    uint32_t i, at = 16;
+    if (sc_pend) {
+        c = &sg_scene[(sc_pend - 1u) & 1u];
+        if (sc_morph && song.playing) {                 /* (0.19 MORPH: from here, a 1/16 a step; stopped: at once) */
+            for (i = 0; i < c->n && i < SC_MAX; i++)
+                sc_from[i] = trk[c->trk[i] % NTRK].p[c->id[i] % P_COUNT];
+            sc_run = sc_pend;
+            sc_at = 0;
+            sc_pend = 0;
+            return;
+        }
+        sc_run = 0;
+        sc_pend = 0;
+    } else if (sc_run) {
+        c = &sg_scene[(sc_run - 1u) & 1u];
+        at = song.playing ? sc_at + 1u : 16u;           /* (the stop: the scene reached) */
+        sc_at = (uint8_t)at;
+        if (at >= 16u)
+            sc_run = 0;
+    } else
         return;
-    c = &sg_scene[(sc_pend - 1u) & 1u];
     for (i = 0; i < c->n && i < SC_MAX; i++) {
         track_t *t = &trk[c->trk[i] % NTRK];
         uint32_t id = c->id[i] % P_COUNT;
         const param_desc_t *d;
+        int32_t v = c->v[i];
         if (sc_differs(c, c->trk[i]))
             continue;
+        if (at < 16u)
+            v = sc_from[i] + (v - sc_from[i]) * (int32_t)at / 16;
         d = param_desc_of(eng_idx(t->eng_req), id);
-        t->p[id] = (int16_t)clamp(c->v[i], d->min, d->max);
+        t->p[id] = (int16_t)clamp(v, d->min, d->max);
     }
-    sc_pend = 0;
 }
 
 static void seq_stop(void)
@@ -1586,8 +1605,9 @@ static void events_block(uint32_t n)
     if (pq_pend && song.playing &&                    /* FORGE ONE 0.7 PERFORM QUANT: at the bar, before its first */
         (clk_pos == CLK_START || (clk_step == 15u && clk_pos + seq_n >= div_samples(2))))     /* step plays */
         pq_apply();
-    if (sc_pend && song.playing && (clk_pos == CLK_START || clk_pos + seq_n >= div_samples(2)))
-        sc_apply();                                 /* (0.14 SONG: a scene at the next 1/16, before its step plays) */
+    if ((sc_pend || sc_run) && song.playing && (clk_pos == CLK_START || clk_pos + seq_n >= div_samples(2)))
+        sc_apply();                                 /* (0.14 SONG: a scene at the next 1/16, before its step plays;
+                                                     * 0.19: a morph's step) */
     sgf_adv = seq_n;                                    /* (FORGE ONE 0.17: the fill's place in the bar) */
     for (i = 0; i < NTRK; i++)
         seq_tick(&trk[i], seq_n);

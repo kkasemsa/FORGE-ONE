@@ -778,7 +778,7 @@ enum { S_HOME, S_HOME_IDLE, S_MESSAGE, S_MESSAGE_KEY, S_MESSAGE_NOFILE, S_PRESET
        S_DETAIL_COND, S_DETAIL_FILL, S_AUTO_COND, S_GLO_FILL, S_SEQ_EUCLID, S_SEQ_EUCLID_DRUM, S_SEQ_EUCLID_64,
        S_MENU_SELECT, S_PROJECT_ERASE, S_CONFIRM_ERASE_PROJ, S_TOOLS_CLEAN, S_CONFIRM_CLEAN,
        S_MENU_MIDI_TRACK, S_MENU_MIDI_TCH_UNUSED, S_MENU_MIDI_AUTO, S_HOME_TRACKS_MIDI, S_MIXER_MIDI, S_EDIT_PHASE_FOLD,
-       S_SEQ_FORGE, S_SEQ_FORGE_DUB, S_SEQ_FORGE_AMBIENT, S_SEQ_FORGE_64, S_SEQ_FORGE_DRUM, S_SEQ_FORGE_DRUM_64, S_SEQ_STARTER, S_SEQ_STARTER_AMBIENT, S_PERFORM, S_PERFORM_FX, S_SEQ_SONG, S_SEQ_SONG_CONFIRM, S_SEQ_SONG_SAVE, S_SEQ_SONG_FOCUS, S_SEQ_SONG_FOCUS_DRUM, S_SEQ_SONG_OV_TEMPO, S_SEQ_SONG_OV_KEY, S_SEQ_SONG_OV_PRESET, S_SEQ_SONG_OV_SCENE, S_SEQ_SONG_OV_FAV, S_SEQ_SONG_PLAY, S_SEQ_SONG_MIX, S_SEQ_SONG_POP_KNOB, S_SEQ_SONG_POP_PART, S_SEQ_SONG_POP_RED, S_SEQ_SONG_CLICK, S_SEQ_SONG_FILL, S_SEQ_SONG_KIT, S_SEQ_SONG_CAT, S_SEQ_SONG_HELP, S_SEQ_SONG_EVO, S_COUNT };
+       S_SEQ_FORGE, S_SEQ_FORGE_DUB, S_SEQ_FORGE_AMBIENT, S_SEQ_FORGE_64, S_SEQ_FORGE_DRUM, S_SEQ_FORGE_DRUM_64, S_SEQ_STARTER, S_SEQ_STARTER_AMBIENT, S_PERFORM, S_PERFORM_FX, S_SEQ_SONG, S_SEQ_SONG_CONFIRM, S_SEQ_SONG_SAVE, S_SEQ_SONG_FOCUS, S_SEQ_SONG_FOCUS_DRUM, S_SEQ_SONG_OV_TEMPO, S_SEQ_SONG_OV_KEY, S_SEQ_SONG_OV_PRESET, S_SEQ_SONG_OV_SCENE, S_SEQ_SONG_OV_FAV, S_SEQ_SONG_PLAY, S_SEQ_SONG_MIX, S_SEQ_SONG_POP_KNOB, S_SEQ_SONG_POP_PART, S_SEQ_SONG_POP_RED, S_SEQ_SONG_CLICK, S_SEQ_SONG_FILL, S_SEQ_SONG_KIT, S_SEQ_SONG_CAT, S_SEQ_SONG_HELP, S_SEQ_SONG_EVO, S_SEQ_SONG_ENDING, S_SEQ_SONG_DENS, S_COUNT };
 static const char *const S_NAME[S_COUNT] = {"home", "home_idle", "message", "message_key", "message_nofile", "presets", "presets_nofav", "user",
     "phrases", "project", "tools", "song_empty", "song", "step", "auto_steps", "auto_add_chance", "automation", "drum",
     "drum_hand", "drum_cym", "mixer", "mixer_from_home", "mixer_pan", "env", "env_dest", "lfo", "mod", "fx", "slicer", "dly", "scl", "chord", "chord_wide", "chord_off", "chord_kit", "arp",
@@ -812,7 +812,7 @@ static const char *const S_NAME[S_COUNT] = {"home", "home_idle", "message", "mes
     "menu_midi_track", "menu_midi_channels_unused", "menu_midi_auto_select", "home_tracks_midi", "mixer_midi", "edit_phase_fold",
     "layer_seq_forge", "layer_seq_forge_dub", "layer_seq_forge_ambient", "layer_seq_forge_64", "layer_seq_forge_drum",
     "layer_seq_forge_drum_64", "layer_seq_starter", "layer_seq_starter_ambient", "layer_perform", "layer_perform_fx", "layer_seq_song",
-    "layer_seq_song_confirm", "layer_seq_song_save", "layer_seq_song_focus", "layer_seq_song_focus_drum", "song_ov_tempo", "song_ov_key", "song_ov_preset", "song_ov_scene", "song_ov_fav", "song_play", "song_mix", "song_pop_knob", "song_pop_part", "song_pop_red", "song_click", "song_fill", "song_kit", "song_cat", "song_help", "song_evo"};
+    "layer_seq_song_confirm", "layer_seq_song_save", "layer_seq_song_focus", "layer_seq_song_focus_drum", "song_ov_tempo", "song_ov_key", "song_ov_preset", "song_ov_scene", "song_ov_fav", "song_play", "song_mix", "song_pop_knob", "song_pop_part", "song_pop_red", "song_click", "song_fill", "song_kit", "song_cat", "song_help", "song_evo", "song_ending", "song_dens"};
 
 /* the STEP page's piano roll (ui_graph.c graph_roll) on track 1, stopped unless said: an empty pattern; ACID in
  * A minor; POLY chords (Am7 F C G, tied); a line with ties, slides and accents in C major; LEN 32 on its second
@@ -1576,7 +1576,7 @@ static void setup(int s)
     case S_SEQ_SONG: case S_SEQ_SONG_CONFIRM: case S_SEQ_SONG_SAVE: case S_SEQ_SONG_FOCUS: case S_SEQ_SONG_FOCUS_DRUM:
     case S_SEQ_SONG_OV_TEMPO: case S_SEQ_SONG_OV_KEY: case S_SEQ_SONG_OV_PRESET: case S_SEQ_SONG_OV_SCENE: case S_SEQ_SONG_OV_FAV:
     case S_SEQ_SONG_PLAY: case S_SEQ_SONG_MIX: case S_SEQ_SONG_POP_KNOB: case S_SEQ_SONG_POP_PART: case S_SEQ_SONG_POP_RED:
-    case S_SEQ_SONG_CLICK: case S_SEQ_SONG_FILL: case S_SEQ_SONG_KIT: case S_SEQ_SONG_CAT: case S_SEQ_SONG_HELP: case S_SEQ_SONG_EVO:
+    case S_SEQ_SONG_CLICK: case S_SEQ_SONG_FILL: case S_SEQ_SONG_KIT: case S_SEQ_SONG_CAT: case S_SEQ_SONG_HELP: case S_SEQ_SONG_EVO: case S_SEQ_SONG_ENDING: case S_SEQ_SONG_DENS:
         /* 0.13 SONG: SYNTHWAVE 42 part B, T3 locked
                                                    * (HELP ON); the confirm, slots A and C named, B and D empty; TRANCE
                                                    * 99 written, part D (BREAK), SAVE D? asked */
@@ -1616,6 +1616,9 @@ static void setup(int s)
         /* 0.18: HELP (C4 said), AUTO EVOLVE and a new starter on K4 */
         if (s == S_SEQ_SONG_HELP) { sg.help = 1; song_help_key(key_at(0, 4)); }
         if (s == S_SEQ_SONG_EVO) { sg.evolve = 1; sg.click = 1; song_knob(3, 1); }
+        /* 0.19 (spec v0.9): an ENDING's box in its first bar; HELP on a LOCK key (the longest note) */
+        if (s == S_SEQ_SONG_ENDING) { song.playing = 1; sg.endg = 2; song_pop(SOV_POP, "ENDING", "BAR 1/2", "", -1, 0); }
+        if (s == S_SEQ_SONG_DENS) { sg.help = 1; song_help_key(key_at(1, 5)); }
         if (s == S_SEQ_SONG_FILL) { song.playing = 1; sgf.type = FILL_TOMS; song_pop(SOV_POP, "FILL", FILL_N[FILL_TOMS], "", -1, 0); }
         if (s == S_SEQ_SONG_KIT) { song.playing = 1; sg.focus = 4; sg.ppend = 4; sg.pdrum = 1; sg.pcat = CAT_DRUM; sg.pjump = 0; sg.pkind = SR_KIT; sg.pe = 0; sg.pk = 12; sg.pms = fm1_ms; song_ov(SOV_PRESET); }
         if (s == S_SEQ_SONG_CAT) { sg.focus = 2; sg.ppend = 2; sg.pdrum = 0; sg.pcat = CAT_PAD; sg.pjump = 1; { sref_t r; uint32_t g; sg_list(0, CAT_PAD, 0, &r, &g); sg.pkind = r.kind; sg.pe = r.e; sg.pk = r.k; } sg.pms = fm1_ms; song_ov(SOV_PRESET); }

@@ -3609,9 +3609,479 @@ static int test_song_v09(void)
     return bad;
 }
 
+/* 0.19 (spec v0.9): BREAK, ENDING, INTRO (tests 129-139 and the r2 additions), MORPH (140-143), DENSITY (144-149) */
+static uint32_t sg_to_bar(void)                         /* the next bar line (song_poll's), 1 when it came */
+{
+    uint32_t n, was = sg.barhit;
+    for (n = 0; n < 60000u; n++) {
+        pm_blocks(1);
+        if (n % 22u == 21u) { frame(); if (sg.barhit && !was) return 1; was = sg.barhit; }
+    }
+    return 0;
+}
+static uint32_t sg_mutes(void)                          /* the ISR's mutes now (bit i: T(i+1)), after a block */
+{
+    pm_blocks(2);
+    return (perf_act >> PF_M1) & 15u;
+}
+static uint32_t sg_crash_seen(void)                     /* T4's first step of the bar: a crash (49, or the open hat) */
+{
+    uint32_t n, idx, nn_n, j, c = 0;
+    uint8_t nn[12];
+    for (n = 0; n < 40u && sgf.crash; n++) {
+        nn_n = sg_next_t4(&idx, nn);
+        if (!sgf.crash)
+            for (j = 0; j < nn_n; j++) c += nn[j] == ((fill_kit(&trk[3]) & FILL_HAS_CYM) ? 49u : 46u);
+    }
+    return c;
+}
+static int test_song_v10(void)
+{
+    int bad = 0, ok;
+    uint32_t m, n;
+    sg_close();
+    sg_open((uint32_t)sg_genre("TRANCE"), 42);
+    fx_latch &= ~1u; perf_latch_on = 0;
+    btn_up(B_SEQ); frame();
+    /* 129. BREAK: armed at D4 + C#5, C#5 blinks; at the bar line T1-T3 muted and a fill on T4; the bar after: all back,
+     * a crash on T4's first step */
+    sg_play();
+    sg_to_step(3);
+    sg_d4_black(8, 0);
+    ok = sg.brk && sg_popped("BREAK", "@ NEXT BAR") && !sg.bbar;
+    { uint32_t on, can; song_led(8, &on, &can); ok &= can; }
+    ok &= sg_to_bar();
+    ok &= !sg.brk && sg.bbar && sg_mutes() == 7u && sgf.bar && seq_fill;
+    { uint32_t on, can; song_led(8, &on, &can); ok &= on; }
+    ok &= sg_to_bar();
+    ok &= !sg.bbar && sgf.crash && !sgf.bar;
+    ok &= sg_crash_seen() == 1u && sg_mutes() == 0u && !sg_bmask;
+    if (!ok) printf("    break: brk %u bbar %u mutes %x bar %u crash %u\n", sg.brk, sg.bbar, (unsigned)sg_mutes(), sgf.bar, sgf.crash);
+    bad += check("  129. BREAK (D4 + C#5): at the bar T1-T3 out and a fill; the bar after all back with a crash", ok);
+    /* 130. twice: BREAK OFF, nothing at the bar */
+    sg_d4_black(8, 0);
+    sg_d4_black(8, 0);
+    ok = !sg.brk && sg_popped("BREAK", "OFF");
+    ok &= sg_to_bar() && !sg.bbar && sg_mutes() == 0u;
+    bad += check("  130. D4 + C#5 twice: BREAK OFF, nothing at the bar", ok);
+    /* 131. a part queued: the break is A's last bar, B starts after it with the crash */
+    sg_to_step(2);
+    sg_tap(1);
+    sg_d4_black(8, 0);
+    ok = sg.qpart == 2u && sg_popped("BREAK", "@ PART B");
+    ok &= sg_to_bar() && sg.bbar && sg.part == SG_A && sg.qpart == 2u;
+    ok &= sg_to_bar() && !sg.bbar && sg.part == SG_B && !sg.qpart && sgf.crash;
+    ok &= sg_crash_seen() == 1u;
+    if (!ok) printf("    break + part: part %u qpart %u bbar %u\n", sg.part, sg.qpart, sg.bbar);
+    bad += check("  131. a part queued: the break is the old part's last bar, the new one starts after it, with the crash", ok);
+    /* 132. refused: stopped PLAY FIRST; at the confirm ANSWER FIRST; T4 muted by FX: T4 MUTED */
+    sg_stop();
+    sg_d4_black(8, 0);
+    ok = !sg.brk && sg_popped("BREAK", "PLAY FIRST") && sg_pop.red;
+    sg_play();
+    btn_down(B_FX); frame(); key_down(white(3)); frame();   /* (FX + B3: T4 muted while held) */
+    sg_d4_black(8, 0);
+    ok &= !sg.brk && sg_popped("BREAK", "T4 MUTED") && sg_pop.red;
+    key_up(white(3)); frame(); btn_up(B_FX); frame();
+    sg_stop();
+    oct_fwd();
+    ok &= sg.stage == SG_CONFIRM;
+    sg_d4_black(8, 0);
+    ok &= !sg.brk && msg_is("ANSWER FIRST") && sg.stage == SG_CONFIRM;
+    sg_d4_black(9, 0);
+    ok &= !sg.endg && !sg.intro && msg_is("ANSWER FIRST") && sg.stage == SG_CONFIRM;
+    sg_back();                                          /* (SONG CANCELLED: open again) */
+    sg_close();
+    sg_open((uint32_t)sg_genre("TRANCE"), 42);
+    btn_up(B_SEQ); frame();
+    sg_play();
+    bad += check("  132. refused: PLAY FIRST, ANSWER FIRST, T4 MUTED (nothing armed)", ok);
+    /* 133. armed then SONG left: nothing; STOP during the break's bar: the mutes off at once */
+    sg_to_step(2);
+    sg_d4_black(8, 0);
+    ok = sg.brk;
+    sg_leave();
+    ok &= !sg.on && !sg.brk && !sg_bmask;
+    sg_run_ms(3000);
+    ok &= sg_mutes() == 0u;
+    sg_hold_in();
+    ok &= sg.on && song.playing;
+    sg_to_step(2);
+    sg_d4_black(8, 0);
+    ok &= sg_to_bar() && sg.bbar && sg_mutes() == 7u;
+    sg_stop();
+    ok &= !sg.bbar && !sg_bmask && sg_mutes() == 0u;
+    bad += check("  133. armed, SONG left: nothing; STOP in the break's bar: the mutes off at once", ok);
+    /* 134. C#5 alone: CLEAR as before; HELP says BREAK */
+    sg_play();
+    sg_tap(8);
+    ok = msg_is("CLEAR: ALL OFF") && !sg.brk;
+    btn_down(B_FX); frame(); sg_wtap(TL_COOK); btn_up(B_FX); frame();
+    ok &= sg.help;
+    sg_tap(8);
+    ok &= sg_popped("C#5", "CLEAR") && str_eq(sg_pop.note, "D4: BREAK 1 BAR") && !sg.brk;
+    sg_tap(9);
+    ok &= sg_popped("D#5", "DUCK") && str_eq(sg_pop.note, "D4: ENDING / INTRO") && !sg.endg;
+    btn_down(B_FX); frame(); sg_wtap(TL_COOK); btn_up(B_FX); frame();
+    ok &= !sg.help;
+    bad += check("  134. C#5 alone still CLEAR; HELP: C#5 and D#5 say BREAK / ENDING", ok);
+    /* 135. ENDING: bar 1 T3 out and the FILTER closing, bar 2 T2 out and a CRASH END fill, then the crash on T4's first
+     * step and the stop a 1/16 later; the macro back; ENDING DONE */
+    sg_to_step(2);
+    perf_k[0] = 0;
+    sg_d4_black(9, 0);
+    ok = sg.endg == 1u && sg_popped("ENDING", "2 BARS") && str_eq(sg_pop.note, "@ NEXT BAR");
+    ok &= sg_to_bar() && sg.endg == 2u && sg_mutes() == 4u && sg_popped("ENDING", "BAR 1/2");
+    sg_to_step(8);
+    ok &= perf_k[0] < -30 && perf_k[0] > -100;
+    ok &= sg_to_bar() && sg.endg == 3u && sg_mutes() == 6u && sgf.bar && sgf.type == FILL_CRASH && perf_k[0] == -100 &&
+          sg_popped("ENDING", "BAR 2/2");
+    ok &= sg_to_bar() && sg.endg == 4u && sgf.crash && song.playing;
+    m = sg_crash_seen();
+    sg_run_ms(600);
+    ok &= m == 1u && !song.playing && !sg.endg && perf_k[0] == 0 && !sg_bmask && sg_mutes() == 0u && sg_popped("ENDING", "DONE");
+    if (!ok) printf("    ending: endg %u playing %u k0 %d crash %u mutes %x\n", sg.endg, song.playing, perf_k[0], (unsigned)m, (unsigned)sg_mutes());
+    bad += check("  135. ENDING (D4 + D#5 playing): two bars thinning, the crash, the stop a 1/16 after, DONE", ok);
+    /* 136. again: ENDING OFF, the song goes on; a BREAK armed is dropped by ENDING */
+    sg_play();
+    sg_to_step(2);
+    sg_d4_black(8, 0);
+    sg_d4_black(9, 0);
+    ok = sg.endg == 1u && !sg.brk;
+    sg_d4_black(9, 0);
+    ok &= !sg.endg && sg_popped("ENDING", "OFF");
+    ok &= sg_to_bar() && sg_to_bar() && sg_to_bar() && song.playing && sg_mutes() == 0u;
+    bad += check("  136. ENDING twice: OFF, the song goes on; it drops a BREAK armed", ok);
+    /* 137. CHAIN on (1 bar a part): no part change through the ending; after its stop PLAY starts the part shown */
+    {
+        uint32_t x;
+        sg.chain = 1; sg.cbar = 0;
+        for (x = 0; x < SG_N; x++) sg.cbars[x] = 0;    /* (SG_CBARS[0]: a bar) */
+        ok = sg_to_bar() && sg_to_bar();
+        x = sg.part;
+        sg_to_step(2);
+        sg_d4_black(9, 0);
+        ok &= sg_to_bar() && sg_to_bar() && sg_to_bar() && sg.part == x && !sg.qpart;
+        sg_run_ms(600);
+        ok &= !song.playing && sg.part == x;
+        sg_play();
+        ok &= song.playing && sg.part == x;
+        sg_stop();
+        sg.chain = 0;
+        for (x = 0; x < SG_N; x++) sg.cbars[x] = SG_CBAR_DEF;
+    }
+    bad += check("  137. CHAIN on: no part change through an ENDING; PLAY after it starts the part shown", ok);
+    /* 138. INTRO: set stopped; PLAY: T2 T3 out two bars, a fill ends the second, the crash, all in, CHAIN from there */
+    sg_d4_black(9, 0);
+    ok = sg.intro == 1u && sg_popped("INTRO", "2 BARS") && str_eq(sg_pop.note, "PRESS PLAY") && !sg.endg;
+    sg_play();
+    ok &= sg.intro == 2u && sg_mutes() == 6u;
+    ok &= sg_to_bar() && sg.intro == 3u && sgf.bar && sg_mutes() == 6u;
+    ok &= sg_to_bar() && !sg.intro && sgf.crash && !sg.cbar;
+    ok &= sg_crash_seen() == 1u && sg_mutes() == 0u && song.playing;
+    if (!ok) printf("    intro: %u mutes %x\n", sg.intro, (unsigned)sg_mutes());
+    bad += check("  138. INTRO (D4 + D#5 stopped): PLAY with T4 and T1 alone for two bars, a fill, the crash, all in", ok);
+    /* 139. INTRO set then twice: off; set then SONG left: off; set then another song: off */
+    sg_stop();
+    sg_d4_black(9, 0); sg_d4_black(9, 0);
+    ok = !sg.intro && sg_popped("INTRO", "OFF");
+    sg_d4_black(9, 0);
+    sg_leave();
+    ok &= !sg.intro;
+    sg_hold_in();
+    sg_d4_black(9, 0);
+    ok &= sg.intro == 1u;
+    kt(EN_K1, 1);
+    ok &= !sg.intro;
+    sg_play();
+    ok &= sg_mutes() == 0u;
+    sg_stop();
+    bad += check("  139. INTRO twice off; SONG left or another song: off, PLAY normal", ok);
+    /* r2. BREAK during an ENDING or INTRO: refused red; INTRO on T4 with no drum: the mutes, no fill, no crash */
+    sg_play();
+    sg_to_step(2);
+    sg_d4_black(9, 0);
+    sg_d4_black(8, 0);
+    ok = sg.endg == 1u && !sg.brk && sg_popped("BREAK", "ENDING ON") && sg_pop.red;
+    ok &= sg_to_bar() && sg.endg == 2u;
+    sg_d4_black(8, 0);
+    ok &= !sg.brk && sg_popped("BREAK", "ENDING ON");
+    sg_d4_black(9, 0);
+    ok &= !sg.endg && song.playing;
+    sg_stop();
+    sg_d4_black(9, 0);
+    sg_play();
+    ok &= sg.intro == 2u;
+    sg_d4_black(8, 0);
+    ok &= !sg.brk && sg_popped("BREAK", "INTRO ON");
+    sg_to_bar(); sg_to_bar();
+    ok &= !sg.intro;
+    sg_stop();
+    {
+        uint8_t e4 = trk[3].eng_req;
+        set_engine_of(&trk[3], 0);                      /* (T4 on ANALOG: no drum) */
+        ok &= !drum_track(&trk[3]);
+        sg_d4_black(9, 0);
+        sg_play();
+        ok &= sg.intro == 2u && sg_mutes() == 6u;
+        ok &= sg_to_bar() && sg.intro == 3u && !sgf.bar && !sgf.live;
+        ok &= sg_to_bar() && !sg.intro && !sgf.crash && sg_mutes() == 0u;
+        sg_to_step(2);
+        sg_d4_black(9, 0);
+        ok &= sg_to_bar() && sg_to_bar() && sg.endg == 3u && !sgf.bar;
+        ok &= sg_to_bar() && sg.endg == 4u && !sgf.crash;
+        sg_run_ms(600);
+        ok &= !song.playing && !sg.endg && sg_popped("ENDING", "DONE");
+        set_engine_of(&trk[3], e4);
+    }
+    if (!ok) printf("    r2: endg %u intro %u brk %u\n", sg.endg, sg.intro, sg.brk);
+    bad += check("  r2. BREAK during ENDING / INTRO: refused; no drum on T4: INTRO and ENDING mute and stop, no fill, no crash", ok);
+    /* 140. MORPH: SCENE 1 stored with a value, the value moved, D4 + D5 playing: over a bar it glides back, 16 steps,
+     * not at once; plain D5 still jumps */
+    {
+        uint8_t fm[4][2];
+        int16_t v0, v1, now, last, mono = 1;
+        uint32_t id, moved = 0, steps = 0;
+        song_fmap(0, fm);
+        id = fm[0][0];
+        sg_play();
+        sg_to_step(2);
+        v0 = trk[0].p[id];
+        btn_down(B_FX); frame(); sg_wtap(SG_D5); btn_up(B_FX); frame();   /* (stored: v0) */
+        ok = msg_is("SCENE 1 STORED");
+        v1 = (int16_t)(v0 > 50 ? v0 - 40 : v0 + 40);
+        trk[0].p[id] = v1;
+        key_down(white(5)); frame(); sg_wtap(SG_D5); key_up(white(5)); frame();
+        ok &= sg_popped("SCENE 1", "MORPH") && str_eq(sg_pop.note, "1 BAR") && (sc_pend || sc_run);
+        last = v1;
+        for (n = 0; n < 4000u && (sc_pend || sc_run); n++) {
+            pm_blocks(1);
+            now = trk[0].p[id];
+            if (now != last) { steps++; if ((v0 > v1) != (now > last)) mono = 0; moved |= now != v0 && now != v1; }
+            last = now;
+            if (n % 22u == 21u) frame();
+        }
+        ok &= !sc_run && !sc_pend && trk[0].p[id] == v0 && steps >= 8u && mono && moved;
+        if (!ok) printf("    morph: v0 %d v1 %d now %d steps %u mono %d moved %u\n", v0, v1, trk[0].p[id], (unsigned)steps, mono, (unsigned)moved);
+        trk[0].p[id] = v1;
+        sg_wtap(SG_D5);
+        for (n = 0; n < 400u && sc_pend; n++) pm_blocks(1);
+        ok &= !sc_run && trk[0].p[id] == v0;        /* (a plain tap: the jump at the next 1/16) */
+    }
+    bad += check("  140. MORPH (D4 + D5): the scene reached over a bar, a 1/16 a step; D5 alone still jumps", ok);
+    /* 141. a track whose sound changed since the store: skipped, its preset never loaded; the others morph */
+    {
+        uint8_t fm[4][2], pre = trk[1].preset, eng = trk[1].eng_req;
+        int16_t v0, v1;
+        uint32_t id;
+        song_fmap(0, fm);
+        id = fm[0][0];
+        v0 = trk[0].p[id];
+        btn_down(B_FX); frame(); sg_wtap(SG_D5); btn_up(B_FX); frame();
+        sg_scene[0].pre[1] = (uint8_t)(pre + 1u);        /* (T2's sound not the stored one) */
+        v1 = (int16_t)(v0 > 50 ? v0 - 40 : v0 + 40);
+        trk[0].p[id] = v1;
+        key_down(white(5)); frame(); sg_wtap(SG_D5); key_up(white(5)); frame();
+        ok = strstr(ui.msg, "SKIP T2") != 0;
+        for (n = 0; n < 4000u && (sc_pend || sc_run); n++) { pm_blocks(1); if (n % 22u == 21u) frame(); }
+        ok &= trk[0].p[id] == v0 && trk[1].preset == pre && trk[1].eng_req == eng;
+        sg_scene[0].pre[1] = pre;
+    }
+    bad += check("  141. MORPH: a track with another sound skipped (said), its preset not loaded; the rest glide", ok);
+    /* 142. a second recall mid-glide starts from where it is; stopped: the scene at once */
+    {
+        uint8_t fm[4][2];
+        int16_t v0, v1, mid;
+        uint32_t id;
+        song_fmap(0, fm);
+        id = fm[0][0];
+        v0 = trk[0].p[id];
+        v1 = (int16_t)(v0 > 50 ? v0 - 40 : v0 + 40);
+        trk[0].p[id] = v1;
+        key_down(white(5)); frame(); sg_wtap(SG_D5); key_up(white(5)); frame();
+        for (n = 0; n < 800u; n++) pm_blocks(1);
+        mid = trk[0].p[id];
+        ok = sc_run && mid != v0 && mid != v1;
+        key_down(white(5)); frame(); sg_wtap(SG_D5); key_up(white(5)); frame();
+        for (n = 0; n < 400u; n++) pm_blocks(1);
+        ok &= sc_run && sc_from[0] != v1;
+        sg_stop();
+        ok &= !sc_run && trk[0].p[id] == v0;         /* (the stop: the scene reached) */
+        trk[0].p[id] = v1;
+        key_down(white(5)); frame(); sg_wtap(SG_D5); key_up(white(5)); frame();
+        ok &= !sc_run && !sc_pend && trk[0].p[id] == v0;   /* (stopped: at once) */
+        if (!ok) printf("    morph 2: run %u from %d v1 %d now %d\n", sc_run, sc_from[0], v1, trk[0].p[id]);
+    }
+    bad += check("  142. MORPH again mid-glide: from where it is; STOP reaches it; stopped: at once", ok);
+    /* 143. an empty scene: red EMPTY; hold D5 and FX + D5 still store; HELP says MORPH; MORPH during an ENDING */
+    sg_scene[1].n = 0; sg.scenes &= 1u;
+    key_down(white(5)); frame(); sg_wtap(SG_D5 + 1u); key_up(white(5)); frame();
+    ok = sg_popped("EMPTY", "SCENE 2") && sg_pop.red && !sc_pend && !sc_run;
+    btn_down(B_FX); frame(); sg_wtap(SG_D5 + 1u); btn_up(B_FX); frame();
+    ok &= msg_is("SCENE 2 STORED");
+    btn_down(B_FX); frame(); sg_wtap(TL_COOK); btn_up(B_FX); frame();
+    sg_wtap(SG_D5);
+    ok &= sg.help && sg_popped("D5", "SCENE 1") && str_eq(sg_pop.note, "HOLD STORE D4 MORPH") && !sc_pend;
+    btn_down(B_FX); frame(); sg_wtap(TL_COOK); btn_up(B_FX); frame();
+    {
+        uint8_t fm[4][2];
+        int16_t v0, v1;
+        uint32_t id;
+        song_fmap(0, fm);
+        id = fm[0][0];
+        sg_play();
+        sg_to_step(2);
+        v0 = trk[0].p[id];
+        btn_down(B_FX); frame(); sg_wtap(SG_D5); btn_up(B_FX); frame();
+        v1 = (int16_t)(v0 > 50 ? v0 - 40 : v0 + 40);
+        trk[0].p[id] = v1;
+        sg_d4_black(9, 0);                              /* (ENDING armed, then the morph) */
+        key_down(white(5)); frame(); sg_wtap(SG_D5); key_up(white(5)); frame();
+        ok &= sg.endg == 1u && (sc_pend || sc_run);
+        ok &= sg_to_bar() && sg.endg == 2u;
+        for (n = 0; n < 4000u && (sc_pend || sc_run); n++) { pm_blocks(1); if (n % 22u == 21u) frame(); }
+        ok &= trk[0].p[id] == v0 && sg.endg >= 2u && song.playing;
+        ok &= sg_to_bar() && sg_to_bar();
+        sg_run_ms(600);
+        ok &= !song.playing && !sg.endg && trk[0].p[id] == v0;
+        if (!ok) printf("    morph + ending: endg %u playing %u now %d v0 %d\n", sg.endg, song.playing, trk[0].p[id], v0);
+    }
+    bad += check("  143. empty: red; stores unchanged; HELP: MORPH; a MORPH through an ENDING: both run, the ending stops", ok);
+    /* 144-145. DENSITY: D4 + black 6 on T2: 3/3, T2 busier (more NOTE steps), T1 T3 T4 unchanged; again 1/3 sparser;
+     * again 2/3: the pattern before (deterministic); the dot; T2's row flashes */
+    {
+        static step_t st[NTRK][NSTEP];
+        uint32_t i, n2, n3, n1, notes;
+        sg_close();
+        sg_open((uint32_t)sg_genre("TRANCE"), 42);
+        btn_up(B_SEQ); frame();
+        sg.dirty = 0;
+        for (i = 0; i < NTRK; i++) memcpy(st[i], trk[i].step, sizeof st[i]);
+        for (notes = 0, i = 0; i < NSTEP; i++) notes += trk[1].step[i].time == ST_NOTE;
+        n2 = notes;
+        sg_d4_black(5, 0);
+        ok = song_tdens(sg.part, 1) == 3u && sg_popped("T2 DENSITY", "3/3") && (sg.dirty & (1u << sg.part)) && sg.flash == 2u;
+        ok &= str_eq(sg_pop.note, sg_rdens[1] >= 100u ? "MAX" : "HIGH");   /* (r2 review: at the clamp already: MAX) */
+        for (notes = 0, i = 0; i < NSTEP; i++) notes += trk[1].step[i].time == ST_NOTE;
+        n3 = notes;
+        ok &= n3 >= n2 && (n3 > n2 || n2 >= tl_len(&trk[1])) &&   /* (16 of 16 already: saturated) */ !memcmp(st[0], trk[0].step, sizeof st[0]) &&
+              !memcmp(st[2], trk[2].step, sizeof st[2]) && !memcmp(st[3], trk[3].step, sizeof st[3]);
+        sg_d4_black(5, 0);
+        ok &= song_tdens(sg.part, 1) == 1u && sg_popped("T2 DENSITY", "1/3") && str_eq(sg_pop.note, "LOW");
+        for (notes = 0, i = 0; i < NSTEP; i++) notes += trk[1].step[i].time == ST_NOTE;
+        n1 = notes;
+        ok &= n1 < n2;
+        sg_d4_black(5, 0);
+        ok &= song_tdens(sg.part, 1) == 2u && sg_popped("T2 DENSITY", "2/3") && !memcmp(st[1], trk[1].step, sizeof st[1]);
+        sg_d4_black(5, 0); sg_d4_black(5, 0); sg_d4_black(5, 0);
+        ok &= song_tdens(sg.part, 1) == 2u && !memcmp(st[1], trk[1].step, sizeof st[1]);
+        if (!ok) printf("    density: notes %u %u %u tdens %u\n", (unsigned)n1, (unsigned)n2, (unsigned)n3, (unsigned)song_tdens(sg.part, 1));
+    }
+    {   /* (r3 review) MIN: 1/3 on a track at the 10 clamp already: DUB TECHNO's part D (BREAK) drum at DEN 50 */
+        static step_t st[NSTEP];
+        sg_close();
+        sg_open((uint32_t)sg_genre("DUB TECHNO"), 42);
+        btn_up(B_SEQ); frame();
+        fs.dens = 50;
+        sg_tap(3); sg_run_ms(100);                      /* (stopped: part D at once) */
+        song_render(sg.part);
+        ok &= sg.part == SG_D && sg_rdens[3] == 10u;
+        memcpy(st, trk[3].step, sizeof st);
+        sg_d4_black(7, 0); sg_d4_black(7, 0);          /* (T4: 3, then 1) */
+        ok &= song_tdens(SG_D, 3) == 1u && sg_popped("T4 DENSITY", "1/3") && str_eq(sg_pop.note, "MIN") &&
+              !memcmp(st, trk[3].step, sizeof st);     /* (nothing changed: 10 is the floor) */
+        sg_d4_black(7, 0);
+        ok &= song_tdens(SG_D, 3) == 2u && str_eq(sg_pop.note, "AS DEN");
+        if (!ok) printf("    MIN: part %u rdens %u note %s\n", sg.part, sg_rdens[3], sg_pop.note);
+        sg_close();
+        sg_open((uint32_t)sg_genre("TRANCE"), 42);
+        btn_up(B_SEQ); frame();
+    }
+    bad += check("  144-145. DENSITY (D4 + black 6): T2 3/3 busier (MAX at the clamp), the rest unchanged; 1/3 sparser; 2/3 the pattern before; MIN at the floor", ok);
+    /* 146. T2 locked: red T2 LOCKED, nothing; black 6 alone still LOCK T2; other parts keep their own */
+    {
+        static step_t st[NSTEP];
+        sg_tap(5);
+        ok = (sg.lock >> 1) & 1u;
+        memcpy(st, trk[1].step, sizeof st);
+        sg_d4_black(5, 0);
+        ok &= song_tdens(sg.part, 1) == 2u && sg_popped("T2 LOCKED", "DENSITY") && sg_pop.red && !memcmp(st, trk[1].step, sizeof st);
+        sg_tap(5);
+        ok &= !((sg.lock >> 1) & 1u);
+        sg_d4_black(5, 0);
+        ok &= song_tdens(SG_A, 1) == 3u && song_tdens(SG_B, 1) == 2u;
+        sg_tap(1); sg_run_ms(100);                      /* (stopped: part B at once) */
+        ok &= sg.part == SG_B && song_tdens(SG_B, 1) == 2u;
+        sg_tap(0); sg_run_ms(100);
+        ok &= sg.part == SG_A && song_tdens(SG_A, 1) == 3u;
+    }
+    bad += check("  146. T2 locked: red, nothing; black 6 alone still LOCK; each part its own densities", ok);
+    /* 147. OCT- x2: the density and the pattern before; after SG_WRITTEN: SAVE X? */
+    {
+        static step_t st[NSTEP];
+        memcpy(st, trk[1].step, sizeof st);
+        sg_d4_black(5, 0);
+        ok = song_tdens(SG_A, 1) == 1u && memcmp(st, trk[1].step, sizeof st) != 0;
+        sg_oct2();
+        ok &= song_tdens(SG_A, 1) == 3u && !memcmp(st, trk[1].step, sizeof st) && sg_popped("UNDO", "T2 DENSITY");
+        sg.stage = SG_WRITTEN; sg.pend = 0;
+        sg_d4_black(5, 0);
+        ok &= sg.pend == SG_A + 1u;
+        sg.stage = SG_EDIT; sg.pend = 0;
+    }
+    bad += check("  147. OCT- x2: the density and pattern before; written: SAVE X?", ok);
+    /* 148. leave / re-enter: kept; power off (the settings) and BOOT = SONG: kept; 0xFF (an old song) reads as 2 */
+    {
+        static step_t st[NSTEP];
+        uint32_t i;
+        sg_d4_black(6, 0);                              /* (T3 3/3) */
+        memcpy(st, trk[2].step, sizeof st);
+        sg_leave();
+        sg_hold_in();
+        ok = song_tdens(SG_A, 2) == 3u && song_tdens(SG_A, 1) == 1u && !memcmp(st, trk[2].step, sizeof st);
+        sg_leave();
+        ok &= sg_last_tdens[0] == sg.tdens[0] && sg_last_tdens[0] != 0u;
+        memset(&sg, 0, sizeof sg);                      /* (a power-off: SONG's RAM gone, the settings kept) */
+        sg_hold_in();
+        ok &= sg.on && song_tdens(SG_A, 2) == 3u && !memcmp(st, trk[2].step, sizeof st);
+        sg_leave();
+        sg_last_tdens[SG_N] = 0xFF;                     /* (an old song, erased flash: no marker, 0xFF bytes) */
+        sg_last_tdens[0] = 0xFF;
+        memset(&sg, 0, sizeof sg);
+        sg_hold_in();
+        ok &= sg.on && song_tdens(SG_A, 2) == 2u && song_tdens(SG_A, 1) == 2u;
+        for (i = 0; i < NTRK; i++) sg_d4_black(4u + i, 0);   /* (2 -> 3 each; r2 review: all four at 3 is 0xFF) */
+        for (i = 0; i < NTRK; i++) ok &= song_tdens(SG_A, i) == 3u;
+        ok &= sg.tdens[0] == 0xFFu;
+        sg_leave();
+        ok &= sg_last_tdens[0] == 0xFFu && sg_last_tdens[SG_N] == SG_TD_MAGIC;
+        memset(&sg, 0, sizeof sg);
+        sg_hold_in();
+        for (i = 0; i < NTRK; i++) ok &= song_tdens(SG_A, i) == 3u;
+        ok &= ENGINES[2]->npresets <= 192u;             /* (the bytes: engine 2's bits of presets 192..255) */
+        if (!ok) printf("    density kept: %u %u\n", (unsigned)song_tdens(SG_A, 2), (unsigned)sg_last_tdens[0]);
+    }
+    bad += check("  148. leave / re-enter and power off: the densities kept, all four at 3 (0xFF) too; an old song (no marker): 2", ok);
+    /* 149. AUTO EVOLVE with T2 at 3/3: its evolves keep 3/3; a new song (SEED): back to 2 */
+    sg.tdens[0] = 0;
+    sg_d4_black(5, 0);
+    ok = song_tdens(SG_A, 1) == 3u;
+    sg_play();
+    btn_down(B_FX); frame(); sg_wtap(TL_FORGE); btn_up(B_FX); frame();
+    ok &= sg.evolve;
+    for (n = 0; n < 12u; n++) sg_to_bar();
+    ok &= song_tdens(SG_A, 1) == 3u;
+    btn_down(B_FX); frame(); sg_wtap(TL_FORGE); btn_up(B_FX); frame();
+    sg_stop();
+    kt(EN_K1, 1);
+    ok &= song_tdens(SG_A, 1) == 2u && !sg.tdens[0];
+    bad += check("  149. AUTO EVOLVE keeps the density; another song: 2 again", ok);
+    sg_close();
+    return bad;
+}
 int main(void)
 {
-    int bad = test_open() + test_styles() + test_evolve() + test_names() + test_chords() + test_reroll() + test_golden() + test_drum() + test_051() + test_starter() + test_perform() + test_roles() + test_song() + test_song_fix() + test_song_fx() + test_song_perf() + test_song_v06() + test_song_view() + test_song_v07() + test_song_v08() + test_song_v09();
+    int bad = test_open() + test_styles() + test_evolve() + test_names() + test_chords() + test_reroll() + test_golden() + test_drum() + test_051() + test_starter() + test_perform() + test_roles() + test_song() + test_song_fix() + test_song_fx() + test_song_perf() + test_song_v06() + test_song_view() + test_song_v07() + test_song_v08() + test_song_v09() + test_song_v10();
     printf("%s\n", bad ? "FORGE TEST FAILED" : "forge tests passed");
     return bad != 0;
 }
