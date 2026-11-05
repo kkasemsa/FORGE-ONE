@@ -3977,7 +3977,27 @@ static int test_song_v10(void)
         ok &= song_tdens(sg.part, 1) == 2u && !memcmp(st[1], trk[1].step, sizeof st[1]);
         if (!ok) printf("    density: notes %u %u %u tdens %u\n", (unsigned)n1, (unsigned)n2, (unsigned)n3, (unsigned)song_tdens(sg.part, 1));
     }
-    bad += check("  144-145. DENSITY (D4 + black 6): T2 3/3 busier, the rest unchanged; 1/3 sparser; 2/3 the pattern before, round again the same", ok);
+    {   /* (r3 review) MIN: 1/3 on a track at the 10 clamp already: DUB TECHNO's part D (BREAK) drum at DEN 50 */
+        static step_t st[NSTEP];
+        sg_close();
+        sg_open((uint32_t)sg_genre("DUB TECHNO"), 42);
+        btn_up(B_SEQ); frame();
+        fs.dens = 50;
+        sg_tap(3); sg_run_ms(100);                      /* (stopped: part D at once) */
+        song_render(sg.part);
+        ok &= sg.part == SG_D && sg_rdens[3] == 10u;
+        memcpy(st, trk[3].step, sizeof st);
+        sg_d4_black(7, 0); sg_d4_black(7, 0);          /* (T4: 3, then 1) */
+        ok &= song_tdens(SG_D, 3) == 1u && sg_popped("T4 DENSITY", "1/3") && str_eq(sg_pop.note, "MIN") &&
+              !memcmp(st, trk[3].step, sizeof st);     /* (nothing changed: 10 is the floor) */
+        sg_d4_black(7, 0);
+        ok &= song_tdens(SG_D, 3) == 2u && str_eq(sg_pop.note, "AS DEN");
+        if (!ok) printf("    MIN: part %u rdens %u note %s\n", sg.part, sg_rdens[3], sg_pop.note);
+        sg_close();
+        sg_open((uint32_t)sg_genre("TRANCE"), 42);
+        btn_up(B_SEQ); frame();
+    }
+    bad += check("  144-145. DENSITY (D4 + black 6): T2 3/3 busier (MAX at the clamp), the rest unchanged; 1/3 sparser; 2/3 the pattern before; MIN at the floor", ok);
     /* 146. T2 locked: red T2 LOCKED, nothing; black 6 alone still LOCK T2; other parts keep their own */
     {
         static step_t st[NSTEP];
