@@ -527,8 +527,8 @@ TRS, with **CC 102–109 on channel 16**. Each works as its key does, quantized 
 
 - A value under 64 does nothing on 103, 104 and 106–109, so a pedal that sends 127 then 0 toggles once.
 - 102–105 need SONG open; otherwise the screen says `SONG OFF`. The mutes work anywhere.
-- At SONG's `OVERWRITE A-D?` or `SAVE X?` question, or with the menu or a dialog open, REMOTE messages are dropped
-  (not kept for later). HELP does not stop them.
+- At SONG's `OVERWRITE A-D?` question, or with the menu or a dialog open, REMOTE messages are dropped (not kept for
+  later). `SAVE X?` showing does not stop them (the keys work there too), nor does HELP.
 - Channel 16 CC 102–109 never reach MIDI LEARN, the CC map, the mod matrix or a track, whatever MIDI IN is; notes and
   other CCs on channel 16 are as before (with MIDI IN CH13-16 or TRACK they still play T4). A CC 102–109 learned with
   MIDI LEARN still works on every other channel. Nothing is recorded as motion, nothing is saved, no setting.

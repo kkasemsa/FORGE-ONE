@@ -772,7 +772,8 @@ static uint32_t eqa_sig(void)
  * 0..3: A..D), 103 the next part (A B C D A; twice in a bar: two on), 104 a FILL at the bar end (D4 + C4 tapped), 105
  * a scene recalled (value < 64: SCENE 1, else 2), 106..109 T1..T4's mute toggled (PERFORM's black 1..4, at the bar with
  * its QUANT). A trigger at value >= 64 (102 and 105: the value picks). 102..105 need SONG (else a red SONG OFF); the
- * mutes work anywhere. A question waiting (SONG's OVERWRITE / SAVE X?) or a menu or dialog open: dropped, never kept */
+ * mutes work anywhere. SONG's OVERWRITE A-D? or a menu or dialog open: dropped, never kept; SAVE X? showing: as usual
+ * (the keys work there too: a pedal after a reroll on stage) */
 static void midi_remote_do(uint32_t i, uint32_t v)
 {
     uint32_t t;
@@ -809,7 +810,7 @@ static void midi_remote_do(uint32_t i, uint32_t v)
 }
 static void midi_remote_poll(void)                       /* main loop (ui_input, after midi_pc_poll) */
 {
-    uint32_t i, v, drop = !layer_allowed() || (song_on() && (sg.stage == SG_CONFIRM || sg.pend));
+    uint32_t i, v, drop = !layer_allowed() || (song_on() && sg.stage == SG_CONFIRM);   /* (SAVE X?: not, as the keys) */
     for (i = 0; i < 8u; i++) {
         if (!ui.rm[i])
             continue;

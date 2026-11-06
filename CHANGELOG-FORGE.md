@@ -36,8 +36,8 @@ Newest first. FORGE is the SEQ TOOLS F5 motif generator in FORGE ONE (based on F
   check, MIDI LEARN, the CC map and the mod matrix; `ui_layer.c midi_remote_poll` (the main loop, after
   `midi_pc_poll`) calls the keys' own functions (`song_part_tap`, `song_fill_arm`, `song_scene`, `pm_set`). Nothing
   more in the audio ISR than the mailbox write.
-- SONG off: 102–105 say `SONG OFF`; the mutes work anywhere. A SONG question (`OVERWRITE A-D?`, `SAVE X?`), the menu
-  or a dialog: dropped. No setting, nothing saved, no motion recorded.
+- SONG off: 102–105 say `SONG OFF`; the mutes work anywhere. `OVERWRITE A-D?`, the menu or a dialog: dropped;
+  `SAVE X?` showing: as usual, like the keys (decision after review). No setting, nothing saved, no motion recorded.
 - Tests: `test_midi_remote` (the spec's 11 cases, the question / menu drop, HELP, QUANT, TRS through the UART parser).
 
 ## 0.18

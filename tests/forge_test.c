@@ -3747,6 +3747,24 @@ static int test_midi_remote(void)
     frames(50);
     ok &= sg.part == SG_A && !trk[0].p[P_MUTE];
     bad += check("  remote r. OVERWRITE A-D? open: every REMOTE dropped, not kept for after", ok);
+    /* r. SAVE X? showing (after a reroll on stage): REMOTE as usual, like the keys (the OCT- above left SONG) */
+    sg_close();
+    sg_open((uint32_t)sg_genre("TRANCE"), 42);
+    btn_up(B_SEQ); frame();
+    sg.stage = SG_WRITTEN; sg.pend = SG_A + 1u;
+    sg_play();
+    sg_to_step(3);
+    rm_cc(15, 102, 1);
+    ok = sg.qpart == 2u && sg.pend == SG_A + 1u;
+    rm_cc(15, 106, 127);
+    ok &= trk[0].p[P_MUTE] != 0;
+    rm_cc(15, 106, 127);
+    ok &= !trk[0].p[P_MUTE];
+    rm_to_bar();
+    ok &= sg.part == SG_B;
+    sg_stop();
+    sg.stage = SG_EDIT; sg.pend = 0;
+    bad += check("  remote r. SAVE X? showing: REMOTE as usual (a part, a mute)", ok);
     /* 7. SONG off: CC102 says SONG OFF; CC106 still mutes */
     sg_close();
     frames(10);
