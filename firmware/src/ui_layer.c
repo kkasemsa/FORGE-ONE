@@ -767,6 +767,60 @@ static uint32_t eqa_sig(void)
 
 /* a key pressed in layer l (k: 0 = F3 .. 26 = G5) */
 #include "ui_perform.c"                                 /* FORGE ONE 0.7: PERFORM, the FX layer locked */
+
+/* FORGE ONE MIDI REMOTE (spec v0.1): channel 16, CC 102..109, as the keys do, quantized as they are. 102 a part (value
+ * 0..3: A..D), 103 the next part (A B C D A; twice in a bar: two on), 104 a FILL at the bar end (D4 + C4 tapped), 105
+ * a scene recalled (value < 64: SCENE 1, else 2), 106..109 T1..T4's mute toggled (PERFORM's black 1..4, at the bar with
+ * its QUANT). A trigger at value >= 64 (102 and 105: the value picks). 102..105 need SONG (else a red SONG OFF); the
+ * mutes work anywhere. A question waiting (SONG's OVERWRITE / SAVE X?) or a menu or dialog open: dropped, never kept */
+static void midi_remote_do(uint32_t i, uint32_t v)
+{
+    uint32_t t;
+    if (i >= 4u) {                                      /* (106..109: a mute, anywhere) */
+        if (v < 64u)
+            return;
+        t = i - 4u;
+        pm_set(pm_want_mute() ^ (1u << t), pm_want_solo());
+        {
+            char b[12] = {'T', (char)('1' + t), ' ', 0};
+            str_cpy(b + 3, (pm_want_mute() >> t) & 1u ? "MUTE" : "ON", sizeof b - 3u);
+            ui_message(b);
+            if (song_on())
+                song_pop(SOV_POP, "REMOTE", b, pq_pend ? "@ NEXT BAR" : "", -1, 0);
+        }
+        return;
+    }
+    if (i != 0u && i != 3u && v < 64u)                  /* (103 104: triggers) */
+        return;
+    if (i == 0u && v >= SG_N)                           /* (102: A..D only) */
+        return;
+    if (!song_on()) {
+        song_refuse("SONG OFF", "REMOTE");
+        return;
+    }
+    if (i == 0u)
+        song_part_tap(v);
+    else if (i == 1u)
+        song_part_tap(((sg.qpart ? sg.qpart - 1u : sg.part) + 1u) % SG_N);
+    else if (i == 2u)
+        song_fill_arm();
+    else
+        song_scene(v >= 64u, 0);
+}
+static void midi_remote_poll(void)                       /* main loop (ui_input, after midi_pc_poll) */
+{
+    uint32_t i, v, drop = !layer_allowed() || (song_on() && (sg.stage == SG_CONFIRM || sg.pend));
+    for (i = 0; i < 8u; i++) {
+        if (!ui.rm[i])
+            continue;
+        fm1_irq_off();                                  /* (the ISR may note another meanwhile) */
+        v = ui.rm[i];
+        ui.rm[i] = 0;
+        fm1_irq_on();
+        if (!drop)
+            midi_remote_do(i, v & 127u);
+    }
+}
 static void layer_key(uint32_t l, uint32_t k)
 {
     uint32_t p = key_place(k), i;

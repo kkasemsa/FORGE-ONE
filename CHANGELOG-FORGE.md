@@ -27,6 +27,19 @@ Newest first. FORGE is the SEQ TOOLS F5 motif generator in FORGE ONE (based on F
 | 0.2 | 21 Oct 2026 | The generator: SEED, DENSITY, EVOLVE, 8 styles |
 | 0.1 | 21 Oct 2026 | Scaffold: F5 FORGE cell, CI build |
 
+## MIDI REMOTE (spec v0.1, on 0.18; branch `feat/midi-remote`)
+
+- CC 102–109 on channel 16 (USB and TRS) drive SONG and the mutes from a foot controller: 102 part A–D (value 0–3),
+  103 the next part, 104 FILL at the bar end, 105 SCENE 1 / 2 (value < 64 / ≥ 64), 106–109 T1–T4 mute toggles
+  (PERFORM's QUANT). Triggers at value ≥ 64; each works and shows as its key, quantized the same.
+- `midi_control.c midi_event` notes them in a mailbox (`ui.rm[8]`, 0x80 | value, the later wins) before the ROUT
+  check, MIDI LEARN, the CC map and the mod matrix; `ui_layer.c midi_remote_poll` (the main loop, after
+  `midi_pc_poll`) calls the keys' own functions (`song_part_tap`, `song_fill_arm`, `song_scene`, `pm_set`). Nothing
+  more in the audio ISR than the mailbox write.
+- SONG off: 102–105 say `SONG OFF`; the mutes work anywhere. A SONG question (`OVERWRITE A-D?`, `SAVE X?`), the menu
+  or a dialog: dropped. No setting, nothing saved, no motion recorded.
+- Tests: `test_midi_remote` (the spec's 11 cases, the question / menu drop, HELP, QUANT, TRS through the UART parser).
+
 ## 0.18
 
 Usability and three genres (from the 0.17 review's ideas 1 2 3 4 6).

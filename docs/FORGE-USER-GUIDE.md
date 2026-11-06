@@ -514,6 +514,26 @@ action replaces it at once. Something refused (`BPM LOCKED`, `EXT CLOCK`, `T3 LO
 frame. A part that differs from its saved slot has an orange dot on its block (all four until the song is written;
 `SAVE A-D` or `SAVE X?` clears them).
 
+**MIDI REMOTE (spec v0.1):** a foot controller (for example a Livtra NexFoot) drives SONG and the mutes over USB or
+TRS, with **CC 102–109 on channel 16**. Each works as its key does, quantized the same way, and opens the same box.
+
+| CC (ch 16) | Value | Does | As the key |
+| --- | --- | --- | --- |
+| 102 | 0–3 = A–D (4 and up: nothing) | Part A–D, at the next bar (stopped: at once) | Black 1–4 |
+| 103 | 64 or more | The next part, A → B → C → D → A (twice in a bar: two on) | – |
+| 104 | 64 or more | FILL at the bar end | D4 + C4 tapped |
+| 105 | 0–63 = SCENE 1, 64–127 = SCENE 2 | Recall the scene, at the next 1/16 | D5 / E5 |
+| 106–109 | 64 or more | Mute T1–T4 on / off (with PERFORM's QUANT: at the bar) | PERFORM black 1–4 |
+
+- A value under 64 does nothing on 103, 104 and 106–109, so a pedal that sends 127 then 0 toggles once.
+- 102–105 need SONG open; otherwise the screen says `SONG OFF`. The mutes work anywhere.
+- At SONG's `OVERWRITE A-D?` or `SAVE X?` question, or with the menu or a dialog open, REMOTE messages are dropped
+  (not kept for later). HELP does not stop them.
+- Channel 16 CC 102–109 never reach MIDI LEARN, the CC map, the mod matrix or a track, whatever MIDI IN is; notes and
+  other CCs on channel 16 are as before (with MIDI IN CH13-16 or TRACK they still play T4). A CC 102–109 learned with
+  MIDI LEARN still works on every other channel. Nothing is recorded as motion, nothing is saved, no setting.
+- Scenes are never stored from MIDI (a slip on stage would overwrite one). No feedback is sent back to the controller.
+
 ## 8. What FORGE writes, and what it leaves alone
 
 **Writes:** steps 1 to LEN of the selected track. On a synth track each step gets notes (1, 3 or 4), NOTE, TIE or REST, accent,

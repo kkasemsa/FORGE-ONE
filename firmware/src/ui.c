@@ -225,6 +225,8 @@ static struct {
     } ml;
     volatile uint8_t mpc[NTRK];  /* MIDI Program Change per track, 0x80 | program, 0 none (midi_control.c mpc_io: here
                                   * for the same reason as ml.io; midi_pc_poll) */
+    volatile uint8_t rm[8];      /* FORGE ONE MIDI REMOTE: ch 16 CC 102..109, 0x80 | value, 0 none (midi_control.c
+                                  * rm_io, the same reason; ui_layer.c midi_remote_poll) */
 } ui;
 
 enum { CF_NONE, CF_CLEAR_SEQ, CF_CLEAR_TRK, CF_OVR_PROJ, CF_OVR_USER, CF_LOAD_PAT,
@@ -1459,6 +1461,7 @@ static void clean_engine(void) { clean_engine_of(TSEL); }
  * then the voice bank's B1..B32 through SLOT as the knob loads them (fm6_poll; the rest of the sound stays), an empty
  * one ignored. A program past the last is ignored, not wrapped: a number is always the same sound */
 static volatile uint8_t *const mpc_io = ui.mpc;
+static volatile uint8_t *const rm_io = ui.rm;
 static void midi_pc_load(track_t *t, uint32_t n)
 {
     uint32_t e = t->eng_req % NENGINES, k;
