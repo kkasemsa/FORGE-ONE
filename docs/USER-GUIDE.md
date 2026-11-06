@@ -829,6 +829,8 @@ audio input appears.
   knob of any track. OCT− clears the picked one; MENU > MIDI > LEARN CLEAR clears them all.
 - **Program Change** on a track's channel loads that track's sound by its number in PRESETS (from 0). The engine never
   changes.
+- **MIDI REMOTE (FORGE ONE):** CC 102–109 on channel 16 are kept for a foot controller (SONG's parts, FILL, scenes, the
+  mutes; FORGE-USER-GUIDE, chapter 7). They never reach MIDI LEARN or a track, whatever MIDI IN is.
 
 ---
 

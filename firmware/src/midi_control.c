@@ -387,6 +387,13 @@ static void __attribute__((noinline)) midi_route_block(void)
  * noted here, 0x80 | d1 per track (a later one before the main loop wins): a sound load is the main loop's work
  * (undo, motion, FM6's patch), never the audio ISR's. ui.mpc (ui.c; a build without the UI: none) */
 static volatile uint8_t *const mpc_io;
+/* FORGE ONE MIDI REMOTE (spec v0.1): CC 102..109 on channel 16 drive SONG and the mutes from a foot controller. Only
+ * noted here, 0x80 | value per CC (a later one before the main loop wins), before the ROUT check, MIDI LEARN, the CC
+ * map and the mod matrix: none of them sees these (ui.rm, ui_layer.c midi_remote_poll; a build without the UI: none) */
+#define RM_CH 15u                                   /* (channel 16) */
+#define RM_CC0 102u
+#define RM_N 8u
+static volatile uint8_t *const rm_io;
 
 /* Keep the occasional controller/panic dispatch outside the hot rendering loop. Channel voice messages only
  * (realtime and clock are handled in events_block, SysEx never reaches here). With ROUT CH1-4 channels
@@ -394,6 +401,11 @@ static volatile uint8_t *const mpc_io;
  * channel aftertouch, Program Change, so they stay free for other instruments. */
 static void __attribute__((noinline)) midi_event(uint32_t st, uint32_t ch, uint32_t d1, uint32_t d2)
 {
+    if (st == 0xB0u && ch == RM_CH && d1 - RM_CC0 < RM_N) {   /* (MIDI REMOTE: whatever ROUT is) */
+        if (rm_io)
+            rm_io[d1 - RM_CC0] = (uint8_t)(0x80u | d2);
+        return;
+    }
     if (song.g[G_ROUTE] != 1 && !midi_in_block(ch))
         return;
     if (st == 0x90u || st == 0x80u)

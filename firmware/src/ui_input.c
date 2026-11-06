@@ -1316,6 +1316,7 @@ static uint32_t btn_hold(uint32_t *t0, uint32_t label, uint32_t now, int hold_ok
 
 /* the quick layers: ui_layer.c (included after this file) */
 static void layer_masks(void);
+static void midi_remote_poll(void);              /* (ui_layer.c: FORGE ONE MIDI REMOTE) */
 static void layer_arm(uint32_t pressed, uint32_t now);
 static uint32_t layer_held(void);
 static int layer_knobs_quiet(void);
@@ -1481,6 +1482,7 @@ static void ui_input(void)
     static uint32_t lock_ms;                            /* BPM LOCK: the last locked SELECT turn (fm1_ms | 1; 0 none) */
     midi_take();                                        /* (MIDI IN notes: lights, SCREEN WAKE, AUTO SELECT's) */
     midi_pc_poll();                                     /* MIDI Program Change (before fm6_poll: a bank voice) */
+    midi_remote_poll();                                 /* FORGE ONE MIDI REMOTE (ch 16 CC 102..109) */
     fm6_poll();                                         /* FM6: PTCH turned -> its patch */
 #if !FELUCCA_FM4
     for (k = 0; k < NTRK; k++)                          /* a DIGITAL sound any other way (the paths convert it */

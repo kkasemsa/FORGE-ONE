@@ -3609,9 +3609,243 @@ static int test_song_v09(void)
     return bad;
 }
 
+/* FORGE ONE MIDI REMOTE (spec v0.1): ch 16 CC 102..109 from a foot controller, USB and TRS */
+static void rm_cc(uint32_t ch, uint32_t cc, uint32_t v)          /* a USB-MIDI CC, the ISR, then a main-loop pass */
+{
+    uint32_t st = 0xB0u | (ch & 15u);
+    midi_enqueue(0xBu | st << 8 | cc << 16 | v << 24, 1u);
+    pm_blocks(1);
+    frame();
+}
+static void rm_note(uint32_t ch, uint32_t n, uint32_t v)
+{
+    uint32_t st = (v ? 0x90u : 0x80u) | (ch & 15u);
+    midi_enqueue((st >> 4) | st << 8 | n << 16 | v << 24, 1u);
+    pm_blocks(1);
+    frame();
+}
+static void rm_trs(uint32_t ch, uint32_t cc, uint32_t v)         /* the same through the TRS UART parser */
+{
+    um_byte(0xB0u | (ch & 15u));
+    um_byte(cc);
+    um_byte(v);
+    pm_blocks(1);
+    frame();
+}
+static int rm_held(const track_t *t, uint32_t note)
+{
+    uint32_t i;
+    for (i = 0; i < NVOICE; i++)
+        if (t->v[i].active && t->v[i].gate && t->v[i].note == note)
+            return 1;
+    return 0;
+}
+static uint32_t rm_to_bar(void)                         /* the next bar line (song_poll's), 1 when it came */
+{
+    uint32_t n, was = sg.barhit;
+    for (n = 0; n < 60000u; n++) {
+        pm_blocks(1);
+        if (n % 22u == 21u) { frame(); if (sg.barhit && !was) return 1; was = sg.barhit; }
+    }
+    return 0;
+}
+static int test_midi_remote(void)
+{
+    int bad = 0, ok;
+    uint32_t i;
+    sg_close();
+    sg_open((uint32_t)sg_genre("TRANCE"), 42);
+    fx_latch &= ~1u; perf_latch_on = 0;
+    btn_up(B_SEQ); frame();
+    song.g[G_ROUTE] = 0;                                /* (ROUT CH1-4) */
+    pm_store[4] &= (uint8_t)~PM_QUANT;
+    for (i = 0; i < NTRK; i++) trk[i].p[P_MUTE] = 0;
+    perf_psolo = 0;
+    /* 1. ch 16 CC102 value 1, playing: part B waits for the bar line, the box says so; there it changes */
+    sg_play();
+    sg_to_step(3);
+    rm_cc(15, 102, 1);
+    ok = sg.qpart == 2u && sg.part == SG_A && sg_popped("PART", "B") && str_eq(sg_pop.note, "@ NEXT BAR");
+    ok &= rm_to_bar() && sg.part == SG_B && !sg.qpart;
+    bad += check("  remote 1. ch16 CC102 v1 playing: PART B @ NEXT BAR, in at the bar line", ok);
+    /* 2. CC102 value 4..127: nothing */
+    sg_to_step(3);
+    rm_cc(15, 102, 4); rm_cc(15, 102, 64); rm_cc(15, 102, 127);
+    ok = !sg.qpart && sg.part == SG_B;
+    bad += check("  remote 2. CC102 v4..127: nothing", ok);
+    /* 3. CC103 twice in a bar from A: C waits; from D: A */
+    rm_cc(15, 102, 0);
+    rm_to_bar();
+    ok = sg.part == SG_A;
+    sg_to_step(3);
+    rm_cc(15, 103, 127); rm_cc(15, 103, 0); rm_cc(15, 103, 127);
+    ok &= sg.qpart == 3u;
+    ok &= rm_to_bar() && sg.part == SG_C;
+    rm_cc(15, 102, 3);
+    rm_to_bar();
+    ok &= sg.part == SG_D;
+    sg_to_step(3);
+    rm_cc(15, 103, 100);
+    ok &= sg.qpart == 1u && sg_popped("PART", "A");
+    rm_to_bar();
+    ok &= sg.part == SG_A;
+    bad += check("  remote 3. CC103: twice in a bar from A waits for C, from D: A (v0 ignored)", ok);
+    /* 4. CC104: a fill at the bar end; T4 muted: refused, no fill */
+    sg_to_step(3);
+    rm_cc(15, 104, 127);
+    ok = sg.farm && sg_popped("FILL", "@ BAR END");
+    sg_to_step(2);
+    rm_cc(15, 104, 127);
+    btn_down(B_FX); frame(); key_down(white(3)); frame();   /* (FX + B3 held: T4 muted) */
+    sg.farm = 0; sgf.bar = 0;
+    rm_cc(15, 104, 127);
+    ok &= !sg.farm && !sgf.bar && !sgf.live && sg_popped("FILL", "T4 MUTED") && sg_pop.red;
+    key_up(white(3)); frame(); btn_up(B_FX); frame();
+    bad += check("  remote 4. CC104: FILL @ BAR END; T4 muted: red T4 MUTED, no fill", ok);
+    /* 5. CC105 on an empty scene: EMPTY, nothing recalled; v >= 64 is SCENE 2 */
+    {
+        uint16_t pre = trk[0].preset;
+        sg.scenes = 0;
+        rm_cc(15, 105, 10);
+        ok = sg_popped("EMPTY", "SCENE 1") && sg_pop.red && !sc_pend && trk[0].preset == pre;
+        rm_cc(15, 105, 100);
+        ok &= sg_popped("EMPTY", "SCENE 2");
+    }
+    bad += check("  remote 5. CC105 on an empty scene: EMPTY, nothing changes; v64+: SCENE 2", ok);
+    /* 6. CC106 v127 then v0: T1 muted once (v0 does not toggle it back); again: on */
+    rm_cc(15, 106, 127);
+    ok = trk[0].p[P_MUTE] && msg_is("T1 MUTE");
+    rm_cc(15, 106, 0);
+    ok &= trk[0].p[P_MUTE] != 0;
+    rm_cc(15, 106, 127);
+    ok &= !trk[0].p[P_MUTE] && msg_is("T1 ON");
+    rm_cc(15, 109, 127);
+    ok &= trk[3].p[P_MUTE] != 0;
+    rm_cc(15, 109, 127);
+    ok &= !trk[3].p[P_MUTE];
+    pm_store[4] |= PM_QUANT;                            /* (PERFORM's QUANT: at the bar) */
+    sg_to_step(3);
+    rm_cc(15, 107, 127);
+    ok &= !trk[1].p[P_MUTE] && pq_pend && sg_popped("REMOTE", "T2 MUTE") && str_eq(sg_pop.note, "@ NEXT BAR");
+    rm_to_bar();
+    for (i = 0; i < 400u && pq_pend; i++) pm_blocks(1);      /* (the bar's first step takes it) */
+    ok &= trk[1].p[P_MUTE] != 0 && !pq_pend;
+    rm_cc(15, 107, 127);
+    rm_to_bar();
+    for (i = 0; i < 400u && pq_pend; i++) pm_blocks(1);
+    ok &= !trk[1].p[P_MUTE];
+    pm_store[4] &= (uint8_t)~PM_QUANT;
+    bad += check("  remote 6. CC106 v127 then v0: T1 muted once; 109: T4; with QUANT: at the bar", ok);
+    /* r. a question open (OVERWRITE A-D?): dropped, and not done after it either */
+    sg_stop();
+    oct_fwd();
+    ok = sg.stage == SG_CONFIRM;
+    rm_cc(15, 102, 2);
+    rm_cc(15, 106, 127);
+    ok &= sg.part == SG_A && !trk[0].p[P_MUTE] && sg.stage == SG_CONFIRM;
+    sg_back();
+    frames(50);
+    ok &= sg.part == SG_A && !trk[0].p[P_MUTE];
+    bad += check("  remote r. OVERWRITE A-D? open: every REMOTE dropped, not kept for after", ok);
+    /* r. SAVE X? showing (after a reroll on stage): REMOTE as usual, like the keys (the OCT- above left SONG) */
+    sg_close();
+    sg_open((uint32_t)sg_genre("TRANCE"), 42);
+    btn_up(B_SEQ); frame();
+    sg.stage = SG_WRITTEN; sg.pend = SG_A + 1u;
+    sg_play();
+    sg_to_step(3);
+    rm_cc(15, 102, 1);
+    ok = sg.qpart == 2u && sg.pend == SG_A + 1u;
+    rm_cc(15, 106, 127);
+    ok &= trk[0].p[P_MUTE] != 0;
+    rm_cc(15, 106, 127);
+    ok &= !trk[0].p[P_MUTE];
+    rm_to_bar();
+    ok &= sg.part == SG_B;
+    sg_stop();
+    sg.stage = SG_EDIT; sg.pend = 0;
+    bad += check("  remote r. SAVE X? showing: REMOTE as usual (a part, a mute)", ok);
+    /* 7. SONG off: CC102 says SONG OFF; CC106 still mutes */
+    sg_close();
+    frames(10);
+    ok = !sg.on;
+    rm_cc(15, 102, 1);
+    ok &= msg_is("SONG OFF");
+    rm_cc(15, 106, 127);
+    ok &= trk[0].p[P_MUTE] && msg_is("T1 MUTE");
+    rm_cc(15, 106, 127);
+    ok &= !trk[0].p[P_MUTE];
+    bad += check("  remote 7. SONG off: CC102 SONG OFF; CC106 mutes T1 anyway", ok);
+    /* 8. ROUT CH1-4: REMOTE heard on ch16, a note on ch16 still not */
+    sg_open((uint32_t)sg_genre("TRANCE"), 42);
+    btn_up(B_SEQ); frame();
+    song.g[G_ROUTE] = 0;
+    rm_cc(15, 102, 2);                                  /* (stopped: at once) */
+    ok = sg.part == SG_C;
+    rm_note(15, 60, 100);
+    for (i = 0; i < NTRK; i++) ok &= !rm_held(&trk[i], 60);
+    rm_note(15, 60, 0);
+    bad += check("  remote 8. ROUT CH1-4: ch16 REMOTE heard, a ch16 note still dropped", ok);
+    /* 9. ROUT CH13-16: a note on ch16 plays T4; CC102 there is REMOTE, never T4's */
+    song.g[G_ROUTE] = 4;
+    trk[3].p[P_MUTE] = 0;
+    rm_note(15, 40, 100);
+    ok = rm_held(&trk[3], 40);
+    rm_note(15, 40, 0);
+    {
+        int16_t was[P_COUNT];
+        memcpy(was, trk[3].p, sizeof was);
+        rm_cc(15, 102, 0);
+        ok &= sg.part == SG_A && !memcmp(was, trk[3].p, sizeof was);
+    }
+    song.g[G_ROUTE] = 0;
+    bad += check("  remote 9. ROUT CH13-16: ch16 notes play T4, CC102 is REMOTE (T4 untouched)", ok);
+    /* 10. CC102 learned (MIDI LEARN, T1 PAN): on ch 1 it still sets PAN, on ch 16 it is REMOTE */
+    {
+        uint32_t e0 = ml_get(0);
+        ml_put(0, ml_code(P_PAN) << 9 | 0u << 7 | 102u);
+        trk[0].p[P_PAN] = 0;
+        rm_cc(0, 102, 127);
+        ok = trk[0].p[P_PAN] > 0 && sg.part == SG_A;
+        trk[0].p[P_PAN] = 0;
+        rm_cc(15, 102, 1);
+        ok &= trk[0].p[P_PAN] == 0 && sg.part == SG_B;
+        ml_put(0, e0);
+    }
+    bad += check("  remote 10. learned CC102: on ch1 the learned PAN, on ch16 REMOTE", ok);
+    /* 11. TRS: the same as USB */
+    rm_trs(15, 102, 3);
+    ok = sg.part == SG_D;
+    sg_play();
+    sg_to_step(3);
+    rm_trs(15, 103, 127);
+    ok &= sg.qpart == 1u;
+    rm_trs(15, 108, 127);
+    ok &= trk[2].p[P_MUTE] != 0;
+    rm_trs(15, 108, 127);
+    ok &= !trk[2].p[P_MUTE];
+    rm_to_bar();
+    ok &= sg.part == SG_A;
+    sg_stop();
+    bad += check("  remote 11. TRS (the UART parser): as USB", ok);
+    /* r. the menu open: dropped; HELP on: as usual */
+    btn_down(B_FX); frame(); sg_wtap(TL_COOK); btn_up(B_FX); frame();
+    ok = sg.help;
+    rm_cc(15, 102, 1);
+    ok &= sg.part == SG_B;
+    btn_down(B_FX); frame(); sg_wtap(TL_COOK); btn_up(B_FX); frame();
+    ui.menu = 1;
+    rm_cc(15, 102, 2);
+    ui.menu = 0;
+    frame();
+    ok &= sg.part == SG_B;
+    bad += check("  remote r. HELP on: REMOTE as usual; the menu open: dropped", ok);
+    sg_close();
+    return bad;
+}
 int main(void)
 {
-    int bad = test_open() + test_styles() + test_evolve() + test_names() + test_chords() + test_reroll() + test_golden() + test_drum() + test_051() + test_starter() + test_perform() + test_roles() + test_song() + test_song_fix() + test_song_fx() + test_song_perf() + test_song_v06() + test_song_view() + test_song_v07() + test_song_v08() + test_song_v09();
+    int bad = test_open() + test_styles() + test_evolve() + test_names() + test_chords() + test_reroll() + test_golden() + test_drum() + test_051() + test_starter() + test_perform() + test_roles() + test_song() + test_song_fix() + test_song_fx() + test_song_perf() + test_song_v06() + test_song_view() + test_song_v07() + test_song_v08() + test_song_v09() + test_midi_remote();
     printf("%s\n", bad ? "FORGE TEST FAILED" : "forge tests passed");
     return bad != 0;
 }
